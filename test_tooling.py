@@ -47,13 +47,7 @@ def test_prettier():
             '</html>\n'
         )
     finally:
-        test_path.write_text(
-            '<html>\n'
-            '    <body>\n'
-            '        {% for item in items %}<div>{{ item }}</div>{% endfor %}\n'
-            '    </body>\n'
-            '</html>\n'
-        )
+        test_path.unlink(missing_ok=True)
 
 
 def test_typos():
