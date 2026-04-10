@@ -62,7 +62,7 @@ eval "glob=(${2:?missing source glob})"
 shift 2
 command_args=$*
 set -- $(
-    git ls-files -- "${glob[@]}" \
+    git -c core.quotePath=false ls-files -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
             grep --invert-match '^#' .biobuddies/autoformat-excludes
         ) || [[ $? -eq 1 ]]
@@ -110,9 +110,9 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$(
-    [[ $(mise orgn)/$(mise cona) == biobuddies/helicopyter ]] \
+    [[ $(mise orgn)/$(mise cona) == biobuddies/measles ]] \
         && echo . \
-        || echo https://github.com/biobuddies/helicopyter.git
+        || echo https://github.com/biobuddies/measles.git
 )"
 '''
 
@@ -150,7 +150,7 @@ exit $return_code
 """
 
 [tasks.prettier-write]
-run = 'mise run-on-sources prettier "*.{html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
+run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
@@ -297,13 +297,15 @@ depends = [
     'actionlint',
     'basedpyright',
     'hadolint',
-    'helicopyter',
     'mailmap',
     'shellcheck',
     'uv-pip-check',
     'validate-pyproject',
     'yamllint',
 ]
+
+[tasks.pre-commit]
+depends = ['pre-commit-fast']
 
 [tasks.pre-commit-all]
 depends = [
@@ -315,7 +317,6 @@ depends = [
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
 gh = 'latest'
-just = '1.36.0'
 node = '22'
 python = '3.12'
 uv = '0.10.10'
