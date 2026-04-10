@@ -25,7 +25,6 @@ jobs:
             - run: mise run pre-commit
             - run: mise tvalid demo
             - run: mise test
-            - run: .venv/bin/just build_twine
     tabularize:
         runs-on: ubuntu-latest
         steps:

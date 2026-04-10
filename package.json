@@ -1,0 +1,8 @@
+{
+    "devDependencies": {
+        "prettier": "*",
+        "prettier-plugin-jinja-template": "*",
+        "prettier-plugin-organize-attributes": "*",
+        "prettier-plugin-toml": "*"
+    }
+}

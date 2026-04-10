@@ -110,9 +110,9 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$(
-    [[ $(mise orgn)/$(mise cona) == biobuddies/helicopyter ]] \
+    [[ $(mise orgn)/$(mise cona) == biobuddies/measles ]] \
         && echo . \
-        || echo https://github.com/biobuddies/helicopyter.git
+        || echo https://github.com/biobuddies/measles.git
 )"
 '''
 
@@ -138,6 +138,7 @@ run = 'python -m helicopyter --format_with=${INSH_TF:-terraform} all "$@"'
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+git rev-parse --is-inside-work-tree HEAD >/dev/null 2>&1 || exit 0
 emails_names=$(git log --format='%aE%x09%aN' --use-mailmap "$@" | sort --unique)
 return_code=0
 for repeat in $(echo "$emails_names" | cut -f 1 | uniq --repeated); do
@@ -150,7 +151,7 @@ exit $return_code
 """
 
 [tasks.prettier-write]
-run = 'mise run-on-sources prettier "*.{html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
+run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
@@ -277,7 +278,7 @@ run = 'validate-pyproject pyproject.toml "$@"'
 run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json databaseId --jq ".[0].databaseId" | xargs -I {} mise x -- gh run watch {}'
 
 [tasks.yamllint]
-run = 'mise run-on-sources yamllint \*.yaml "$@"'
+run = 'mise run-on-sources yamllint \*.yaml --config-file .biobuddies/yamllint.yaml "$@"'
 
 # Task collections
 [tasks.pre-commit-fast]
@@ -297,13 +298,15 @@ depends = [
     'actionlint',
     'basedpyright',
     'hadolint',
-    'helicopyter',
     'mailmap',
     'shellcheck',
     'uv-pip-check',
     'validate-pyproject',
     'yamllint',
 ]
+
+[tasks.pre-commit]
+depends = ['pre-commit-fast']
 
 [tasks.pre-commit-all]
 depends = [
@@ -315,7 +318,6 @@ depends = [
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
 gh = 'latest'
-just = '1.36.0'
 node = '22'
 python = '3.12'
 uv = '0.10.10'

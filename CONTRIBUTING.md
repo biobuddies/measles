@@ -55,4 +55,7 @@ simplest:
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
-* Favorite tools: `curl`, `gh`, `git`, `mise`, `npm`, `uv`
+* Favorite tools: `curl`, `gh`, `git`, `git grep`, `git ls-files`, `mise`, `npm`, `uv`
+
+The `git` subcommands are preferred for searching and listing files as they automatically
+respect `.gitignore`, avoiding noise from `.venv` and `node_modules`.
