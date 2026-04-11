@@ -18,6 +18,7 @@ precommit = [
     'djlint',
     'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
     'pre-commit-hooks',
+    'pyre-check',
     'pytest',
     'pytest-cov',
     'ruff',
