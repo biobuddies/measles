@@ -111,10 +111,13 @@ run = 'mise run-on-sources basedpyright "*.py{,i}" --level error "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+edit=false
+[[ ${1-} == --edit ]] && edit=true
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$(
-    [[ $(mise orgn)/$(mise cona) == biobuddies/measles ]] \
-        && echo . \
-        || echo https://github.com/biobuddies/measles.git
+    if [[ $(mise orgn)/$(mise cona) == biobuddies/measles ]]; then echo .
+    elif $edit; then echo "$HOME/code/measles"
+    else echo https://github.com/biobuddies/measles.git
+    fi
 )"
 '''
 

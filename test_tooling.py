@@ -91,6 +91,26 @@ def test_git_ignore(tmp_path: Path):
     assert (tmp_path / '.gitignore').read_text() == '/site/ton/\n'
 
 
+def test_cookiecutter_existing_repo():
+    home_code = Path.home() / 'code'
+    home_code.mkdir(exist_ok=True)
+    measles = Path(__file__).parent
+    measles_link = home_code / 'measles'
+    if not measles_link.exists():
+        measles_link.symlink_to(measles)
+    wriggle = home_code / 'wriggle'
+    if not wriggle.exists():
+        check_call(['git', 'clone', 'https://github.com/biobuddies/wriggle.git', str(wriggle)])
+    check_call(
+        [
+            'cookiecutter', '--config-file', '.cookiecutter.yaml',
+            '--no-input', '--overwrite-if-exists', str(measles_link),
+        ],
+        cwd=wriggle,
+    )
+    assert check_output(['git', 'diff', '--name-only'], cwd=wriggle) == b''
+
+
 @mark.parametrize(
     ('git_describe', 'tabr'),
     (
