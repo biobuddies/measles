@@ -1,0 +1,14 @@
+bracketSpacing = false
+plugins = [
+    'prettier-plugin-jinja-template',
+    'prettier-plugin-organize-attributes',
+    'prettier-plugin-toml',
+]
+semi = false
+singleQuote = true
+jsxSingleQuote = true
+
+[[overrides]]
+files = ['*.j2.html']
+[overrides.options]
+parser = 'jinja-template'

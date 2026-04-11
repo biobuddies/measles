@@ -2,7 +2,7 @@ Make every character count, so `git log -p` clearly and concisely explains chang
 programmer. Never waste time as Captain Obvious.
 
 Write self-documenting code as simply as possible. Functional, rule-of-three style is often
-simplest:
+simplest.
 * Define before use, close to use
 * Inline single-use literals
 * For twice-used literals:
@@ -55,4 +55,8 @@ simplest:
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
-* Favorite tools: `curl`, `gh`, `git`, `mise`, `npm`, `uv`
+* Favorite tools: `curl`, `gh`, `git`, `git grep`, `git ls-files`, `mise`, `npm`, `uv`
+
+`git` subcommands avoid noise from `.venv` and `node_modules` thanks to `.gitignore`.
+
+Write prose Strunk, White, and Zinsser would approve.

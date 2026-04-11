@@ -21,11 +21,10 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-            - run: mise run set-environment
-            - run: mise run pre-commit
+            - run: mise set-environment
+            - run: mise pre-commit-all
             - run: mise tvalid demo
             - run: mise test
-            - run: .venv/bin/just build_twine
     tabularize:
         runs-on: ubuntu-latest
         steps:
@@ -37,7 +36,7 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-            - run: mise run tabularize
+            - run: mise tabularize
 
 on: # yamllint disable-line rule:truthy
     pull_request:
