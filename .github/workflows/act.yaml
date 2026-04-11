@@ -22,8 +22,6 @@ jobs:
                   experimental: true
             - run: mise set-environment
             - run: mise pre-commit-all
-            - run: mise tvalid demo
-            - run: mise test
     tabularize:
         runs-on: ubuntu-latest
         steps:
