@@ -153,8 +153,8 @@ exit $return_code
 [tasks.prettier-write]
 run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
-[tasks.pyre]
-run = 'pyre check "$@"'
+[tasks.pyrefly]
+run = 'pyrefly check "$@"'
 
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
@@ -301,7 +301,7 @@ depends = [
     'actionlint',
     'hadolint',
     'mailmap',
-    'pyre',
+    'pyrefly',
     'shellcheck',
     'uv-pip-check',
     'validate-pyproject',
