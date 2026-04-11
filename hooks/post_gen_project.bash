@@ -3,4 +3,9 @@
 set -o errexit -o nounset -o pipefail -o xtrace
 : template=hooks/post_gen_project.bash rendering=$0
 {% set suffix = '{' ~ cookiecutter.languages ~ '}.gitignore' %}
-curl -s https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }} >.gitignore
+# short flags for Darwin compatibility
+curl -s https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }} \
+    | if [[ -f ./.gitignore.sed ]]; then sed -Ef ./.gitignore.sed; else cat; fi >.gitignore
+npm install --package-lock-only
+uv pip compile --all-extras --output-file requirements.txt --python-platform linux pyproject.toml
+[[ -d .git ]] || git init

@@ -1,4 +1,4 @@
-{% raw %}
+{% raw -%}
 defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
@@ -21,11 +21,8 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-            - run: mise run set-environment
-            - run: mise run pre-commit
-            - run: mise tvalid demo
-            - run: mise test
-            - run: .venv/bin/just build_twine
+            - run: mise set-environment
+            - run: mise pre-commit-all
     tabularize:
         runs-on: ubuntu-latest
         steps:
@@ -37,7 +34,7 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-            - run: mise run tabularize
+            - run: mise tabularize
 
 on: # yamllint disable-line rule:truthy
     pull_request:
@@ -46,4 +43,4 @@ on: # yamllint disable-line rule:truthy
             - main
     workflow_dispatch:
 run-name: Checking on behalf of ${{ github.actor }}
-{% endraw %}
+{% endraw -%}
