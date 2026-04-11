@@ -74,6 +74,8 @@ pygments==2.20.0
     # via
     #   pytest
     #   rich
+pyrefly==0.60.2
+    # via measles (pyproject.toml)
 pytest==9.0.3
     # via
     #   measles (pyproject.toml)
