@@ -5,7 +5,7 @@ set -o errexit -o nounset -o pipefail -o xtrace
 {% set suffix = '{' ~ cookiecutter.languages ~ '}.gitignore' %}
 # short flags for Darwin compatibility
 curl -s https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }} \
-    | sed $([[ ! -f ./.gitignore.sed ]] || echo -Ef ./.gitignore.sed) >.gitignore
+    | if [[ -f ./.gitignore.sed ]]; then sed -Ef ./.gitignore.sed; else cat; fi >.gitignore
 npm install --package-lock-only
 uv pip compile --all-extras --output-file requirements.txt --python-platform linux pyproject.toml
 [[ -d .git ]] || git init
