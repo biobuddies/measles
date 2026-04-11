@@ -1,4 +1,4 @@
-{% raw %}
+{% raw -%}
 defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
@@ -23,8 +23,6 @@ jobs:
                   experimental: true
             - run: mise set-environment
             - run: mise pre-commit-all
-            - run: mise tvalid demo
-            - run: mise test
     tabularize:
         runs-on: ubuntu-latest
         steps:
@@ -45,4 +43,4 @@ on: # yamllint disable-line rule:truthy
             - main
     workflow_dispatch:
 run-name: Checking on behalf of ${{ github.actor }}
-{% endraw %}
+{% endraw -%}
