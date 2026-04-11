@@ -163,6 +163,27 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+# Downstream usage
+
+
+def test_existing_repository():
+    home_code = Path.home() / 'code'
+    home_code.mkdir(exist_ok=True)
+    measles = Path(__file__).parent
+    measles_link = home_code / 'measles'
+    if not measles_link.exists():
+        measles_link.symlink_to(measles)
+    wriggle = home_code / 'wriggle'
+    if not wriggle.exists():
+        check_call(['git', 'clone', 'https://github.com/biobuddies/wriggle.git', str(wriggle)])
+
+    # Act
+    env = {'PATH': environ['PATH'], 'PYTHONPATH': str(measles_link)}
+    check_call(['mise', 'trust', '--yes'], cwd=wriggle, env=env)
+    check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
+    assert check_output(['git', 'diff', '--name-only'], cwd=wriggle) == b''
+
+
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
