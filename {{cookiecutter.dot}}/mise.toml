@@ -307,6 +307,7 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
+run = 'git diff --color=always --exit-code && echo "No changes"'
 
 [tasks.pre-commit]
 depends = ['pre-commit-fast']
@@ -317,6 +318,7 @@ depends = [
     'pre-commit-fast',
     'uv-pip-compile',  # needs Internet
 ]
+run = 'git diff --color=always --exit-code && echo "No changes"'
 
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
