@@ -45,10 +45,15 @@ simplest:
     - Avoid committing unrelated files by avoiding `git add -a`, `git add --all`, `git add .`, etc.
     - If asked to clobber uncommitted changes, copy to /tmp/ first
     - Avoid train-of-thought and bisect-breaking commits
-    - Answer authorship and timing questions with evidence from the appropriately filtered git log
-    - Branches should almost always track `origin/main`
-    - Create new branches with `git checkout -b noslash-kebab-branch-name origin/main`
-    - Set upstream for existing branches with `git branch --set-upstream-to=origin/main`
+    - Be ready to read the (appropriately filtered) git log:
+        * Requests to go back or restore usually need the git log to find the previous state
+        * Answer authorship and timing questions with evidence from the git log
+    - Always track `origin/main`:
+        * This flow combines convention and configuration for efficient everyday commands
+        * `git checkout -b my-feature-or-fix origin/main` (old misconfigured branches:
+          `git branch --set-upstream-to=origin/main`)
+        * `git pull` discovers new commits and rebases because `pull.rebase=true`
+        * `git push` publishes to the current branch name because `push.default=current`
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments

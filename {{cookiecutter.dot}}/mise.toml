@@ -259,6 +259,9 @@ mise tinit "$cona"
 ${INSH_TF:-terraform} -chdir="deploys/$cona/terraform" validate "$@"
 """
 
+[tasks.npm-package-lock]
+run = 'npm install --package-lock-only "$@"'
+
 [tasks.typos]
 run = 'typos --write-changes --config .biobuddies/typos.toml "$@"'
 
@@ -270,6 +273,12 @@ run = '''
 uv pip compile --all-extras --output-file requirements.txt \
     --python-platform linux pyproject.toml "$@"
 '''
+
+[tasks.update-lock-files]
+depends = [
+    'npm-package-lock',
+    'uv-pip-compile',
+]
 
 [tasks.validate-pyproject]
 run = 'validate-pyproject pyproject.toml "$@"'
