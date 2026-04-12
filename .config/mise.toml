@@ -291,7 +291,7 @@ run = 'validate-pyproject pyproject.toml "$@"'
 run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json databaseId --jq ".[0].databaseId" | xargs -I {} mise x -- gh run watch {}'
 
 [tasks.yamllint]
-run = 'mise run-on-sources yamllint \*.yaml --config-file .biobuddies/yamllint.yaml "$@"'
+run = 'mise run-on-sources yamllint \*.yaml "$@"'
 
 # Task collections
 [tasks.pre-commit-fast]
