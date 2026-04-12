@@ -45,7 +45,7 @@ split-on-trailing-comma = false
 
 [lint.per-file-ignores]
 '**/test*.py' = [
-    'ANN201',
+    'ANN201',  # -> None doesn't improve pytest functions
     'N802',    # Test functions can match class names
     'PLR2004', # Tests can have magic values
     'PLR6301', # Test classes can ignore self
