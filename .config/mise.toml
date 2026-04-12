@@ -1,3 +1,4 @@
+# dup {{cookiecutter.dot}}/.config/mise.toml:1
 [settings]
 experimental = true
 
@@ -153,9 +154,6 @@ exit $return_code
 [tasks.prettier-write]
 run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
-[tasks.pyrefly]
-run = 'pyrefly check "$@"'
-
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
 
@@ -308,15 +306,14 @@ depends = [
     'typos',
     # line keepers
     'actionlint',
+    'basedpyright',
     'hadolint',
     'mailmap',
-    'pyrefly',
     'shellcheck',
     'uv-pip-check',
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code && echo "No changes"'
 
 [tasks.pre-commit]
 depends = ['pre-commit-fast']
@@ -327,7 +324,6 @@ depends = [
     'pre-commit-fast',
     'uv-pip-compile',  # needs Internet
 ]
-run = 'git diff --color=always --exit-code && echo "No changes"'
 
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
