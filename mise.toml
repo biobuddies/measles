@@ -1,0 +1,12 @@
+# This file overrides settings from `.config/mise.toml`.
+# Because `.config/mise.toml` is continuously overwritten by `mise cookiecutter`
+# when applying template updates, any local or project-specific modifications
+# must be placed here to avoid being clobbered.
+
+[tools]
+# Override the python version locally, for instance:
+# python = "3.13"
+
+[env]
+# Define local environment variables
+# MY_LOCAL_VAR = "value"
