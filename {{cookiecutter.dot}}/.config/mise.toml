@@ -67,7 +67,9 @@ set -- $(
     git ls-files -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
             grep --invert-match '^#' .biobuddies/autoformat-excludes
-        ) || [[ $? -eq 1 ]]
+        ) \
+        | xargs -r grep -I -l "" \
+        || [[ $? -eq 1 || $? -eq 123 ]]
 )
 [[ $# -eq 0 ]] && exit 0
 [[ -z $command_args ]] || set -- $command_args "$@"
@@ -156,7 +158,7 @@ exit $return_code
 run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
 [tasks.pyrefly]
-run = 'pyrefly check "$@"'
+run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
 
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
@@ -318,7 +320,7 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code && echo "No changes"'
+run = 'git diff --color=always --exit-code'
 
 [tasks.pre-commit]
 depends = ['pre-commit-fast']
@@ -329,7 +331,7 @@ depends = [
     'pre-commit-fast',
     'uv-pip-compile',  # needs Internet
 ]
-run = 'git diff --color=always --exit-code && echo "No changes"'
+run = 'git diff --color=always --exit-code'
 
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
