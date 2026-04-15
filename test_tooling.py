@@ -5,7 +5,7 @@ from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import check_call, check_output
+from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 
 from pytest import mark
@@ -130,6 +130,45 @@ def test_run_on_sources_excludes_binary():
     finally:
         binary_path.unlink(missing_ok=True)
 
+
+@mark.parametrize(
+    ('excluded', 'git_output', 'output', 'return_code'),
+    (
+        (False, 'bad path.py\\0', 'bad path.py\n', 1),
+        (False, 'bad\\tpath.py\\0', 'bad\tpath.py\n', 1),
+        (True, 'bad path.py\\0', '', 0),
+    ),
+)
+def test_no_field_separators(
+    tmp_path: Path, excluded: bool, git_output: str, output: str, return_code: int
+):
+    task = loads(
+        check_output(['mise', 'tasks', 'info', 'no-field-separators', '--json'])
+    )['run'][0].replace('\\n', '\n')
+    autoformat_excludes = Path('.autoformat-excludes')
+    original = autoformat_excludes.read_text() if autoformat_excludes.exists() else None
+    mock_git = tmp_path / 'git'
+    mock_git.write_text(f'#!/usr/bin/env bash\nprintf "{git_output}"\n')
+    mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+    try:
+        if excluded:
+            autoformat_excludes.write_text((original or '') + '^bad path\\.py$\n')
+        environment = {'PATH': f'{tmp_path}:{environ["PATH"]}'}
+        if return_code == 0:
+            assert check_output(['/usr/bin/env', 'bash', '-c', task], env=environment).decode() == ''
+            return
+        try:
+            check_output(['/usr/bin/env', 'bash', '-c', task], env=environment, stderr=-1)
+        except CalledProcessError as error:
+            assert error.returncode == return_code
+            assert error.output.decode().splitlines()[-1] == output.strip()
+        else:
+            raise AssertionError('Expected no-field-separators to fail')
+    finally:
+        if original is None:
+            autoformat_excludes.unlink(missing_ok=True)
+        else:
+            autoformat_excludes.write_text(original)
 
 def test_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()

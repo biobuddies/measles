@@ -64,12 +64,11 @@ eval "glob=(${2:?missing source glob})"
 shift 2
 command_args=$*
 set -- $(
-    git ls-files -- "${glob[@]}" \
+    git grep --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
             grep --invert-match '^#' .biobuddies/autoformat-excludes
         ) \
-        | xargs -r grep -I -l "" \
-        || [[ $? -eq 1 || $? -eq 123 ]]
+        || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
 [[ -z $command_args ]] || set -- $command_args "$@"
@@ -152,6 +151,33 @@ for repeat in $(echo "$emails_names" | cut -f 1 | uniq --repeated); do
 done
 [[ $return_code == 0 ]] || echo 'Multiple names are associated with the same email address.'
 exit $return_code
+"""
+
+[tasks.no-field-separators]
+run = """
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+exclude_files=(.biobuddies/autoformat-excludes)
+[[ -f .autoformat-excludes ]] && exclude_files+=(.autoformat-excludes)
+paths=''
+while read -r -d '' path; do
+    [[ $path =~ [[:space:]] ]] || continue
+    excluded=false
+    for exclude_file in "${exclude_files[@]}"; do
+        while read -r pattern; do
+            [[ -n $pattern && $pattern != '#'* ]] || continue
+            [[ $path =~ $pattern ]] || continue
+            excluded=true
+            break
+        done < "$exclude_file"
+        $excluded && break
+    done
+    $excluded || paths+="$path"$'\n'
+done < <(git ls-files -z)
+[[ -z $paths ]] && exit 0
+echo 'Tracked paths with Bash IFS characters must be added to .autoformat-excludes:'
+printf '%s' "$paths"
+exit 1
 """
 
 [tasks.prettier-write]
@@ -314,6 +340,7 @@ depends = [
     'actionlint',
     'hadolint',
     'mailmap',
+    'no-field-separators',
     'pyrefly',
     'shellcheck',
     'uv-pip-check',
