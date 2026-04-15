@@ -1,10 +1,12 @@
 """Integration tests for tools and configuration."""
 
+import stat
 from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
 from subprocess import check_call, check_output
+from tempfile import TemporaryDirectory
 
 from pytest import mark
 
@@ -40,8 +42,13 @@ def test_prettier():
         test_path.write_text(
             '<html><body>\n{% for item in items %}<div>{{item}}</div>{% endfor %}\n</body></html>\n'
         )
-        mock_git = f'git() {{ echo {test_path}; }}; export -f git;'
-        check_output(['/usr/bin/env', 'bash', '-c', f'{mock_git} mise prettier-write'])
+        with TemporaryDirectory() as tmpdir:
+            mock_git = Path(tmpdir) / 'git'
+            mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
+            mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+            env = environ.copy()
+            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
+            check_output(['mise', 'prettier-write'], env=env)
         assert test_path.read_text() == (
             '<html>\n'
             '    <body>\n'
@@ -110,10 +117,15 @@ def test_run_on_sources_excludes_binary():
         binary_path.write_bytes(
             b'PK\x03\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         )
-        mock_git = 'git() { true; }; export -f git;'
-        output = check_output(
-            ['/usr/bin/env', 'bash', '-c', f'{mock_git} mise run-on-sources echo {binary_path}']
-        ).decode()
+        with TemporaryDirectory() as tmpdir:
+            mock_git = Path(tmpdir) / 'git'
+            mock_git.write_text(f'#!/usr/bin/env bash\necho {binary_path}\n')
+            mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+            env = environ.copy()
+            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
+            output = check_output(
+                ['mise', 'run-on-sources', 'echo', str(binary_path)], env=env
+            ).decode()
         assert str(binary_path) not in output
     finally:
         binary_path.unlink(missing_ok=True)
