@@ -157,25 +157,13 @@ exit $return_code
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-exclude_files=(.biobuddies/autoformat-excludes)
-[[ -f .autoformat-excludes ]] && exclude_files+=(.autoformat-excludes)
 paths=''
 while read -r -d '' path; do
-    [[ $path =~ [[:space:]] ]] || continue
-    excluded=false
-    for exclude_file in "${exclude_files[@]}"; do
-        while read -r pattern; do
-            [[ -n $pattern && $pattern != '#'* ]] || continue
-            [[ $path =~ $pattern ]] || continue
-            excluded=true
-            break
-        done < "$exclude_file"
-        $excluded && break
-    done
-    $excluded || paths+="$path"$'\n'
+    [[ $path == *[$' \t\n']* ]] || continue
+    paths+="$path"$'\n'
 done < <(git ls-files -z)
 [[ -z $paths ]] && exit 0
-echo 'Tracked paths with Bash IFS characters must be added to .autoformat-excludes:'
+echo 'Tracked paths must not contain Bash IFS characters:'
 printf '%s' "$paths"
 exit 1
 """
