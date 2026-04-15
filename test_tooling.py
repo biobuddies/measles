@@ -8,7 +8,7 @@ from re import match
 from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 
-from pytest import mark
+from pytest import mark, raises
 
 
 def test_mise_four_letter_abbreviations():
@@ -119,7 +119,9 @@ def test_run_on_sources_excludes_binary():
         )
         with TemporaryDirectory() as tmpdir:
             mock_git = Path(tmpdir) / 'git'
-            mock_git.write_text(f'#!/usr/bin/env bash\necho {binary_path}\n')
+            mock_git.write_text(
+                f'#!/usr/bin/env bash\n[[ $1 == grep ]] && exit 1\necho {binary_path}\n'
+            )
             mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
             env = environ.copy()
             env['PATH'] = f'{tmpdir}:{env["PATH"]}'
@@ -140,20 +142,18 @@ def test_run_on_sources_excludes_binary():
     ),
 )
 def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
-    task = loads(
-        check_output(['mise', 'tasks', 'info', 'no-field-separators', '--json'])
-    )['run'][0].replace('\\n', '\n')
+    task = loads(check_output(['mise', 'tasks', 'info', 'no-field-separators', '--json']))['run'][
+        0
+    ].replace('\\n', '\n')
     mock_git = tmp_path / 'git'
     mock_git.write_text(f'#!/usr/bin/env bash\nprintf "{git_output}"\n')
     mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
     environment = {'PATH': f'{tmp_path}:{environ["PATH"]}'}
-    try:
+    with raises(CalledProcessError) as error:
         check_output(['/usr/bin/env', 'bash', '-c', task], env=environment, stderr=-1)
-    except CalledProcessError as error:
-        assert error.returncode == 1
-        assert error.output.decode().endswith(output)
-    else:
-        raise AssertionError('Expected no-field-separators to fail')
+    assert error.value.returncode == 1
+    assert error.value.output.decode().endswith(output)
+
 
 def test_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
