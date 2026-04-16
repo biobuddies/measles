@@ -67,8 +67,7 @@ set -- $(
     git grep --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
             grep --invert-match '^#' .biobuddies/autoformat-excludes
-        ) \
-        || [[ $? -eq 1 ]]
+        ) || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
 [[ -z $command_args ]] || set -- $command_args "$@"
