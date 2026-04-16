@@ -64,7 +64,7 @@ eval "glob=(${2:?missing source glob})"
 shift 2
 command_args=$*
 set -- $(
-    git ls-files -- "${glob[@]}" \
+    git grep --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
             grep --invert-match '^#' .biobuddies/autoformat-excludes
         ) || [[ $? -eq 1 ]]
@@ -152,11 +152,26 @@ done
 exit $return_code
 """
 
+[tasks.no-field-separators]
+run = """
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+paths=''
+while read -r -d '' path; do
+    [[ $path == *[$' \t\n']* ]] || continue
+    paths+="$path"$'\n'
+done < <(git ls-files -z)
+[[ -z $paths ]] && exit 0
+echo 'Tracked paths must not contain Bash IFS characters:'
+printf '%s' "$paths"
+exit 1
+"""
+
 [tasks.prettier-write]
 run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
 [tasks.pyrefly]
-run = 'pyrefly check "$@"'
+run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
 
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
@@ -312,13 +327,14 @@ depends = [
     'actionlint',
     'hadolint',
     'mailmap',
+    'no-field-separators',
     'pyrefly',
     'shellcheck',
     'uv-pip-check',
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code && echo "No changes"'
+run = 'git diff --color=always --exit-code'
 
 [tasks.pre-commit]
 depends = ['pre-commit-fast']
@@ -329,7 +345,7 @@ depends = [
     'pre-commit-fast',
     'uv-pip-compile',  # needs Internet
 ]
-run = 'git diff --color=always --exit-code && echo "No changes"'
+run = 'git diff --color=always --exit-code'
 
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
