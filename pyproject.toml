@@ -3,50 +3,26 @@ name = 'measles'
 requires-python = '>=3.12'
 version = '0'
 
-
-
 [project.optional-dependencies]
-
-
-
-
-
 precommit = [
-    
     'actionlint-py',
-    
     'basedpyright',
-    
     'cookiecutter',
-    
     'django-upgrade',
-    
     'djlint',
-    
     'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
-    
     'pre-commit-hooks',
-    
+    'pyinfra',
     'pyrefly',
-    
     'pytest',
-    
     'pytest-cov',
-    
     'ruff',
-    
     'shellcheck-py',
-    
     'shfmt-py',
-    
     'typos',
-    
     'validate-pyproject[all]',
-    
     'yamllint',
-    
 ]
-
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'

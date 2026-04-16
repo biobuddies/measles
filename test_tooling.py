@@ -250,6 +250,7 @@ def test_new_repository_bootstrap(tmp_path: Path):
         "    'djlint',\n"
         "    'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',\n"
         "    'pre-commit-hooks',\n"
+        "    'pyinfra',\n"
         "    'pyrefly',\n"
         "    'pytest',\n"
         "    'pytest-cov',\n"
