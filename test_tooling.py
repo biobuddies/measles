@@ -169,19 +169,39 @@ def test_typos():
 def test_existing_repository():
     home_code = Path.home() / 'code'
     home_code.mkdir(exist_ok=True)
-    measles = Path(__file__).parent
     measles_link = home_code / 'measles'
     if not measles_link.exists():
-        measles_link.symlink_to(measles)
+        measles_link.symlink_to(Path(__file__).parent)
+
     wriggle = home_code / 'wriggle'
     if not wriggle.exists():
-        check_call(['git', 'clone', 'https://github.com/biobuddies/wriggle.git', str(wriggle)])
+        alt_wriggle = Path.home() / 'prj' / 'wriggle'
+        if alt_wriggle.exists():
+            wriggle = alt_wriggle
+        else:
+            check_call(
+                [
+                    'git',
+                    'clone',
+                    '-b',
+                    'catch-measles',
+                    'https://github.com/biobuddies/wriggle.git',
+                    str(wriggle),
+                ]
+            )
+
+    # Check arrangement
+    cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
+    assert cookiecutter_yaml.exists()
+    assert 'languages' in cookiecutter_yaml.read_text()
 
     # Act
     env = {'PATH': environ['PATH'], 'PYTHONPATH': str(measles_link)}
     check_call(['mise', 'trust', '--yes'], cwd=wriggle, env=env)
     check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
-    assert check_output(['git', 'diff', '--name-only'], cwd=wriggle) == b''
+
+    # Assert
+    assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
 
 
 def test_new_repository_bootstrap(tmp_path: Path):

@@ -10,8 +10,11 @@ external = ['typos']
 fixable = ['ALL']
 ignore = [
     'ANN401', # `**kwargs: Any` is reasonable
+    'BLE001', # Blind except is fine for fallback discovery
     'COM812', # Insists on `join([],)` over `join([])`
+    'D100',
     'D101',
+    'D102',
     'D103',
     'D104',
     'D107',
@@ -26,13 +29,15 @@ ignore = [
     'Q001',    # ruff format will single quote
     'Q003',    # ruff format will single quote
     # N806 tries to lowercase classes; currently ignored on a line-by-line basis
-    'S607',   # Using $PATH is pretty necessary for nvmrc, pyenv, venv, tfenv
-    'SLF001', # Private member access is probably a last resort
-    'TD002',  # The git log records who wrote a TODO line
-    'TD003',  # Don't require issue links
-    'TD004',  # A colon takes up space without really improving readability
-    'TRY002', # Forces premature specialization; the right time to subclass is when the exception starts being caught
-    'TRY003', # Forces premature specialization; the right time to subclass is when the exception starts being caught
+    'S310',    # End-to-end tests can fetch from ephemeral local test servers
+    'S607',    # Using $PATH is pretty necessary for nvmrc, pyenv, venv, tfenv
+    'SLF001',  # Private member access is probably a last resort
+    'TD002',   # The git log records who wrote a TODO line
+    'TD003',   # Don't require issue links
+    'TD004',   # A colon takes up space without really improving readability
+    'TRY002',  # Forces premature specialization
+    'TRY003',  # Forces premature specialization
+    'UP031',   # Percent formatting can simplify quote-heavy strings
 ]
 select = ['ALL']
 

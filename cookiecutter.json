@@ -1,8 +1,13 @@
 {
     "_copy_without_render": [],
+    "_extensions": ["measles.CodeNameExtension"],
     "dot": ".",
     "languages": "Node,Python",
     "pull_request_background_links": "* ",
     "pull_request_changes_testing": "* For future you and others to re-run the same test or a variation and incrementally automate",
-    "pull_request_questions_followup": "* "
+    "pull_request_questions_followup": "* ",
+    "python_dependencies": {},
+    "python_optional_dependencies": {},
+    "node_dependencies": {},
+    "node_dev_dependencies": {}
 }
