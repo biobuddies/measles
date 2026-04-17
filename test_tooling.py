@@ -10,8 +10,10 @@ from tempfile import TemporaryDirectory
 
 from pytest import mark, raises
 
+# Four Letter AbbreviatioNs (FLANs)
 
-def test_mise_four_letter_abbreviations():
+
+def test_four_letter_abbreviations():
     assert check_output(['mise', 'cona']) == b'measles\n'
 
     assert check_output(['mise', 'envi']) == b'github\n' if getenv('GITHUB_ACTIONS') else b'local\n'
@@ -34,6 +36,95 @@ def test_mise_four_letter_abbreviations():
         if is_dirty
         else check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip() + b'\n'
     )
+
+
+@mark.parametrize(
+    ('git_describe', 'tabr'),
+    (
+        ('remotes/origin/mybranch', 'mybranch'),
+        ('heads/mybranch', 'mybranch'),
+        ('tags/v2025.02.03', 'v2025.02.03'),
+        ('heads/mybranch-dirty', ''),
+    ),
+)
+def test_tabr(git_describe: str, tabr: str):
+    original = loads(check_output(['mise', 'tasks', 'info', 'tabr', '--json']))['run'][0].replace(
+        '\\n', '\n'
+    )
+    target = 'git describe --all --dirty --exact-match'
+    assert target in original
+    mocked = original.replace(target, f'echo "{git_describe}"')
+    output = check_output(['/usr/bin/env', 'bash', '-c', mocked], env={}).decode().strip()
+    assert output == tabr
+
+
+# (5+ letter) line keepers
+
+
+@mark.parametrize(
+    ('git_output', 'output'),
+    (
+        ('bad path.py\\0', 'bad path.py\n'),
+        ('bad\\tpath.py\\0', 'bad\tpath.py\n'),
+        ('bad\\npath.py\\0', 'bad\npath.py\n'),
+    ),
+)
+def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
+    task = loads(check_output(['mise', 'tasks', 'info', 'no-field-separators', '--json']))['run'][
+        0
+    ].replace('\\n', '\n')
+    mock_git = tmp_path / 'git'
+    mock_git.write_text(f'#!/usr/bin/env bash\nprintf "{git_output}"\n')
+    mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+    environment = {'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    with raises(CalledProcessError) as error:
+        check_output(['/usr/bin/env', 'bash', '-c', task], env=environment, stderr=-1)
+    assert error.value.returncode == 1
+    assert error.value.output.decode().endswith(output)
+
+
+def test_run_on_sources():
+    binary_path = Path('test.zip')
+    try:
+        binary_path.write_bytes(
+            b'PK\x03\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        )
+        with TemporaryDirectory() as tmpdir:
+            mock_git = Path(tmpdir) / 'git'
+            mock_git.write_text(
+                f'#!/usr/bin/env bash\n[[ $1 == grep ]] && exit 1\necho {binary_path}\n'
+            )
+            mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+            env = environ.copy()
+            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
+            output = check_output(
+                ['mise', 'run-on-sources', 'echo', str(binary_path)], env=env
+            ).decode()
+        assert str(binary_path) not in output
+    finally:
+        binary_path.unlink(missing_ok=True)
+
+
+# Line changers
+
+
+def test_gitignore(tmp_path: Path):
+    hook = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
+    snippet = '\n'.join(
+        line for line in hook.splitlines() if 'gitignore' in line and '{%' not in line
+    ).replace('{{ suffix }}', 'Python.gitignore')
+    (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
+    check_output(
+        [
+            '/usr/bin/env',
+            'bash',
+            '-c',
+            'set -o errexit -o nounset -o pipefail; curl(){ echo /site; }; ' + snippet,
+        ],
+        cwd=tmp_path,
+        env={},
+    )
+    assert (tmp_path / '.gitignore').read_text() == '/site/ton/\n'
 
 
 def test_prettier():
@@ -72,90 +163,7 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
-def test_git_ignore(tmp_path: Path):
-    hook = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
-    snippet = '\n'.join(
-        line for line in hook.splitlines() if 'gitignore' in line and '{%' not in line
-    ).replace('{{ suffix }}', 'Python.gitignore')
-    (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
-    check_output(
-        [
-            '/usr/bin/env',
-            'bash',
-            '-c',
-            'set -o errexit -o nounset -o pipefail; curl(){ echo /site; }; ' + snippet,
-        ],
-        cwd=tmp_path,
-        env={},
-    )
-    assert (tmp_path / '.gitignore').read_text() == '/site/ton/\n'
-
-
-@mark.parametrize(
-    ('git_describe', 'tabr'),
-    (
-        ('remotes/origin/mybranch', 'mybranch'),
-        ('heads/mybranch', 'mybranch'),
-        ('tags/v2025.02.03', 'v2025.02.03'),
-        ('heads/mybranch-dirty', ''),
-    ),
-)
-def test_tabr_git_describe_mocked(git_describe: str, tabr: str):
-    original = loads(check_output(['mise', 'tasks', 'info', 'tabr', '--json']))['run'][0].replace(
-        '\\n', '\n'
-    )
-    target = 'git describe --all --dirty --exact-match'
-    assert target in original
-    mocked = original.replace(target, f'echo "{git_describe}"')
-    output = check_output(['/usr/bin/env', 'bash', '-c', mocked], env={}).decode().strip()
-    assert output == tabr
-
-
-def test_run_on_sources_excludes_binary():
-    binary_path = Path('test.zip')
-    try:
-        binary_path.write_bytes(
-            b'PK\x03\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-        )
-        with TemporaryDirectory() as tmpdir:
-            mock_git = Path(tmpdir) / 'git'
-            mock_git.write_text(
-                f'#!/usr/bin/env bash\n[[ $1 == grep ]] && exit 1\necho {binary_path}\n'
-            )
-            mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
-            env = environ.copy()
-            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
-            output = check_output(
-                ['mise', 'run-on-sources', 'echo', str(binary_path)], env=env
-            ).decode()
-        assert str(binary_path) not in output
-    finally:
-        binary_path.unlink(missing_ok=True)
-
-
-@mark.parametrize(
-    ('git_output', 'output'),
-    (
-        ('bad path.py\\0', 'bad path.py\n'),
-        ('bad\\tpath.py\\0', 'bad\tpath.py\n'),
-        ('bad\\npath.py\\0', 'bad\npath.py\n'),
-    ),
-)
-def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
-    task = loads(check_output(['mise', 'tasks', 'info', 'no-field-separators', '--json']))['run'][
-        0
-    ].replace('\\n', '\n')
-    mock_git = tmp_path / 'git'
-    mock_git.write_text(f'#!/usr/bin/env bash\nprintf "{git_output}"\n')
-    mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
-    environment = {'PATH': f'{tmp_path}:{environ["PATH"]}'}
-    with raises(CalledProcessError) as error:
-        check_output(['/usr/bin/env', 'bash', '-c', task], env=environment, stderr=-1)
-    assert error.value.returncode == 1
-    assert error.value.output.decode().endswith(output)
-
-
-def test_bootstrap(tmp_path: Path):
+def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
 
