@@ -10,6 +10,7 @@ external = ['typos']
 fixable = ['ALL']
 ignore = [
     'ANN401', # `**kwargs: Any` is reasonable
+    'BLE001', # except Exception is okay
     'COM812', # Insists on `join([],)` over `join([])`
     'D101',
     'D103',

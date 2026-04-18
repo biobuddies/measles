@@ -1,14 +1,16 @@
 [project]
-name = 'measles'
+name = '{{ CONA }}'
 requires-python = '>=3.12'
 version = '0'
 
 dependencies = [
-    
+    {% for dependency in python_dependencies|sort %}
+    '{{ dependency }}',
+    {% endfor %}
 ]
 
 [project.optional-dependencies]
-precommit = [
+{% set precommit_base = [
     'actionlint-py',
     'basedpyright',
     'cookiecutter',
@@ -25,8 +27,14 @@ precommit = [
     'typos',
     'validate-pyproject[all]',
     'yamllint',
+] -%}
+{% set groups = dict(cookiecutter.python_optional_dependencies) -%}
+{% set _ = groups.update({'precommit': (precommit_base + cookiecutter.python_optional_dependencies.get('precommit', []))|sort}) -%}
+{% for group, dependencies in groups.items()|sort -%}
+{{ group }} = [
+{{ "    '" ~ (dependencies|sort|join("',\n    '")) ~ "'," if dependencies else '' }}
 ]
-
+{% endfor %}
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'

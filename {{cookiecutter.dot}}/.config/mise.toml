@@ -23,14 +23,7 @@ wait "$npm_pid"
 
 # Prerequisite tasks
 [tasks.cona]
-run = """
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-if [[ ${GITHUB_REPOSITORY-} ]]; then echo "${GITHUB_REPOSITORY##*/}"
-elif [[ ${VIRTUAL_ENV-} ]]; then basename "${VIRTUAL_ENV%/.venv}"
-else basename "$PWD"
-fi
-"""
+run = 'echo {{ CONA }}'
 
 [tasks.envi]
 run = """
@@ -46,13 +39,7 @@ fi
 run = 'git describe --abbrev=40 --always --dirty --match=-'
 
 [tasks.orgn]
-run = '''
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-if [[ ${GITHUB_REPOSITORY_OWNER-} ]]; then echo "$GITHUB_REPOSITORY_OWNER"
-else git remote get-url origin | sed -E 's,.+github.com[:/]([^/]+).+,\1,'
-fi
-'''
+run = 'echo {{ ORGN }}'
 
 [tasks.run-on-sources]
 quiet = true
@@ -111,11 +98,12 @@ run = 'mise run-on-sources basedpyright "*.py{,i}" --level error "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$(
-    [[ $(mise orgn)/$(mise cona) == biobuddies/measles ]] \
-        && echo . \
-        || echo https://github.com/biobuddies/measles.git
-)"
+if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
+    template=${2:-$HOME/code/measles}
+else
+    template={{ '.' if ORGN == 'biobuddies' and CONA == 'measles' else 'https://github.com/biobuddies/measles.git' }}
+fi
+cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$template"
 '''
 
 [tasks.django-upgrade]
@@ -184,10 +172,10 @@ run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 cat <<EOD | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
-CONA=$(mise cona)
+CONA={{ CONA }}
 ENVI=$(mise envi)
 GIHA=$(mise giha)
-ORGN=$(mise orgn)
+ORGN={{ ORGN }}
 ROLE=${ROLE-}
 TABR=$(mise tabr)
 EOD
@@ -213,10 +201,10 @@ set -o errexit -o nounset -o pipefail
 cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | Unabbreviat. | FLAN | Value        |
 | ------------ | ---- | ------------ |
-| COdeNAme     | CONA | $(mise cona) |
+| COdeNAme     | CONA | {{ CONA }} |
 | ENVIronment  | ENVI | $(mise envi) |
 | GIt HAsH     | GIHA | $(mise giha) |
-| ORGanizatioN | ORGN | $(mise orgn) |
+| ORGanizatioN | ORGN | {{ ORGN }} |
 | ROLE         | ROLE | ${ROLE-} |
 | TAg/BRanch   | TABR | $(mise tabr) |
 EOD
