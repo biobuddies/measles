@@ -1,8 +1,14 @@
 {
     "_copy_without_render": [],
+    "_extensions": ["measles.Measles"],
     "dot": ".",
     "languages": "Node,Python",
     "pull_request_background_links": "* ",
     "pull_request_changes_testing": "* For future you and others to re-run the same test or a variation and incrementally automate",
-    "pull_request_questions_followup": "* "
+    "pull_request_questions_followup": "* ",
+    "peer_checkouts": {},
+    "// python_dependencies": "Read from .cookiecutter.yaml by measles.Measles to avoid prompt_choice_for_config weirdly interpreting the list of strings",
+    "python_optional_dependencies": {},
+    "node_dependencies": {},
+    "node_dev_dependencies": {}
 }

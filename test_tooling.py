@@ -163,6 +163,34 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+# Downstream usage
+
+
+def test_existing_repository():
+    # Check arrangement
+    wriggle = Path.home() / 'code' / 'wriggle'
+    cookiecutter_yaml = Path.home() / 'code' / 'wriggle' / '.cookiecutter.yaml'
+    assert cookiecutter_yaml.exists()
+    assert 'languages' in cookiecutter_yaml.read_text()
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(wriggle), 'PATH': environ['PATH']}
+    assert check_output(['mise', 'cona'], cwd=wriggle, env=env) == b'wriggle\n'
+    assert (
+        check_output(
+            ['mise', 'x', '--', 'python', '-c', 'from pathlib import Path; print(Path.cwd().name)'],
+            cwd=wriggle,
+            env=env,
+        )
+        == b'wriggle\n'
+    )
+
+    # Act
+    check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
+
+    # Assert
+    assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
+    assert "'sqlglot'," in (wriggle / 'pyproject.toml').read_text()
+
+
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]

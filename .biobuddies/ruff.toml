@@ -10,6 +10,7 @@ external = ['typos']
 fixable = ['ALL']
 ignore = [
     'ANN401', # `**kwargs: Any` is reasonable
+    'BLE001', # except Exception is okay
     'COM812', # Insists on `join([],)` over `join([])`
     'D101',
     'D103',
@@ -33,6 +34,7 @@ ignore = [
     'TD004',  # A colon takes up space without really improving readability
     'TRY002', # Forces premature specialization; the right time to subclass is when the exception starts being caught
     'TRY003', # Forces premature specialization; the right time to subclass is when the exception starts being caught
+    'UP031',  # Percent formatting can simplify curly-heavy strings
 ]
 select = ['ALL']
 
