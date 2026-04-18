@@ -7,5 +7,5 @@ set -o errexit -o nounset -o pipefail -o xtrace
 curl -s https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }} \
     | if [[ -f ./.gitignore.sed ]]; then sed -Ef ./.gitignore.sed; else cat; fi >.gitignore
 npm install --package-lock-only
-uv pip compile --all-extras --output-file requirements.txt --python-platform linux pyproject.toml
+uv pip compile --all-extras --output-file requirements.txt --quiet --python-platform linux pyproject.toml
 [[ -d .git ]] || git init

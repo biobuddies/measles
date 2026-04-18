@@ -111,7 +111,7 @@ run = 'mise run-on-sources basedpyright "*.py{,i}" --level error "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$(
+PYTHONPATH=. cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$(
     [[ $(mise orgn)/$(mise cona) == biobuddies/measles ]] \
         && echo . \
         || echo https://github.com/biobuddies/measles.git

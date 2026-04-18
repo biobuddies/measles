@@ -163,6 +163,47 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+# Downstream usage
+
+
+def test_existing_repository():
+    home_code = Path.home() / 'code'
+    home_code.mkdir(exist_ok=True)
+    measles_link = home_code / 'measles'
+    if not measles_link.exists():
+        measles_link.symlink_to(Path(__file__).parent)
+
+    wriggle = home_code / 'wriggle'
+    if not wriggle.exists():
+        alt_wriggle = Path.home() / 'prj' / 'wriggle'
+        if alt_wriggle.exists():
+            wriggle = alt_wriggle
+        else:
+            check_call(
+                [
+                    'git',
+                    'clone',
+                    '-b',
+                    'catch-measles',
+                    'https://github.com/biobuddies/wriggle.git',
+                    str(wriggle),
+                ]
+            )
+
+    # Check arrangement
+    cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
+    assert cookiecutter_yaml.exists()
+    assert 'languages' in cookiecutter_yaml.read_text()
+
+    # Act
+    env = {'PATH': environ['PATH'], 'PYTHONPATH': str(measles_link)}
+    check_call(['mise', 'trust', '--yes'], cwd=wriggle, env=env)
+    check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
+
+    # Assert
+    assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
+
+
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
@@ -209,6 +250,7 @@ def test_new_repository_bootstrap(tmp_path: Path):
         "    'djlint',\n"
         "    'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',\n"
         "    'pre-commit-hooks',\n"
+        "    'pyinfra',\n"
         "    'pyrefly',\n"
         "    'pytest',\n"
         "    'pytest-cov',\n"

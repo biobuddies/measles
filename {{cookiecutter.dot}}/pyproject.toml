@@ -1,0 +1,48 @@
+[project]
+name = '{{ CONA }}'
+requires-python = '>=3.12'
+version = '0'
+
+{% if cookiecutter.python_dependencies %}
+dependencies = [
+    {% for dependency in cookiecutter.python_dependencies|sort %}
+    '{{ dependency }}',
+    {% endfor %}
+]
+{% endif %}
+
+[project.optional-dependencies]
+
+{% set precommit_base = [
+    'actionlint-py',
+    'basedpyright',
+    'cookiecutter',
+    'django-upgrade',
+    'djlint',
+    'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
+    'pre-commit-hooks',
+    'pyrefly',
+    'pytest',
+    'pytest-cov',
+    'ruff',
+    'shellcheck-py',
+    'shfmt-py',
+    'typos',
+    'validate-pyproject[all]',
+    'yamllint',
+] %}
+{% set groups = dict(cookiecutter.python_optional_dependencies) %}
+{% set _ = groups.update({'precommit': (precommit_base + cookiecutter.python_optional_dependencies.get('precommit', []))|sort}) %}
+{% for group, dependencies in groups.items()|sort %}
+{{ group }} = [
+    {% for dependency in dependencies|sort %}
+    '{{ dependency }}',
+    {% endfor %}
+]
+{% endfor %}
+
+[tool.basedpyright]
+extends = '.biobuddies/basedpyright.toml'
+
+[tool.ruff]
+extend = '.biobuddies/ruff.toml'

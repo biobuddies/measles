@@ -1,0 +1,22 @@
+{
+    "name": "{{ CONA }}",
+    {% if cookiecutter.node_dependencies -%}
+    "dependencies": {
+        {% for package, version in cookiecutter.node_dependencies.items()|sort -%}
+        "{{ package }}": "{{ version }}"{{ "," if not loop.last }}
+        {% endfor -%}
+    },
+    {%- endif %}
+    "// prettier": ">=3.8.2; 3.8.1 crashes with `TypeError: Cannot read properties of undefined (reading 'findPair')`",
+    "devDependencies": {
+        {%- set dev_dependencies = dict({
+            "prettier": ">=3.8.2",
+            "prettier-plugin-jinja-template": "*",
+            "prettier-plugin-organize-attributes": "*",
+            "prettier-plugin-toml": "*"
+        }, **cookiecutter.node_dev_dependencies) -%}
+        {%- for package, version in dev_dependencies.items()|sort %}
+        "{{ package }}": "{{ version }}"{{ "," if not loop.last }}
+        {%- endfor %}
+    }
+}

@@ -1,10 +1,4 @@
 [project]
-classifiers = [
-    'Programming Language :: Python :: 3.12',
-    'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
-    'Operating System :: OS Independent',
-]
-description = 'Cookiecutter template for continuously bootstrapped repos'
 name = 'measles'
 requires-python = '>=3.12'
 version = '0'
@@ -18,6 +12,7 @@ precommit = [
     'djlint',
     'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
     'pre-commit-hooks',
+    'pyinfra',
     'pyrefly',
     'pytest',
     'pytest-cov',
@@ -31,7 +26,6 @@ precommit = [
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
-failOnWarnings = false
 
 [tool.ruff]
 extend = '.biobuddies/ruff.toml'
