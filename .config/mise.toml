@@ -12,13 +12,21 @@ _.path = ['./node_modules/.bin']
 _.python.venv = { path = '.venv' }
 
 [hooks]
+# Files needing frequent updates.
+# See hooks/post_gen_project.bash for files initialized once but rarely updated.
+# WARNING: some kind of non-BASH shell on GitHub Actions
 postinstall = """
 set -o errexit -o nounset
-npm clean-install --no-audit --no-fund &
+[ -d .git ] || git init
+npm install --no-audit --no-fund &
 npm_pid=$!
+# dup :287 tasks.uv-pip-compile
+uv pip compile --all-extras --output-file requirements.txt --quiet \
+    --python-platform linux pyproject.toml
 uv venv --allow-existing --no-progress
 uv pip sync requirements.txt
 wait "$npm_pid"
+mise generate pre-commit > .git/hooks/pre-commit
 """
 
 # Prerequisite tasks
@@ -232,7 +240,7 @@ TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE="$envi" \
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-pytest --cov${PYTEST_COV-} \
+python -m pytest --cov${PYTEST_COV-} \
     --cov-report=term-missing:skip-covered --verbose "$@"
 '''
 
@@ -276,9 +284,10 @@ run = 'typos --write-changes --config .biobuddies/typos.toml "$@"'
 [tasks.uv-pip-check]
 run = 'uv pip check "$@"'
 
+# dup :22 hooks.postinstall
 [tasks.uv-pip-compile]
 run = '''
-uv pip compile --all-extras --output-file requirements.txt \
+uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform linux pyproject.toml "$@"
 '''
 

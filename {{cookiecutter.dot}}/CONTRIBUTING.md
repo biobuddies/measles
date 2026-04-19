@@ -7,7 +7,8 @@ simplest:
 * Inline single-use literals
 * For twice-used literals:
     - Reuse single definition when diverging values would cause critical failure
-    - Duplicate and inline otherwise, commenting `# dup other/file.py:123` in both places
+    - Duplicate and inline otherwise, commenting in both places, e.g. same file
+      `# dup :12 tasks.uv-pip-compile` or `# dup other/file.py:345 favorite_function()`
     - Search for duplicates when adjusting
 * Choose good names for classes, functions, and variables:
     - Use whole words like `index` and `--long-command-line-arguments`
@@ -50,7 +51,7 @@ simplest:
         * Answer authorship and timing questions with evidence from the git log
     - Always track `origin/main`:
         * This flow combines convention and configuration for efficient everyday commands
-        * `git checkout -b my-feature-or-fix origin/main` (old misconfigured branches:
+        * `git switch --create my-feature-or-fix origin/main` (old misconfigured branches:
           `git branch --set-upstream-to=origin/main`)
         * `git pull` discovers new commits and rebases because `pull.rebase=true`
         * `git push` publishes to the current branch name because `push.default=current`
@@ -60,4 +61,22 @@ simplest:
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
-* Favorite tools: `curl`, `gh`, `git`, `mise`, `npm`, `uv`
+* Favorite tools:
+```sh
+curl
+diffstat
+gh
+git grep
+git log
+git ls-files
+git restore
+git switch
+host
+mise pre-commit-all
+mise test
+npm
+tree
+uv
+```
+* Avoid accidentally including .venv, node_modules, full git history; filter appropriately when
+  intentionally searching them for source code and documentation

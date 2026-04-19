@@ -8,7 +8,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-precommit = [
+pre-commit = [
     'actionlint-py',
     'basedpyright',
     'cookiecutter',
@@ -17,14 +17,16 @@ precommit = [
     'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
     'pre-commit-hooks',
     'pyrefly',
-    'pytest',
-    'pytest-cov',
     'ruff',
     'shellcheck-py',
     'shfmt-py',
     'typos',
     'validate-pyproject[all]',
     'yamllint',
+]
+test = [
+    'pytest',
+    'pytest-cov',
 ]
 
 
