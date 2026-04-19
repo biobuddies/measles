@@ -232,7 +232,7 @@ TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE="$envi" \
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-pytest --cov${PYTEST_COV-} \
+python -m pytest --cov${PYTEST_COV-} \
     --cov-report=term-missing:skip-covered --verbose "$@"
 '''
 
