@@ -9,6 +9,6 @@ Continuous [cookiecutter](https://github.com/cookiecutter/cookiecutter) featurin
 printf '%s\n' 'default_context:' '    languages: Node,Python' > .cookiecutter.yaml
 mise use python@3.12 uv@latest
 uvx cookiecutter --no-input --overwrite-if-exists https://github.com/biobuddies/measles.git
+mise install
+mise generate pre-commit > .git/hooks/pre-commit
 ```
-
-Fresh repos should pass `mise install && mise pre-commit` immediately after generation.
