@@ -60,4 +60,21 @@ simplest:
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
-* Favorite tools: `curl`, `gh`, `git`, `mise`, `npm`, `uv`
+* Favorite tools:
+```sh
+curl
+diffstat
+gh
+git grep
+git log
+git ls-files
+git restore
+git switch
+host
+mise pre-commit-all
+mise test
+npm
+tree
+uv
+```
+* Avoid accidentally including .venv, node_modules, full git history; filter appropriately when intentionally searching them for source code and documentation
