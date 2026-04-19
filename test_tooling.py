@@ -172,7 +172,11 @@ def test_existing_repository():
     cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
     assert cookiecutter_yaml.exists()
     assert 'languages' in cookiecutter_yaml.read_text()
-    env = {'MISE_TRUSTED_CONFIG_PATHS': str(wriggle), 'PATH': environ['PATH']}
+    env = {
+        'HOME': environ['HOME'],
+        'MISE_TRUSTED_CONFIG_PATHS': str(wriggle),
+        'PATH': environ['PATH'],
+    }
     assert check_output(['mise', 'cona'], cwd=wriggle, env=env) == b'wriggle\n'
     assert (
         check_output(
@@ -212,52 +216,11 @@ def test_new_repository_bootstrap(tmp_path: Path):
     else:
         raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
 
-    (tmp_path / 'package.json').write_text(
-        '{\n'
-        '    "name": "test",\n'
-        '    "devDependencies": {\n'
-        '        "prettier": ">=3.8.2",\n'
-        '        "prettier-plugin-jinja-template": "*",\n'
-        '        "prettier-plugin-organize-attributes": "*",\n'
-        '        "prettier-plugin-toml": "*"\n'
-        '    }\n'
-        '}\n'
-    )
-    (tmp_path / 'pyproject.toml').write_text(
-        '[project]\n'
-        'name = "test"\n'
-        'version = "0.0.1"\n'
-        '\n'
-        '[project.optional-dependencies]\n'
-        'pre-commit = [\n'
-        "    'actionlint-py',\n"
-        "    'basedpyright',\n"
-        "    'cookiecutter',\n"
-        "    'django-upgrade',\n"
-        "    'djlint',\n"
-        "    'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',\n"
-        "    'pre-commit-hooks',\n"
-        "    'pyrefly',\n"
-        "    'ruff',\n"
-        "    'shellcheck-py',\n"
-        "    'shfmt-py',\n"
-        "    'typos',\n"
-        "    'validate-pyproject[all]',\n"
-        "    'yamllint',\n"
-        ']\n'
-        'test = [\n'
-        "    'pytest',\n"
-        "    'pytest-cov',\n"
-        ']\n'
-    )
-
-    env = {'PATH': environ['PATH']}
+    env = {'HOME': str(tmp_path.parent), 'PATH': environ['PATH']}
+    check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
     check_call(
         ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
     )
-    check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
-    check_call(['mise', 'x', '--', 'uv', 'venv'], cwd=tmp_path, env=env)
-    check_call(['mise', 'install'], cwd=tmp_path, env=env)
     check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()

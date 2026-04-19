@@ -7,7 +7,8 @@ simplest:
 * Inline single-use literals
 * For twice-used literals:
     - Reuse single definition when diverging values would cause critical failure
-    - Duplicate and inline otherwise, commenting `# dup other/file.py:123` in both places
+    - Duplicate and inline otherwise, commenting in both places, e.g. same file
+      `# dup :12 tasks.uv-pip-compile` or `# dup other/file.py:345 favorite_function()`
     - Search for duplicates when adjusting
 * Choose good names for classes, functions, and variables:
     - Use whole words like `index` and `--long-command-line-arguments`
