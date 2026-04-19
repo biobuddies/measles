@@ -48,6 +48,16 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
+            - run: |
+                  # shellcheck disable=SC2086
+                  mkdir -p $HOME/code
+                  # shellcheck disable=SC2086
+                  ln -s ../work/measles/measles $HOME/code/measles
+
+                  # shellcheck disable=SC2086
+                  git clone --branch catch-measles \
+                      https://github.com/biobuddies/wriggle.git \
+                      $HOME/code/wriggle
             - run: mise test
 
 on: # yamllint disable-line rule:truthy

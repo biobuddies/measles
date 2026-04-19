@@ -1,2 +1,4 @@
 default_context:
     languages: Node,Python
+    peer_checkouts:
+        biobuddies/wriggle: catch-measles
