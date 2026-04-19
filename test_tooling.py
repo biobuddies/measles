@@ -169,7 +169,7 @@ def test_typos():
 def test_existing_repository():
     # Check arrangement
     wriggle = Path.home() / 'code' / 'wriggle'
-    cookiecutter_yaml = Path.home() / 'code' / 'wriggle' / '.cookiecutter.yaml'
+    cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
     assert cookiecutter_yaml.exists()
     assert 'languages' in cookiecutter_yaml.read_text()
     env = {'MISE_TRUSTED_CONFIG_PATHS': str(wriggle), 'PATH': environ['PATH']}
@@ -257,3 +257,6 @@ def test_new_repository_bootstrap(tmp_path: Path):
     check_call(['mise', 'x', '--', 'uv', 'venv'], cwd=tmp_path, env=env)
     check_call(['mise', 'install'], cwd=tmp_path, env=env)
     check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
+    assert (tmp_path / 'AGENTS.md').is_symlink()
+    assert (tmp_path / 'CLAUDE.md').is_symlink()
+    assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()

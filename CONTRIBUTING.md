@@ -50,7 +50,7 @@ simplest:
         * Answer authorship and timing questions with evidence from the git log
     - Always track `origin/main`:
         * This flow combines convention and configuration for efficient everyday commands
-        * `git checkout -b my-feature-or-fix origin/main` (old misconfigured branches:
+        * `git switch --create my-feature-or-fix origin/main` (old misconfigured branches:
           `git branch --set-upstream-to=origin/main`)
         * `git pull` discovers new commits and rebases because `pull.rebase=true`
         * `git push` publishes to the current branch name because `push.default=current`
@@ -60,4 +60,22 @@ simplest:
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
-* Favorite tools: `curl`, `gh`, `git`, `mise`, `npm`, `uv`
+* Favorite tools:
+```sh
+curl
+diffstat
+gh
+git grep
+git log
+git ls-files
+git restore
+git switch
+host
+mise pre-commit-all
+mise test
+npm
+tree
+uv
+```
+* Avoid accidentally including .venv, node_modules, full git history; filter appropriately when
+  intentionally searching them for source code and documentation

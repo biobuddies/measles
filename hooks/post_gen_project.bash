@@ -6,3 +6,6 @@ set -o errexit -o nounset -o pipefail -o xtrace
 # short flags for Darwin compatibility
 curl -s https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }} \
     | sed -E "$(cat .gitignore.sed 2>/dev/null)" >.gitignore
+ln -sf CONTRIBUTING.md AGENTS.md
+ln -sf CONTRIBUTING.md CLAUDE.md
+ln -sf ../CONTRIBUTING.md .github/copilot-instructions.md
