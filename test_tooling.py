@@ -229,7 +229,7 @@ def test_new_repository_bootstrap(tmp_path: Path):
         'version = "0.0.1"\n'
         '\n'
         '[project.optional-dependencies]\n'
-        'precommit = [\n'
+        'pre-commit = [\n'
         "    'actionlint-py',\n"
         "    'basedpyright',\n"
         "    'cookiecutter',\n"
@@ -238,14 +238,16 @@ def test_new_repository_bootstrap(tmp_path: Path):
         "    'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',\n"
         "    'pre-commit-hooks',\n"
         "    'pyrefly',\n"
-        "    'pytest',\n"
-        "    'pytest-cov',\n"
         "    'ruff',\n"
         "    'shellcheck-py',\n"
         "    'shfmt-py',\n"
         "    'typos',\n"
         "    'validate-pyproject[all]',\n"
         "    'yamllint',\n"
+        ']\n'
+        'test = [\n'
+        "    'pytest',\n"
+        "    'pytest-cov',\n"
         ']\n'
     )
 

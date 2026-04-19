@@ -10,29 +10,32 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-{% set precommit_base = [
-    'actionlint-py',
-    'basedpyright',
-    'cookiecutter',
-    'django-upgrade',
-    'djlint',
-    'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
-    'pre-commit-hooks',
-    'pyrefly',
-    'pytest',
-    'pytest-cov',
-    'ruff',
-    'shellcheck-py',
-    'shfmt-py',
-    'typos',
-    'validate-pyproject[all]',
-    'yamllint',
-] -%}
+{% set base = {
+    'pre-commit': [
+        'actionlint-py',
+        'basedpyright',
+        'cookiecutter',
+        'django-upgrade',
+        'djlint',
+        'hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git',
+        'pre-commit-hooks',
+        'pyrefly',
+        'ruff',
+        'shellcheck-py',
+        'shfmt-py',
+        'typos',
+        'validate-pyproject[all]',
+        'yamllint',
+    ],
+    'test': ['pytest', 'pytest-cov'],
+} -%}
 {% set groups = dict(cookiecutter.python_optional_dependencies) -%}
-{% set _ = groups.update({'precommit': (precommit_base + cookiecutter.python_optional_dependencies.get('precommit', []))|sort}) -%}
+{% for group, dependencies in base.items() -%}
+{% set _ = groups.update({group: (dependencies + groups.get(group, []))|sort}) -%}
+{% endfor -%}
 {% for group, dependencies in groups.items()|sort -%}
 {{ group }} = [
-{{ "    '" ~ (dependencies|sort|join("',\n    '")) ~ "'," if dependencies else '' }}
+{{ "    '" ~ (dependencies|join("',\n    '")) ~ "'," if dependencies else '' }}
 ]
 {% endfor %}
 
