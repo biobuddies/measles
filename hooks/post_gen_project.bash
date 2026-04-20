@@ -4,8 +4,14 @@ set -o errexit -o nounset -o pipefail -o xtrace
 : template=hooks/post_gen_project.bash rendering=$0
 {% set suffix = '{' ~ cookiecutter.languages ~ '}.gitignore' %}
 # short flags for Darwin compatibility
-curl -s https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }} \
-    | sed -E "$(cat .gitignore.sed 2>/dev/null)" >.gitignore
+if [[ ${GITHUB_TOKEN-} ]]; then
+    curl -fsSL \
+        -H 'Accept: application/vnd.github.raw+json' \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        https://api.github.com/repos/github/gitignore/contents/{{ suffix }}
+else
+    curl -fsSL https://raw.githubusercontent.com/github/gitignore/main/{{ suffix }}
+fi | sed -E "$(cat .gitignore.sed 2>/dev/null)" >.gitignore
 if [[ ! -f manage.py ]] && grep --extended-regexp --quiet "'[Dd]jango" pyproject.toml; then
     uv run --with django python -m django startproject config .
 fi

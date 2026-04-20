@@ -110,8 +110,15 @@ def test_run_on_sources():
 
 def test_gitignore(tmp_path: Path):
     hook = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
+    lines = hook.splitlines()
     snippet = '\n'.join(
-        line for line in hook.splitlines() if 'gitignore' in line and '{%' not in line
+        lines[
+            next(
+                index
+                for index, line in enumerate(lines)
+                if line.startswith('if [[ ${GITHUB_TOKEN-} ]]')
+            ) : next(index for index, line in enumerate(lines) if '>.gitignore' in line) + 1
+        ]
     ).replace('{{ suffix }}', 'Python.gitignore')
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
     check_output(
@@ -125,6 +132,42 @@ def test_gitignore(tmp_path: Path):
         env={},
     )
     assert (tmp_path / '.gitignore').read_text() == '/site/ton/\n'
+
+
+def test_gitignore_uses_github_token(tmp_path: Path):
+    hook = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
+    lines = hook.splitlines()
+    snippet = '\n'.join(
+        lines[
+            next(
+                index
+                for index, line in enumerate(lines)
+                if line.startswith('if [[ ${GITHUB_TOKEN-} ]]')
+            ) : next(index for index, line in enumerate(lines) if '>.gitignore' in line) + 1
+        ]
+    ).replace('{{ suffix }}', 'Python.gitignore')
+    (tmp_path / '.gitignore.sed').write_text('')
+    check_output(
+        [
+            '/usr/bin/env',
+            'bash',
+            '-c',
+            (
+                'set -o errexit -o nounset -o pipefail; '
+                'curl(){ printf "%s\\n" "$@" >curl.args; echo /site; }; ' + snippet
+            ),
+        ],
+        cwd=tmp_path,
+        env={'GITHUB_TOKEN': 'test-token'},
+    )
+    assert (tmp_path / 'curl.args').read_text() == (
+        '-fsSL\n'
+        '-H\n'
+        'Accept: application/vnd.github.raw+json\n'
+        '-H\n'
+        'Authorization: Bearer test-token\n'
+        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore\n'
+    )
 
 
 def test_prettier():
