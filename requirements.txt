@@ -51,7 +51,9 @@ json5==0.14.0
 markdown-it-py==4.0.0
     # via rich
 markupsafe==3.0.3
-    # via jinja2
+    # via
+    #   jinja2
+    #   werkzeug
 mdurl==0.1.2
     # via markdown-it-py
 nodejs-wheel-binaries==24.14.1
@@ -81,6 +83,8 @@ pytest==9.0.3
     #   measles (pyproject.toml)
     #   pytest-cov
 pytest-cov==7.1.0
+    # via measles (pyproject.toml)
+pytest-httpserver==1.1.4
     # via measles (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via arrow
@@ -126,5 +130,7 @@ urllib3==2.6.3
     # via requests
 validate-pyproject==0.25
     # via measles (pyproject.toml)
+werkzeug==3.1.8
+    # via pytest-httpserver
 yamllint==1.38.0
     # via measles (pyproject.toml)
