@@ -53,6 +53,7 @@ split-on-trailing-comma = false
     'PLR6301', # Test classes can ignore self
     'PT013',   # `import pytest` would be inconsistent with other imports
     'S101',    # Tests can have assertions
+    'S105',    # Testing authentication is good
     'S603',    # Tests can call subprocesses
 ]
 

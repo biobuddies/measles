@@ -2,3 +2,6 @@ default_context:
     languages: Node,Python
     peer_checkouts:
         biobuddies/wriggle: main
+    python_optional_dependencies:
+        test:
+            - pytest-httpserver

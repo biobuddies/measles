@@ -4,11 +4,12 @@ import stat
 from json import loads
 from os import environ, getenv
 from pathlib import Path
-from re import match
+from re import DOTALL, MULTILINE, Match, match, search
 from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 
 from pytest import mark, raises
+from pytest_httpserver import HTTPServer
 
 # Four Letter AbbreviatioNs (FLANs)
 
@@ -108,23 +109,55 @@ def test_run_on_sources():
 # Line changers
 
 
-def test_gitignore(tmp_path: Path):
-    hook = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
-    snippet = '\n'.join(
-        line for line in hook.splitlines() if 'gitignore' in line and '{%' not in line
-    ).replace('{{ suffix }}', 'Python.gitignore')
-    (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
-    check_output(
-        [
-            '/usr/bin/env',
-            'bash',
-            '-c',
-            'set -o errexit -o nounset -o pipefail; curl(){ echo /site; }; ' + snippet,
-        ],
-        cwd=tmp_path,
-        env={},
+def gitignore_curl_command(httpserver: HTTPServer) -> list[str]:
+    # Begin arranging
+    match = search(
+        r'^authorization_header=.*?(?=>\.gitignore)',
+        (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text(),
+        flags=MULTILINE | DOTALL,
     )
-    assert (tmp_path / '.gitignore').read_text() == '/site/ton/\n'
+    assert isinstance(match, Match)  # Check arrangement
+    # Continue arranging
+    return [
+        '/usr/bin/env',
+        'bash',
+        '-c',
+        'set -o errexit -o nounset -o pipefail; '
+        + match.group().replace(
+            'https://api.github.com/repos/github/gitignore/contents/{{ suffix }}',
+            httpserver.url_for('/repos/github/gitignore/contents/Python.gitignore'),
+        ),
+    ]
+
+
+def test_gitignore_no_token_or_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
+    # Arrange
+    httpserver.expect_request(
+        '/repos/github/gitignore/contents/Python.gitignore'
+    ).respond_with_data('/site\n')
+
+    # Act and assert
+    assert check_output(gitignore_curl_command(httpserver), cwd=tmp_path, env={}) == b'/site\n'
+    assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
+    assert httpserver.log[0][0].headers.get('Authorization') is None
+
+
+def test_gitignore_with_token_and_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
+    # Arrange
+    httpserver.expect_request(
+        '/repos/github/gitignore/contents/Python.gitignore'
+    ).respond_with_data('/site\n')
+    (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
+
+    # Act and assert
+    assert (
+        check_output(
+            gitignore_curl_command(httpserver), cwd=tmp_path, env={'GITHUB_TOKEN': 'test-token'}
+        )
+        == b'/site/ton/\n'
+    )
+    assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
+    assert httpserver.log[0][0].headers['Authorization'] == 'Bearer test-token'
 
 
 def test_prettier():
@@ -225,3 +258,4 @@ def test_new_repository_bootstrap(tmp_path: Path):
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
+    assert (tmp_path / 'config' / 'settings.py').exists()
