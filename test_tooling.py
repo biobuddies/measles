@@ -225,3 +225,4 @@ def test_new_repository_bootstrap(tmp_path: Path):
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
+    assert (tmp_path / 'config' / 'settings.py').exists()
