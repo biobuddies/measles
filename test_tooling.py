@@ -4,8 +4,8 @@ import stat
 from json import loads
 from os import environ, getenv
 from pathlib import Path
-from re import DOTALL, MULTILINE, Match, match, search
-from subprocess import CalledProcessError, check_call, check_output
+from re import match
+from subprocess import CalledProcessError, check_call, check_output, run
 from tempfile import TemporaryDirectory
 
 from pytest import mark, raises
@@ -111,23 +111,30 @@ def test_run_on_sources():
 
 def gitignore_curl_command(httpserver: HTTPServer) -> list[str]:
     # Begin arranging
-    match = search(
-        r'^authorization_header=.*?(?=>\.gitignore)',
-        (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text(),
-        flags=MULTILINE | DOTALL,
-    )
-    assert isinstance(match, Match)  # Check arrangement
+    script = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
+    start = script.index('set -- curl --fail --silent --show-error --header')
+    end = script.index('\nif [[ ! -f manage.py ]]')
     # Continue arranging
     return [
         '/usr/bin/env',
         'bash',
         '-c',
-        'set -o errexit -o nounset -o pipefail; '
-        + match.group().replace(
+        'set -o errexit -o nounset -o pipefail -o xtrace; '
+        + script[start:end].replace(
             'https://api.github.com/repos/github/gitignore/contents/{{ suffix }}',
             httpserver.url_for('/repos/github/gitignore/contents/Python.gitignore'),
         ),
     ]
+
+
+def gitignore_curl(httpserver: HTTPServer, cwd: Path, env: dict[str, str]):
+    return run(
+        gitignore_curl_command(httpserver),
+        cwd=cwd,
+        env={'PATH': environ['PATH'], **env},
+        capture_output=True,
+        check=True,
+    )
 
 
 def test_gitignore_no_token_or_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
@@ -137,7 +144,8 @@ def test_gitignore_no_token_or_sed_substitution(tmp_path: Path, httpserver: HTTP
     ).respond_with_data('/site\n')
 
     # Act and assert
-    assert check_output(gitignore_curl_command(httpserver), cwd=tmp_path, env={}) == b'/site\n'
+    gitignore_curl(httpserver, tmp_path, {})
+    assert (tmp_path / '.gitignore').read_bytes() == b'/site\n'
     assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
     assert httpserver.log[0][0].headers.get('Authorization') is None
 
@@ -150,14 +158,25 @@ def test_gitignore_with_token_and_sed_substitution(tmp_path: Path, httpserver: H
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
 
     # Act and assert
-    assert (
-        check_output(
-            gitignore_curl_command(httpserver), cwd=tmp_path, env={'GITHUB_TOKEN': 'test-token'}
-        )
-        == b'/site/ton/\n'
-    )
+    gitignore_curl(httpserver, tmp_path, {'GITHUB_TOKEN': 'test-token'})
+    assert (tmp_path / '.gitignore').read_bytes() == b'/site/ton/\n'
     assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
     assert httpserver.log[0][0].headers['Authorization'] == 'Bearer test-token'
+
+
+def test_gitignore_trace_redacts_token(tmp_path: Path, httpserver: HTTPServer):
+    # Arrange
+    httpserver.expect_request(
+        '/repos/github/gitignore/contents/Python.gitignore'
+    ).respond_with_data('/site\n')
+
+    # Act
+    result = gitignore_curl(httpserver, tmp_path, {'GITHUB_TOKEN': 'test-token'})
+
+    # Assert
+    stderr = result.stderr.decode()
+    assert 'GITHUB_TOKEN' in stderr
+    assert 'Authorization: Bearer test-token' not in stderr
 
 
 def test_prettier():
