@@ -9,7 +9,7 @@ import tomllib
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import STDOUT, CalledProcessError, CompletedProcess, check_call, check_output
+from subprocess import STDOUT, CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import Any

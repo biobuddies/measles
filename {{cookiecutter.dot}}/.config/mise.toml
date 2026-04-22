@@ -335,15 +335,22 @@ depends = [
 run = 'git diff --color=always --exit-code'
 
 [tasks.pre-commit]
-depends = ['pre-commit-fast']
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+[[ $# -eq 0 || ${1-} =~ ^(-e|--edit)$ ]]
+mise pre-commit-fast
+'''
 
 [tasks.pre-commit-all]
-depends = [
-    'cookiecutter',    # needs Internet
-    'pre-commit-fast',
-    'uv-pip-compile',  # needs Internet
-]
-run = 'git diff --color=always --exit-code'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+mise cookiecutter "$@"  # needs Internet
+mise pre-commit "$@"
+mise uv-pip-compile  # needs Internet
+git diff --color=always --exit-code
+'''
 
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
