@@ -33,6 +33,7 @@ test = [
 [tool.pytest.ini_options]
 norecursedirs = ['{{cookiecutter.dot}}']
 
+
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
 

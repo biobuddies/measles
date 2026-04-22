@@ -4,7 +4,7 @@ from base64 import b64decode
 from json import load
 from os import environ, getenv
 from pathlib import Path
-from re import fullmatch, search
+from re import IGNORECASE, fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
 from urllib.error import HTTPError, URLError
@@ -106,11 +106,25 @@ class Measles(Extension):
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
-        yaml = safe_load(yaml_path.read_text())
+        python_dependencies = safe_load(yaml_path.read_text())['default_context'].get(
+            'python_dependencies', []
+        )
+        has_django = any(
+            search(r'^django($|[\s\[<=>!~])', dependency, IGNORECASE)
+            for dependency in python_dependencies
+        )
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
-        environment.globals.update({
-            'CONA': cona(),
-            'ORGN': orgn(),
-            'gitignore': gitignore,
-            'python_dependencies': yaml['default_context'].get('python_dependencies', []),
-        })
+        environment.globals.update(
+            {
+                'CONA': cona(),
+                'ORGN': orgn(),
+                'gitignore': gitignore,
+                'has_django': has_django,
+                'python_dependencies': python_dependencies,
+                'python_test_dependencies': [
+                    'pytest',
+                    'pytest-cov',
+                    *(('pytest-django',) if has_django else ()),
+                ],
+            }
+        )
