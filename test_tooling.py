@@ -5,10 +5,11 @@ import sys
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
+import tomllib
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import CalledProcessError, check_call, check_output
+from subprocess import STDOUT, CalledProcessError, CompletedProcess, check_call, check_output
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import Any
@@ -16,9 +17,11 @@ from urllib.error import HTTPError
 from urllib.request import Request
 
 from _pytest.monkeypatch import MonkeyPatch
+from jinja2 import Environment
 from pytest import CaptureFixture, fail, fixture, mark, raises
 
 import measles
+from measles import Measles
 
 # Four Letter AbbreviatioNs (FLANs)
 
@@ -113,6 +116,37 @@ def test_run_on_sources():
         assert str(binary_path) not in output
     finally:
         binary_path.unlink(missing_ok=True)
+
+
+@mark.parametrize(
+    ('python_dependencies', 'has_django', 'python_test_dependencies'),
+    (
+        (['django>=5'], True, ['pytest', 'pytest-cov', 'pytest-django']),
+        (['click'], False, ['pytest', 'pytest-cov']),
+    ),
+)
+def test_measles_globals(
+    monkeypatch: MonkeyPatch,
+    python_dependencies: list[str],
+    has_django: bool,
+    python_test_dependencies: list[str],
+):
+    monkeypatch.setattr(measles, 'cona', lambda: 'measles')
+    monkeypatch.setattr(measles, 'orgn', lambda: 'biobuddies')
+    monkeypatch.setattr(
+        measles,
+        'safe_load',
+        lambda _: {'default_context': {'python_dependencies': python_dependencies}},
+    )
+    environment = Environment(autoescape=True)
+
+    Measles(environment)
+
+    assert environment.globals['CONA'] == 'measles'
+    assert environment.globals['ORGN'] == 'biobuddies'
+    assert environment.globals['has_django'] == has_django
+    assert environment.globals['python_dependencies'] == python_dependencies
+    assert environment.globals['python_test_dependencies'] == python_test_dependencies
 
 
 # Line changers
@@ -266,8 +300,12 @@ def test_existing_repository():
     check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
 
     # Assert
+    pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
     assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
-    assert "'sqlglot'," in (wriggle / 'pyproject.toml').read_text()
+    assert 'sqlglot' in (wriggle / 'pyproject.toml').read_text()
+    assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
+    assert 'DJANGO_SETTINGS_MODULE' not in (wriggle / 'pyproject.toml').read_text()
+    assert not (wriggle / 'config' / 'settings.py').exists()
 
 
 def test_new_repository_bootstrap(tmp_path: Path):
@@ -301,8 +339,63 @@ def test_new_repository_bootstrap(tmp_path: Path):
     check_call(
         ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
     )
-    check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
+    pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
+    assert pyproject['project']['optional-dependencies']['test'] == [
+        'pytest',
+        'pytest-cov',
+        'pytest-django',
+    ]
+    assert "DJANGO_SETTINGS_MODULE = 'config.settings'" in (tmp_path / 'pyproject.toml').read_text()
+    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
     assert (tmp_path / 'config' / 'settings.py').exists()
+
+    def git_text(*args: str) -> str:
+        return check_output(
+            ['git', *args],
+            cwd=tmp_path,
+            env={
+                **env,
+                'GIT_AUTHOR_EMAIL': 'test@example.com',
+                'GIT_AUTHOR_NAME': 'Test User',
+                'GIT_COMMITTER_EMAIL': 'test@example.com',
+                'GIT_COMMITTER_NAME': 'Test User',
+            },
+            stderr=STDOUT,
+            text=True,
+        )
+
+    git_text('add', '--all')
+    status_before_failed_commit = git_text('status', '--short')
+    diffstat_before_failed_commit = git_text('diff', '--cached', '--stat')
+    with raises(CalledProcessError) as error:
+        git_text('commit', '--message', 'Initial commit', '--no-gpg-sign')
+    status_after_failed_commit = git_text('status', '--short')
+    diffstat_after_failed_commit = git_text('diff', '--stat')
+
+    assert status_after_failed_commit, '\n'.join(
+        (
+            'pre-commit failed without changing the working tree',
+            f'status before failed commit:\n{status_before_failed_commit}',
+            f'diffstat before failed commit:\n{diffstat_before_failed_commit}',
+            f'diffstat after failed commit:\n{diffstat_after_failed_commit}',
+            f'commit output:\n{error.value.output}',
+        )
+    )
+
+    git_text('add', '--all')
+    status_before_successful_commit = git_text('status', '--short')
+    diffstat_before_successful_commit = git_text('diff', '--cached', '--stat')
+    successful_commit_output = git_text('commit', '--message', 'Initial commit', '--no-gpg-sign')
+    final_status = git_text('status', '--short')
+
+    assert not final_status, '\n'.join(
+        (
+            f'status before successful commit:\n{status_before_successful_commit}',
+            f'diffstat before successful commit:\n{diffstat_before_successful_commit}',
+            f'commit output:\n{successful_commit_output}',
+            f'final status:\n{final_status}',
+        )
+    )

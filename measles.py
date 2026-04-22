@@ -4,7 +4,7 @@ from base64 import b64decode
 from json import load
 from os import getenv
 from pathlib import Path
-from re import fullmatch, search
+from re import IGNORECASE, fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
 from urllib.error import HTTPError, URLError
@@ -97,14 +97,25 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        python_dependencies = safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
+            'default_context'
+        ].get('python_dependencies', [])
+        has_django = any(
+            search(r'^django($|[\s\[<=>!~])', dependency, IGNORECASE)
+            for dependency in python_dependencies
+        )
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update(
             {
                 'CONA': cona(),
                 'ORGN': orgn(),
                 'gitignore': gitignore,
-                'python_dependencies': safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
-                    'default_context'
-                ].get('python_dependencies', []),
+                'has_django': has_django,
+                'python_dependencies': python_dependencies,
+                'python_test_dependencies': [
+                    'pytest',
+                    'pytest-cov',
+                    *(('pytest-django',) if has_django else ()),
+                ],
             }
         )

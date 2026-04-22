@@ -27,7 +27,7 @@ dependencies = [
         'validate-pyproject[all]',
         'yamllint',
     ],
-    'test': ['pytest', 'pytest-cov'],
+    'test': python_test_dependencies,
 } -%}
 {% set groups = dict(cookiecutter.python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
@@ -38,6 +38,11 @@ dependencies = [
 {{ "    '" ~ (dependencies|join("',\n    '")) ~ "'," if dependencies else '' }}
 ]
 {% endfor %}
+{% if has_django %}
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = 'config.settings'
+{% endif %}
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
