@@ -17,7 +17,7 @@ _.python.venv = { path = '.venv' }
 # WARNING: some kind of non-BASH shell on GitHub Actions
 postinstall = """
 set -o errexit -o nounset
-[ -d .git ] || git init
+[ -d .git ] || git init --initial-branch=main
 npm install --no-audit --no-fund &
 npm_pid=$!
 # dup :287 tasks.uv-pip-compile

@@ -30,6 +30,8 @@ test = [
     'pytest-httpserver',
 ]
 
+[tool.pytest.ini_options]
+norecursedirs = ['{{cookiecutter.dot}}']
 
 
 [tool.basedpyright]

@@ -1,12 +1,13 @@
 """Continuous cookiecutter featuring mise."""
 
 from base64 import b64decode
-from json import dumps, load
+from json import load
 from os import getenv
 from pathlib import Path
-from re import IGNORECASE, fullmatch, search
+from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
+from traceback import format_stack
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -17,7 +18,9 @@ from yaml import safe_load
 
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
-    if repository := getenv('GITHUB_REPOSITORY'):
+    if cona := getenv('CONA'):
+        pass
+    elif repository := getenv('GITHUB_REPOSITORY'):
         cona = repository.split('/')[-1]
     elif virtual_environment := getenv('VIRTUAL_ENV'):
         cona = Path(virtual_environment).parent.name
@@ -30,9 +33,13 @@ def cona() -> str:
 
 def orgn() -> str:
     """ORGanizatioN, a four-letter abbreviation."""
-    if repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
+    if orgn := getenv('ORGN'):
+        pass
+    elif repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
         orgn = repository_owner
     else:
+        if not (Path.cwd() / '.git').exists():
+            return 'github-organization-unknown'
         try:
             remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
         except CalledProcessError:
@@ -92,33 +99,35 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
+def cookiecutter_yaml() -> dict:
+    repository = Path.cwd()
+    if repository.name == 'measles' and cona() != 'measles':
+        for frame in reversed(format_stack()):
+            if cookiecutter := search(r'File "([^"]+/\.venv/bin/cookiecutter)"', frame):
+                repository = Path(cookiecutter.group(1)).resolve().parents[2]
+    return safe_load((repository / '.cookiecutter.yaml').read_text())
+
+
+def python_template_globals() -> dict[str, object]:
+    python_dependencies = cookiecutter_yaml()['default_context'].get('python_dependencies', [])
+    has_django = any('django' in dependency.lower() for dependency in python_dependencies)
+    return {
+        'has_django': has_django,
+        'python_dependencies': python_dependencies,
+        'python_test_dependencies': [
+            'pytest',
+            'pytest-cov',
+            *(('pytest-django',) if has_django else ()),
+        ],
+    }
+
+
 class Measles(Extension):
     """Set globals."""
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
-        root = Path(__file__).parent
-        python_dependencies = safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
-            'default_context'
-        ].get('python_dependencies', [])
-        django_test_boilerplate = dumps((root / 'hooks' / 'django_boilerplate.py').read_text())
-        has_django = any(
-            search(r'^django($|[\s\[<=>!~])', dependency, IGNORECASE)
-            for dependency in python_dependencies
-        )
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update(
-            {
-                'CONA': cona(),
-                'ORGN': orgn(),
-                'gitignore': gitignore,
-                'django_test_boilerplate': django_test_boilerplate,
-                'has_django': has_django,
-                'python_dependencies': python_dependencies,
-                'python_test_dependencies': [
-                    'pytest',
-                    'pytest-cov',
-                    *(('pytest-django',) if has_django else ()),
-                ],
-            }
+            {'CONA': cona(), 'ORGN': orgn(), 'gitignore': gitignore, **python_template_globals()}
         )

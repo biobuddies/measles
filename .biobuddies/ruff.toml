@@ -18,6 +18,7 @@ ignore = [
     'D107',
     'EM101',  # Simple code is more important than simple tracebacks
     'EM102',  # Simple code is more important than simple tracebacks
+    'FBT001', # What is bad about Boolean parameters?
     'FIX002', # Don't make the perfect the enemy of the good
     'INP001',
     # Demystify magic values with good variable names, comments, or other context. Follow
