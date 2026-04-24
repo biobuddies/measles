@@ -5,6 +5,9 @@ set -o errexit -o nounset -o pipefail -o xtrace
 # shellcheck disable=SC1009
 {% if has_django -%}
 [[ -f manage.py ]] || uv run --with django python -m django startproject config .
+sed -i.bak "/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }" config/settings.py
+rm config/settings.py.bak
+python -c 'from pathlib import Path; Path("config/test_boilerplate.py").write_text({{ django_test_boilerplate }})'
 {% endif -%}
 # https://developers.openai.com/codex/guides/agents-md
 # https://forgecode.dev/docs/custom-rules/

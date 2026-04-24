@@ -332,7 +332,11 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+git diff --color=always $( [[ $(mise envi) == local ]] || echo --exit-code )
+'''
 
 [tasks.pre-commit]
 run = '''
@@ -349,7 +353,7 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-git diff --color=always --exit-code
+git diff --color=always $( [[ $(mise envi) == local ]] || echo --exit-code )
 '''
 
 [tools]

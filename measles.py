@@ -1,7 +1,7 @@
 """Continuous cookiecutter featuring mise."""
 
 from base64 import b64decode
-from json import load
+from json import dumps, load
 from os import getenv
 from pathlib import Path
 from re import IGNORECASE, fullmatch, search
@@ -97,9 +97,11 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        root = Path(__file__).parent
         python_dependencies = safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
             'default_context'
         ].get('python_dependencies', [])
+        django_test_boilerplate = dumps((root / 'hooks' / 'django_boilerplate.py').read_text())
         has_django = any(
             search(r'^django($|[\s\[<=>!~])', dependency, IGNORECASE)
             for dependency in python_dependencies
@@ -110,6 +112,7 @@ class Measles(Extension):
                 'CONA': cona(),
                 'ORGN': orgn(),
                 'gitignore': gitignore,
+                'django_test_boilerplate': django_test_boilerplate,
                 'has_django': has_django,
                 'python_dependencies': python_dependencies,
                 'python_test_dependencies': [
