@@ -109,20 +109,67 @@ def test_orgn_rejects_bad_characters(monkeypatch: MonkeyPatch, tmp_path: Path):
         measles.orgn()
 
 
-def test_init(monkeypatch: MonkeyPatch, tmp_path: Path):
-    (tmp_path / '.cookiecutter.yaml').write_text(
-        'default_context:\n    python_dependencies:\n    - click\n'
+def test_cookiecutter_yaml_from_stack(monkeypatch: MonkeyPatch, tmp_path: Path):
+    template_repository = tmp_path / 'measles'
+    generated_repository = tmp_path / 'wriggle'
+    template_repository.mkdir()
+    generated_repository.mkdir()
+    (generated_repository / '.cookiecutter.yaml').write_text('default_context:\n')
+    monkeypatch.chdir(template_repository)
+    clear_environment(monkeypatch)
+    monkeypatch.setenv('CONA', 'wriggle')
+    monkeypatch.setattr(
+        measles,
+        'format_stack',
+        lambda: [f'  File "{generated_repository}/.venv/bin/cookiecutter", line 12, in <module>\n'],
     )
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('PWD', str(tmp_path))
+
+    assert measles.cookiecutter_yaml() == {'default_context': None}
+
+
+def test_python_template_globals(monkeypatch: MonkeyPatch):
+    clear_environment(monkeypatch)
+    monkeypatch.setattr(
+        measles,
+        'cookiecutter_yaml',
+        lambda: {'default_context': {'python_dependencies': ['djangorestframework', 'requests']}},
+    )
+    assert measles.python_template_globals() == {
+        'has_django': True,
+        'python_dependencies': ['djangorestframework', 'requests'],
+        'python_test_dependencies': ['pytest', 'pytest-cov', 'pytest-django'],
+    }
+    monkeypatch.setattr(
+        measles,
+        'cookiecutter_yaml',
+        lambda: {'default_context': {'python_dependencies': ['click']}},
+    )
+    assert measles.python_template_globals() == {
+        'has_django': False,
+        'python_dependencies': ['click'],
+        'python_test_dependencies': ['pytest', 'pytest-cov'],
+    }
+
+
+def test_init(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(measles, 'cona', lambda: 'measles')
     monkeypatch.setattr(measles, 'orgn', lambda: 'biobuddies')
     monkeypatch.setattr(measles, 'gitignore', lambda languages: f'gitignore:{languages}')
+    monkeypatch.setattr(
+        measles,
+        'python_template_globals',
+        lambda: {
+            'has_django': True,
+            'python_dependencies': ['django'],
+            'python_test_dependencies': ['pytest', 'pytest-cov', 'pytest-django'],
+        },
+    )
     environment = Environment(autoescape=False, extensions=[measles.Measles])  # noqa: S701
 
     assert (
         environment.from_string(
-            '{{ CONA }} {{ ORGN }} {{ python_dependencies|join(",") }} {{ gitignore("Python") }}'
+            '{{ CONA }} {{ ORGN }} {{ has_django }} {{ python_dependencies|join(",") }}'
+            ' {{ python_test_dependencies|join(",") }} {{ gitignore("Python") }}'
         ).render()
-        == 'measles biobuddies click gitignore:Python'
+        == 'measles biobuddies True django pytest,pytest-cov,pytest-django gitignore:Python'
     )
