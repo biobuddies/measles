@@ -10,6 +10,11 @@ if [[ ! -f manage.py ]] && [[ $(
 ) ]]; then
     uv run --with django python -m django startproject config .
 fi
+if [[ -f manage.py ]]; then
+sed -i.bak "/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }" config/settings.py
+rm config/settings.py.bak
+python -c 'from pathlib import Path; Path("config/test_boilerplate.py").write_text({{ django_test_boilerplate }})'
+fi
 # https://developers.openai.com/codex/guides/agents-md
 # https://forgecode.dev/docs/custom-rules/
 ln -sf CONTRIBUTING.md AGENTS.md

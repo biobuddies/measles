@@ -16,8 +16,8 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request
 
-from _pytest.monkeypatch import MonkeyPatch
 from jinja2 import Environment
+from _pytest.monkeypatch import MonkeyPatch
 from pytest import CaptureFixture, fail, fixture, mark, raises
 
 import measles
@@ -169,6 +169,7 @@ def test_run_on_sources():
     ('python_dependencies', 'has_django', 'python_test_dependencies'),
     (
         (['django>=5'], True, ['pytest', 'pytest-cov', 'pytest-django']),
+        (['djangorestframework'], True, ['pytest', 'pytest-cov', 'pytest-django']),
         (['click'], False, ['pytest', 'pytest-cov']),
     ),
 )
@@ -178,12 +179,20 @@ def test_measles_globals(
     has_django: bool,
     python_test_dependencies: list[str],
 ):
+    boilerplate = 'from importlib import import_module\n'
     monkeypatch.setattr(measles, 'cona', lambda: 'measles')
     monkeypatch.setattr(measles, 'orgn', lambda: 'biobuddies')
     monkeypatch.setattr(
         measles,
         'safe_load',
         lambda _: {'default_context': {'python_dependencies': python_dependencies}},
+    )
+    monkeypatch.setattr(
+        measles.Path,
+        'read_text',
+        lambda path: (
+            boilerplate if path.name == 'django_boilerplate.py' else 'default_context:\n'
+        ),
     )
     environment = Environment(autoescape=True)
 
@@ -194,6 +203,7 @@ def test_measles_globals(
     assert environment.globals['has_django'] == has_django
     assert environment.globals['python_dependencies'] == python_dependencies
     assert environment.globals['python_test_dependencies'] == python_test_dependencies
+    assert loads(environment.globals['django_test_boilerplate']) == boilerplate
 
 
 # Line changers
@@ -376,6 +386,7 @@ def test_existing_repository():
     assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert not (wriggle / 'manage.py').exists()
     assert not (wriggle / 'config' / 'settings.py').exists()
+    assert not (wriggle / 'config' / 'test_boilerplate.py').exists()
 
 
 @mark.skip('complex malfunction in django detection')
@@ -432,6 +443,8 @@ def test_new_repository_bootstrap(tmp_path: Path):
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
     assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert (tmp_path / 'config' / 'settings.py').exists()
+    assert (tmp_path / 'config' / 'test_boilerplate.py').exists()
+    check_call(['uv', 'run', 'pytest', 'config/test_boilerplate.py'], cwd=tmp_path, env=env)
 
     def git_text(*args: str) -> str:
         return check_output(
