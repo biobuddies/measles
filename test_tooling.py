@@ -2,7 +2,8 @@
 
 import stat
 from base64 import b64encode
-from json import loads
+from io import BytesIO
+from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
@@ -111,39 +112,28 @@ def test_run_on_sources():
     finally:
         binary_path.unlink(missing_ok=True)
 
-
 # Line changers
 
 
 @fixture
-def upstream_gitignore() -> dict[str, str]:
-    return {'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}
-
-
-@fixture
-def gitignore_requests(
-    monkeypatch: MonkeyPatch, upstream_gitignore: dict[str, str]
-) -> list[Request]:
+def gitignore_requests(monkeypatch: MonkeyPatch) -> list[Request]:
     requests: list[Request] = []
+    response = BytesIO(
+        dumps({'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}).encode()
+    )
 
-    def fake_urlopen(request: Request) -> object:
+    def fake_urlopen(request: Request) -> BytesIO:
         requests.append(request)
-        return object()
+        response.seek(0)
+        return response
 
-    def fake_load(_: object) -> dict[str, str]:
-        return upstream_gitignore
-
-    monkeypatch.setattr(measles, 'load', fake_load)
     monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
     return requests
 
 
 @fixture
 def vendored_gitignore() -> str:
-    return (
-        '\n'.join((Path(measles.__file__).parent / '.gitignore').read_text().splitlines()[3:])
-        + '\n'
-    )
+    return '# header\n# hashes\n# Python=oldf00d\nlogs\nnode_modules/\n'
 
 
 @fixture
@@ -201,11 +191,17 @@ def raise_http_error(_: Any) -> Any:
 def test_gitignore_fallback_on_api_error(
     monkeypatch: MonkeyPatch, stderr_messages: list[str], vendored_gitignore: str
 ):
+    def fake_read_text(path: Path) -> str:
+        if path.name == '.gitignore':
+            return vendored_gitignore
+        raise AssertionError(path)
+
+    monkeypatch.setattr(measles.Path, 'read_text', fake_read_text)
     monkeypatch.setattr(measles, 'urlopen', raise_http_error)
 
     result = measles.gitignore('Python')
 
-    assert result == vendored_gitignore
+    assert result == 'logs\nnode_modules/\n'
     assert stderr_messages == [
         'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
         'HTTP 429 Too Many Requests\n'
