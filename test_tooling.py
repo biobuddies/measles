@@ -112,28 +112,22 @@ def test_run_on_sources():
     finally:
         binary_path.unlink(missing_ok=True)
 
+
 # Line changers
 
 
 @fixture
 def gitignore_requests(monkeypatch: MonkeyPatch) -> list[Request]:
     requests: list[Request] = []
-    response = BytesIO(
-        dumps({'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}).encode()
-    )
 
     def fake_urlopen(request: Request) -> BytesIO:
         requests.append(request)
-        response.seek(0)
-        return response
+        return BytesIO(
+            dumps({'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}).encode()
+        )
 
     monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
     return requests
-
-
-@fixture
-def vendored_gitignore() -> str:
-    return '# header\n# hashes\n# Python=oldf00d\nlogs\nnode_modules/\n'
 
 
 @fixture
@@ -188,9 +182,9 @@ def raise_http_error(_: Any) -> Any:
     )
 
 
-def test_gitignore_fallback_on_api_error(
-    monkeypatch: MonkeyPatch, stderr_messages: list[str], vendored_gitignore: str
-):
+def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, stderr_messages: list[str]):
+    vendored_gitignore = '# header\n# hashes\n# Python=oldf00d\nlogs\nnode_modules/\n'
+
     def fake_read_text(path: Path) -> str:
         if path.name == '.gitignore':
             return vendored_gitignore
