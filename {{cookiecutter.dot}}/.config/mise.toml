@@ -59,7 +59,7 @@ eval "glob=(${2:?missing source glob})"
 shift 2
 command_args=$*
 set -- $(
-    git grep --files-with-matches -I -e '' -- "${glob[@]}" \
+    git grep --color=never --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
             grep --invert-match '^#' .biobuddies/autoformat-excludes
         ) || [[ $? -eq 1 ]]

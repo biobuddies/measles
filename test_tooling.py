@@ -1,15 +1,20 @@
 """Integration tests for tools and configuration."""
 
 import stat
+from base64 import b64encode
+from contextlib import chdir
 from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import CalledProcessError, check_call, check_output, run
+from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 from pytest import mark, raises
-from pytest_httpserver import HTTPServer
+
+from measles import gitignore
 
 # Four Letter AbbreviatioNs (FLANs)
 
@@ -106,77 +111,59 @@ def test_run_on_sources():
         binary_path.unlink(missing_ok=True)
 
 
-# Line changers
-
-
-def gitignore_curl_command(httpserver: HTTPServer) -> list[str]:
-    # Begin arranging
-    script = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
-    start = script.index('set -- curl --fail --silent --show-error --header')
-    end = script.index('\nif [[ ! -f manage.py ]]')
-    # Continue arranging
-    return [
-        '/usr/bin/env',
-        'bash',
-        '-c',
-        'set -o errexit -o nounset -o pipefail -o xtrace; '
-        + script[start:end].replace(
-            'https://api.github.com/repos/github/gitignore/contents/{{ suffix }}',
-            httpserver.url_for('/repos/github/gitignore/contents/Python.gitignore'),
+def test_gitignore_no_token_or_sed_substitution():
+    with (
+        patch(
+            'measles.load',
+            return_value={'content': b64encode(b'/site\n').decode(), 'sha': 'deadbeef'},
         ),
-    ]
+        patch('measles.getenv', return_value=None),
+        patch('measles.urlopen') as mock_urlopen,
+    ):
+        result = gitignore('Python')
+
+    assert '# Python=deadbeef' in result
+    assert '/site' in result
+    request = mock_urlopen.call_args[0][0]
+    assert 'Python.gitignore' in request.full_url
 
 
-def gitignore_curl(httpserver: HTTPServer, cwd: Path, env: dict[str, str]):
-    return run(
-        gitignore_curl_command(httpserver),
-        cwd=cwd,
-        env={'PATH': environ['PATH'], **env},
-        capture_output=True,
-        check=True,
-    )
-
-
-def test_gitignore_no_token_or_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
+def test_gitignore_with_token_and_sed_substitution(tmp_path: Path):
     # Arrange
-    httpserver.expect_request(
-        '/repos/github/gitignore/contents/Python.gitignore'
-    ).respond_with_data('/site\n')
-
-    # Act and assert
-    gitignore_curl(httpserver, tmp_path, {})
-    assert (tmp_path / '.gitignore').read_bytes() == b'/site\n'
-    assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
-    assert httpserver.log[0][0].headers.get('Authorization') is None
-
-
-def test_gitignore_with_token_and_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
-    # Arrange
-    httpserver.expect_request(
-        '/repos/github/gitignore/contents/Python.gitignore'
-    ).respond_with_data('/site\n')
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
+    mock_dict = {'content': 'L3NpdGUK', 'sha': 'deadbeef'}
+    with (
+        chdir(tmp_path),
+        patch('measles.load', return_value=mock_dict),
+        patch('measles.getenv', return_value='test-token'),
+        patch('measles.urlopen'),
+    ):
+        result = gitignore('Python')
 
-    # Act and assert
-    gitignore_curl(httpserver, tmp_path, {'GITHUB_TOKEN': 'test-token'})
-    assert (tmp_path / '.gitignore').read_bytes() == b'/site/ton/\n'
-    assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
-    assert httpserver.log[0][0].headers['Authorization'] == 'Bearer test-token'
+    assert '# Python=deadbeef' in result
+    assert '/site/ton/' in result
 
 
-def test_gitignore_trace_redacts_token(tmp_path: Path, httpserver: HTTPServer):
-    # Arrange
-    httpserver.expect_request(
-        '/repos/github/gitignore/contents/Python.gitignore'
-    ).respond_with_data('/site\n')
+def test_gitignore_fallback_on_api_error():
+    # Arrange - test fallback and warning on API error (replaces trace redaction test)
+    error = HTTPError(
+        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main',
+        429,
+        'Too Many Requests',
+        None,  # pyrefly: ignore[bad-argument-type]
+        None,
+    )
+    with patch('measles.urlopen', side_effect=error), patch('measles.stderr') as mock_stderr:
+        result = gitignore('Python')
 
-    # Act
-    result = gitignore_curl(httpserver, tmp_path, {'GITHUB_TOKEN': 'test-token'})
-
-    # Assert
-    stderr = result.stderr.decode()
-    assert 'GITHUB_TOKEN' in stderr
-    assert 'Authorization: Bearer test-token' not in stderr
+    # Assert uses vendored content and logs warning
+    assert 'Logs' in result
+    assert 'node_modules/' in result
+    assert '# Python=' in result
+    mock_stderr.write.assert_called_once()
+    call_arg = mock_stderr.write.call_args[0][0]
+    assert 'falling back to vendored .gitignore after GitHub fetch failed' in call_arg
+    assert 'HTTP 429' in call_arg
 
 
 def test_prettier():
@@ -268,7 +255,12 @@ def test_new_repository_bootstrap(tmp_path: Path):
     else:
         raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
 
-    env = {'HOME': str(tmp_path.parent), 'PATH': environ['PATH']}
+    env = {
+        'HOME': str(tmp_path.parent),
+        'MISE_GITHUB_ATTESTATIONS': 'false',
+        'MISE_GPG_VERIFY': 'false',
+        'PATH': environ['PATH'],
+    }
     check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
     check_call(
         ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
