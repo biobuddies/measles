@@ -151,7 +151,7 @@ def stderr_messages(monkeypatch: MonkeyPatch) -> list[str]:
 def test_gitignore_no_token_or_sed_substitution(
     monkeypatch: MonkeyPatch, gitignore_requests: list[Request]
 ):
-    monkeypatch.setattr(measles, 'getenv', lambda _: None)
+    monkeypatch.delenv('GITHUB_TOKEN', raising=False)
 
     result = measles.gitignore('Python')
 
@@ -167,7 +167,7 @@ def test_gitignore_with_token_and_sed_substitution(
 ):
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(measles, 'getenv', lambda _: 'test-token')
+    monkeypatch.setenv('GITHUB_TOKEN', 'test-token')
 
     result = measles.gitignore('Python')
 
