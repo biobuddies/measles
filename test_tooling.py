@@ -1,6 +1,7 @@
 """Integration tests for tools and configuration."""
 
 import stat
+import sys
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
@@ -9,12 +10,13 @@ from pathlib import Path
 from re import match
 from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request
 
 from _pytest.monkeypatch import MonkeyPatch
-from pytest import fixture, mark, raises
+from pytest import CaptureFixture, fail, fixture, mark, raises
 
 import measles
 
@@ -117,59 +119,55 @@ def test_run_on_sources():
 
 
 @fixture
-def gitignore_requests(monkeypatch: MonkeyPatch) -> list[Request]:
-    requests: list[Request] = []
+def gitignore_request(monkeypatch: MonkeyPatch) -> SimpleNamespace:
+    captured_request = SimpleNamespace(request=None)
 
     def fake_urlopen(request: Request) -> BytesIO:
-        requests.append(request)
+        if captured_request.request is not None:
+            fail('urlopen called twice')
+        captured_request.request = request
         return BytesIO(
             dumps({'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}).encode()
         )
 
     monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
-    return requests
-
-
-@fixture
-def stderr_messages(monkeypatch: MonkeyPatch) -> list[str]:
-    messages: list[str] = []
-
-    class FakeStderr:
-        def write(self, message: str) -> None:
-            messages.append(message)
-
-    monkeypatch.setattr(measles, 'stderr', FakeStderr())
-    return messages
+    return captured_request
 
 
 def test_gitignore_no_token_or_sed_substitution(
-    monkeypatch: MonkeyPatch, gitignore_requests: list[Request]
+    monkeypatch: MonkeyPatch, gitignore_request: SimpleNamespace
 ):
     monkeypatch.delenv('GITHUB_TOKEN', raising=False)
 
     result = measles.gitignore('Python')
+    request = gitignore_request.request
 
     assert result == '# Python=c0def00d\n/site\n'
-    assert [request.full_url for request in gitignore_requests] == [
-        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
-    ]
-    assert gitignore_requests[0].get_header('Authorization') is None
+    assert request is not None
+    assert (
+        request.full_url
+        == 'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+    )
+    assert request.get_header('Authorization') is None
 
 
 def test_gitignore_with_token_and_sed_substitution(
-    monkeypatch: MonkeyPatch, tmp_path: Path, gitignore_requests: list[Request]
+    monkeypatch: MonkeyPatch, tmp_path: Path, gitignore_request: SimpleNamespace
 ):
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('GITHUB_TOKEN', 'test-token')
 
     result = measles.gitignore('Python')
+    request = gitignore_request.request
 
     assert result == '# Python=c0def00d\n/site/ton/\n'
-    assert [request.full_url for request in gitignore_requests] == [
-        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
-    ]
-    assert gitignore_requests[0].get_header('Authorization') == 'Bearer test-token'
+    assert request is not None
+    assert (
+        request.full_url
+        == 'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+    )
+    assert request.get_header('Authorization') == 'Bearer test-token'
 
 
 def raise_http_error(_: Any) -> Any:
@@ -182,7 +180,7 @@ def raise_http_error(_: Any) -> Any:
     )
 
 
-def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, stderr_messages: list[str]):
+def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]):
     vendored_gitignore = '# header\n# hashes\n# Python=oldf00d\nlogs\nnode_modules/\n'
 
     def fake_read_text(path: Path) -> str:
@@ -191,15 +189,17 @@ def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, stderr_messag
         raise AssertionError(path)
 
     monkeypatch.setattr(measles.Path, 'read_text', fake_read_text)
+    monkeypatch.setattr(measles, 'stderr', sys.stderr)
     monkeypatch.setattr(measles, 'urlopen', raise_http_error)
 
     result = measles.gitignore('Python')
+    captured = capsys.readouterr()
 
     assert result == 'logs\nnode_modules/\n'
-    assert stderr_messages == [
+    assert captured.err == (
         'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
         'HTTP 429 Too Many Requests\n'
-    ]
+    )
 
 
 def test_prettier():
