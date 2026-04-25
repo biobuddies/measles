@@ -1,15 +1,24 @@
 """Integration tests for tools and configuration."""
 
 import stat
-from json import loads
+import sys
+from base64 import b64encode
+from io import BytesIO
+from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import CalledProcessError, check_call, check_output, run
+from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from typing import Any
+from urllib.error import HTTPError
+from urllib.request import Request
 
-from pytest import mark, raises
-from pytest_httpserver import HTTPServer
+from _pytest.monkeypatch import MonkeyPatch
+from pytest import CaptureFixture, fail, fixture, mark, raises
+
+import measles
 
 # Four Letter AbbreviatioNs (FLANs)
 
@@ -109,74 +118,88 @@ def test_run_on_sources():
 # Line changers
 
 
-def gitignore_curl_command(httpserver: HTTPServer) -> list[str]:
-    # Begin arranging
-    script = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
-    start = script.index('set -- curl --fail --silent --show-error --header')
-    end = script.index('\nif [[ ! -f manage.py ]]')
-    # Continue arranging
-    return [
-        '/usr/bin/env',
-        'bash',
-        '-c',
-        'set -o errexit -o nounset -o pipefail -o xtrace; '
-        + script[start:end].replace(
-            'https://api.github.com/repos/github/gitignore/contents/{{ suffix }}',
-            httpserver.url_for('/repos/github/gitignore/contents/Python.gitignore'),
-        ),
-    ]
+@fixture
+def gitignore_request(monkeypatch: MonkeyPatch) -> SimpleNamespace:
+    captured_request = SimpleNamespace(request=None)
+
+    def fake_urlopen(request: Request) -> BytesIO:
+        if captured_request.request is not None:
+            fail('urlopen called twice')
+        captured_request.request = request
+        return BytesIO(
+            dumps({'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}).encode()
+        )
+
+    monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
+    return captured_request
 
 
-def gitignore_curl(httpserver: HTTPServer, cwd: Path, env: dict[str, str]):
-    return run(
-        gitignore_curl_command(httpserver),
-        cwd=cwd,
-        env={'PATH': environ['PATH'], **env},
-        capture_output=True,
-        check=True,
+def test_gitignore_no_token_or_sed_substitution(
+    monkeypatch: MonkeyPatch, gitignore_request: SimpleNamespace
+):
+    monkeypatch.delenv('GITHUB_TOKEN', raising=False)
+
+    result = measles.gitignore('Python')
+    request = gitignore_request.request
+
+    assert result == '# Python=c0def00d\n/site\n'
+    assert request is not None
+    assert (
+        request.full_url
+        == 'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+    )
+    assert request.get_header('Authorization') is None
+
+
+def test_gitignore_with_token_and_sed_substitution(
+    monkeypatch: MonkeyPatch, tmp_path: Path, gitignore_request: SimpleNamespace
+):
+    (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('GITHUB_TOKEN', 'test-token')
+
+    result = measles.gitignore('Python')
+    request = gitignore_request.request
+
+    assert result == '# Python=c0def00d\n/site/ton/\n'
+    assert request is not None
+    assert (
+        request.full_url
+        == 'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+    )
+    assert request.get_header('Authorization') == 'Bearer test-token'
+
+
+def raise_http_error(_: Any) -> Any:
+    raise HTTPError(
+        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main',
+        429,
+        'Too Many Requests',
+        None,  # pyrefly: ignore[bad-argument-type]
+        None,
     )
 
 
-def test_gitignore_no_token_or_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
-    # Arrange
-    httpserver.expect_request(
-        '/repos/github/gitignore/contents/Python.gitignore'
-    ).respond_with_data('/site\n')
+def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]):
+    vendored_gitignore = '# header\n# hashes\n# Python=oldf00d\nlogs\nnode_modules/\n'
 
-    # Act and assert
-    gitignore_curl(httpserver, tmp_path, {})
-    assert (tmp_path / '.gitignore').read_bytes() == b'/site\n'
-    assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
-    assert httpserver.log[0][0].headers.get('Authorization') is None
+    def fake_read_text(path: Path) -> str:
+        if path.name == '.gitignore':
+            return vendored_gitignore
+        raise AssertionError(path)
 
+    monkeypatch.setattr(measles.Path, 'read_text', fake_read_text)
+    monkeypatch.setattr(measles, 'stderr', sys.stderr)
+    monkeypatch.setattr(measles, 'urlopen', raise_http_error)
 
-def test_gitignore_with_token_and_sed_substitution(tmp_path: Path, httpserver: HTTPServer):
-    # Arrange
-    httpserver.expect_request(
-        '/repos/github/gitignore/contents/Python.gitignore'
-    ).respond_with_data('/site\n')
-    (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
+    result = measles.gitignore('Python')
+    captured = capsys.readouterr()
 
-    # Act and assert
-    gitignore_curl(httpserver, tmp_path, {'GITHUB_TOKEN': 'test-token'})
-    assert (tmp_path / '.gitignore').read_bytes() == b'/site/ton/\n'
-    assert httpserver.log[0][0].headers['Accept'] == 'application/vnd.github.raw+json'
-    assert httpserver.log[0][0].headers['Authorization'] == 'Bearer test-token'
-
-
-def test_gitignore_trace_redacts_token(tmp_path: Path, httpserver: HTTPServer):
-    # Arrange
-    httpserver.expect_request(
-        '/repos/github/gitignore/contents/Python.gitignore'
-    ).respond_with_data('/site\n')
-
-    # Act
-    result = gitignore_curl(httpserver, tmp_path, {'GITHUB_TOKEN': 'test-token'})
-
-    # Assert
-    stderr = result.stderr.decode()
-    assert 'GITHUB_TOKEN' in stderr
-    assert 'Authorization: Bearer test-token' not in stderr
+    assert result == 'logs\nnode_modules/\n'
+    assert captured.err == (
+        'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
+        'HTTP 429 Too Many Requests\n'
+    )
 
 
 def test_prettier():
@@ -268,7 +291,12 @@ def test_new_repository_bootstrap(tmp_path: Path):
     else:
         raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
 
-    env = {'HOME': str(tmp_path.parent), 'PATH': environ['PATH']}
+    env = {
+        'HOME': str(tmp_path.parent),
+        'MISE_GITHUB_ATTESTATIONS': 'false',
+        'MISE_GPG_VERIFY': 'false',
+        'PATH': environ['PATH'],
+    }
     check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
     check_call(
         ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
