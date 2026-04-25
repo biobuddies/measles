@@ -2,19 +2,20 @@
 
 import stat
 from base64 import b64encode
-from contextlib import chdir
 from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
 from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from typing import Any
 from urllib.error import HTTPError
+from urllib.request import Request
 
-from pytest import mark, raises
+from _pytest.monkeypatch import MonkeyPatch
+from pytest import fixture, mark, raises
 
-from measles import gitignore
+import measles
 
 # Four Letter AbbreviatioNs (FLANs)
 
@@ -111,59 +112,104 @@ def test_run_on_sources():
         binary_path.unlink(missing_ok=True)
 
 
-def test_gitignore_no_token_or_sed_substitution():
-    with (
-        patch(
-            'measles.load',
-            return_value={'content': b64encode(b'/site\n').decode(), 'sha': 'deadbeef'},
-        ),
-        patch('measles.getenv', return_value=None),
-        patch('measles.urlopen') as mock_urlopen,
-    ):
-        result = gitignore('Python')
-
-    assert '# Python=deadbeef' in result
-    assert '/site' in result
-    request = mock_urlopen.call_args[0][0]
-    assert 'Python.gitignore' in request.full_url
+# Line changers
 
 
-def test_gitignore_with_token_and_sed_substitution(tmp_path: Path):
-    # Arrange
+@fixture
+def upstream_gitignore() -> dict[str, str]:
+    return {'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}
+
+
+@fixture
+def gitignore_requests(
+    monkeypatch: MonkeyPatch, upstream_gitignore: dict[str, str]
+) -> list[Request]:
+    requests: list[Request] = []
+
+    def fake_urlopen(request: Request) -> object:
+        requests.append(request)
+        return object()
+
+    def fake_load(_: object) -> dict[str, str]:
+        return upstream_gitignore
+
+    monkeypatch.setattr(measles, 'load', fake_load)
+    monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
+    return requests
+
+
+@fixture
+def vendored_gitignore() -> str:
+    return (
+        '\n'.join((Path(measles.__file__).parent / '.gitignore').read_text().splitlines()[3:])
+        + '\n'
+    )
+
+
+@fixture
+def stderr_messages(monkeypatch: MonkeyPatch) -> list[str]:
+    messages: list[str] = []
+
+    class FakeStderr:
+        def write(self, message: str) -> None:
+            messages.append(message)
+
+    monkeypatch.setattr(measles, 'stderr', FakeStderr())
+    return messages
+
+
+def test_gitignore_no_token_or_sed_substitution(
+    monkeypatch: MonkeyPatch, gitignore_requests: list[Request]
+):
+    monkeypatch.setattr(measles, 'getenv', lambda _: None)
+
+    result = measles.gitignore('Python')
+
+    assert result == '# Python=c0def00d\n/site\n'
+    assert [request.full_url for request in gitignore_requests] == [
+        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+    ]
+    assert gitignore_requests[0].get_header('Authorization') is None
+
+
+def test_gitignore_with_token_and_sed_substitution(
+    monkeypatch: MonkeyPatch, tmp_path: Path, gitignore_requests: list[Request]
+):
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
-    mock_dict = {'content': 'L3NpdGUK', 'sha': 'deadbeef'}
-    with (
-        chdir(tmp_path),
-        patch('measles.load', return_value=mock_dict),
-        patch('measles.getenv', return_value='test-token'),
-        patch('measles.urlopen'),
-    ):
-        result = gitignore('Python')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(measles, 'getenv', lambda _: 'test-token')
 
-    assert '# Python=deadbeef' in result
-    assert '/site/ton/' in result
+    result = measles.gitignore('Python')
+
+    assert result == '# Python=c0def00d\n/site/ton/\n'
+    assert [request.full_url for request in gitignore_requests] == [
+        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+    ]
+    assert gitignore_requests[0].get_header('Authorization') == 'Bearer test-token'
 
 
-def test_gitignore_fallback_on_api_error():
-    # Arrange - test fallback and warning on API error (replaces trace redaction test)
-    error = HTTPError(
+def raise_http_error(_: Any) -> Any:
+    raise HTTPError(
         'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main',
         429,
         'Too Many Requests',
         None,  # pyrefly: ignore[bad-argument-type]
         None,
     )
-    with patch('measles.urlopen', side_effect=error), patch('measles.stderr') as mock_stderr:
-        result = gitignore('Python')
 
-    # Assert uses vendored content and logs warning
-    assert 'Logs' in result
-    assert 'node_modules/' in result
-    assert '# Python=' in result
-    mock_stderr.write.assert_called_once()
-    call_arg = mock_stderr.write.call_args[0][0]
-    assert 'falling back to vendored .gitignore after GitHub fetch failed' in call_arg
-    assert 'HTTP 429' in call_arg
+
+def test_gitignore_fallback_on_api_error(
+    monkeypatch: MonkeyPatch, stderr_messages: list[str], vendored_gitignore: str
+):
+    monkeypatch.setattr(measles, 'urlopen', raise_http_error)
+
+    result = measles.gitignore('Python')
+
+    assert result == vendored_gitignore
+    assert stderr_messages == [
+        'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
+        'HTTP 429 Too Many Requests\n'
+    ]
 
 
 def test_prettier():
