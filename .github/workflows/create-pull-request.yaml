@@ -1,0 +1,53 @@
+name: create-pull-request
+defaults:
+    run:
+        shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+jobs:
+    create:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: write
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+            - run: |
+                  branch="${GITHUB_REF_NAME}"
+
+                  existing="$(gh pr list \
+                      --head "$branch" \
+                      --base main \
+                      --json number \
+                      --jq 'length')"
+
+                  if [[ $existing -gt 0 ]]; then
+                      printf 'PR already exists for %s\n' "$branch"
+                      exit 0
+                  fi
+
+                  first_commit="$(git log \
+                      --reverse \
+                      --format=%H \
+                      "$(git merge-base main HEAD)"..HEAD \
+                      | head -1)"
+
+                  title="$(git log -1 --format=%s "$first_commit")"
+                  body="$(git log -1 --format=%b "$first_commit")"
+
+                  gh pr create \
+                      --base main \
+                      --head "$branch" \
+                      --title "$title" \
+                      --body "$body"
+              env:
+                  GH_TOKEN: ${{ github.token }}
+
+on: # yamllint disable-line rule:truthy
+    push:
+        branches-ignore:
+            - main
+    workflow_dispatch:
+run-name: Creating PR for ${{ github.ref_name }}
