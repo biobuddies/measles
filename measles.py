@@ -100,9 +100,11 @@ def gitignore(languages: str) -> str:
 
 
 def cookiecutter_yaml() -> dict:
-    repository = Path.cwd()
+    cwd = Path.cwd()
+    repository = cwd
     if repository.name == 'measles' and cona() != 'measles':
-        for frame in reversed(format_stack()):
+        frames = list(reversed(format_stack()))
+        for i, frame in enumerate(frames):
             if cookiecutter := search(r'File "([^"]+/\.venv/bin/cookiecutter)"', frame):
                 repository = Path(cookiecutter.group(1)).resolve().parents[2]
                 break
@@ -124,12 +126,11 @@ def python_template_globals() -> dict[str, object]:
     yaml = cookiecutter_yaml()
     python_dependencies = yaml['default_context'].get('python_dependencies', [])
     has_django = any('django' in dependency.lower() for dependency in python_dependencies)
-    stderr.write(
-        f'DEBUG python_template_globals: cwd={Path.cwd()} cona={cona()} '
-        f'yaml={yaml} python_deps={python_dependencies} has_django={has_django}\n'
-    )
+    # dup hooks/post_gen_project.bash:2 has_django — the template file is checked
+    measles_template_ref = getenv('GITHUB_HEAD_REF') or getenv('GITHUB_REF_NAME') or 'main'
     return {
         'has_django': has_django,
+        'measles_template_ref': measles_template_ref,
         'python_dependencies': python_dependencies,
         'python_test_dependencies': [
             'pytest',
@@ -144,7 +145,11 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        globals_ = {
+            'CONA': cona(),
+            'ORGN': orgn(),
+            'gitignore': gitignore,
+            **python_template_globals(),
+        }
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
-        environment.globals.update(
-            {'CONA': cona(), 'ORGN': orgn(), 'gitignore': gitignore, **python_template_globals()}
-        )
+        environment.globals.update(globals_)

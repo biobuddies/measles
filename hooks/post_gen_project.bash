@@ -1,8 +1,6 @@
 #!/bin/bash
-# shellcheck disable=1054,1056,1072,1073,1083
 set -o errexit -o nounset -o pipefail -o xtrace
-: CONA={{ CONA }} ORGN={{ ORGN }} template=hooks/post_gen_project.bash via="$0"
-# shellcheck disable=SC1009
+: CONA={{ CONA }} ORGN={{ ORGN }} has_django={{ has_django }} template=hooks/post_gen_project.bash via="$0"
 {% if has_django %}
 [[ -f manage.py ]] || uv run --with django python -m django startproject config .
 sed -i.bak "/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }" config/settings.py

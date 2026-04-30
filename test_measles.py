@@ -136,6 +136,7 @@ def test_python_template_globals(monkeypatch: MonkeyPatch):
     )
     assert measles.python_template_globals() == {
         'has_django': True,
+        'measles_template_ref': 'main',
         'python_dependencies': ['djangorestframework', 'requests'],
         'python_test_dependencies': ['pytest', 'pytest-cov', 'pytest-django'],
     }
@@ -146,6 +147,7 @@ def test_python_template_globals(monkeypatch: MonkeyPatch):
     )
     assert measles.python_template_globals() == {
         'has_django': False,
+        'measles_template_ref': 'main',
         'python_dependencies': ['click'],
         'python_test_dependencies': ['pytest', 'pytest-cov'],
     }

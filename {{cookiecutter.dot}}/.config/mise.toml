@@ -110,9 +110,9 @@ set -o errexit -o nounset -o pipefail
 if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
     template=${2:-$HOME/code/measles}
 else
-    template={{ '.' if ORGN == 'biobuddies' and CONA == 'measles' else 'https://github.com/biobuddies/measles.git' }}
+    template={{ '.' if ORGN == 'biobuddies' and CONA == 'measles' else 'https://github.com/biobuddies/measles.git' }}{% if measles_template_ref and measles_template_ref != 'main' %} --checkout {{ measles_template_ref }}{% endif %}
 fi
-cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists "$template"
+cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $template
 '''
 
 [tasks.django-upgrade]
