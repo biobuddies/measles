@@ -105,9 +105,19 @@ def cookiecutter_yaml() -> dict:
         for frame in reversed(format_stack()):
             if cookiecutter := search(r'File "([^"]+/\.venv/bin/cookiecutter)"', frame):
                 repository = Path(cookiecutter.group(1)).resolve().parents[2]
+                break
+        else:
+            # uvx cookiecutter doesn't install into .venv; use the cached
+            # repository from the first call (before cookiecutter chdir'd)
+            repository = _cookiecutter_yaml_repository[0]
     yaml_path = repository / '.cookiecutter.yaml'
+    if not _cookiecutter_yaml_repository:
+        _cookiecutter_yaml_repository.append(yaml_path.parent)
     stderr.write(f'Configuring project based on {yaml_path.absolute()}\n')
     return safe_load(yaml_path.read_text())
+
+
+_cookiecutter_yaml_repository: list = []
 
 
 def python_template_globals() -> dict[str, object]:
