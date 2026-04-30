@@ -28,6 +28,7 @@ dependencies = [
         'yamllint',
     ],
     'test': python_test_dependencies,
+    '// debug_python_test_dependencies': python_test_dependencies,
 } -%}
 {% set groups = dict(cookiecutter.python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
