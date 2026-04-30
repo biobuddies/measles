@@ -105,7 +105,9 @@ def cookiecutter_yaml() -> dict:
         for frame in reversed(format_stack()):
             if cookiecutter := search(r'File "([^"]+/\.venv/bin/cookiecutter)"', frame):
                 repository = Path(cookiecutter.group(1)).resolve().parents[2]
-    return safe_load((repository / '.cookiecutter.yaml').read_text())
+    yaml_path = repository / '.cookiecutter.yaml'
+    stderr.write(f'Configuring project based on {yaml_path.absolute()}\n')
+    return safe_load(yaml_path.read_text())
 
 
 def python_template_globals() -> dict[str, object]:
