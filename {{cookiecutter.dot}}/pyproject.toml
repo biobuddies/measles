@@ -27,8 +27,7 @@ dependencies = [
         'validate-pyproject[all]',
         'yamllint',
     ],
-    'test': python_test_dependencies,
-    '// debug_python_test_dependencies': python_test_dependencies,
+    'test': ['pytest', 'pytest-cov'] + (['pytest-django'] if has_django else []),
 } -%}
 {% set groups = dict(cookiecutter.python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
