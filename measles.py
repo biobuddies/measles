@@ -123,14 +123,15 @@ _cookiecutter_yaml_repository: list = []
 def python_template_globals() -> dict[str, object]:
     python_dependencies = cookiecutter_yaml()['default_context'].get('python_dependencies', [])
     has_django = any('django' in dependency.lower() for dependency in python_dependencies)
+    test_deps = ['pytest', 'pytest-cov', *(('pytest-django',) if has_django else ())]
+    stderr.write(
+        f'python_template_globals: python_dependencies={python_dependencies} '
+        f'has_django={has_django} test_deps={test_deps}\n'
+    )
     return {
         'has_django': has_django,
         'python_dependencies': python_dependencies,
-        'python_test_dependencies': [
-            'pytest',
-            'pytest-cov',
-            *(('pytest-django',) if has_django else ()),
-        ],
+        'python_test_dependencies': test_deps,
     }
 
 
