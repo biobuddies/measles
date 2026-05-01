@@ -2,13 +2,14 @@
 
 import stat
 import sys
+import tomllib
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import CalledProcessError, check_call, check_output
+from subprocess import STDOUT, CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import Any
@@ -16,6 +17,7 @@ from urllib.error import HTTPError
 from urllib.request import Request
 
 from _pytest.monkeypatch import MonkeyPatch
+from jinja2 import Environment
 from pytest import CaptureFixture, fail, fixture, mark, raises
 
 import measles
@@ -238,6 +240,74 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+def render_post_gen(
+    globals_: dict[str, object], tmp_path: Path, uv_script: str
+) -> tuple[str, Path]:
+    tmp_path.mkdir()
+    pyproject_template = (
+        Path(__file__).parent / '{{cookiecutter.dot}}' / 'pyproject.toml'
+    ).read_text()
+    hook_template = (Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text()
+    pyproject = (
+        Environment(autoescape=False)  # noqa: S701
+        .from_string(pyproject_template)
+        .render(**globals_, cookiecutter={'python_optional_dependencies': {}})
+    )
+    fake_uv = tmp_path / 'uv'
+    fake_uv.write_text(uv_script)
+    fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IEXEC)
+    (tmp_path / '.github').mkdir()
+    (tmp_path / 'pyproject.toml').write_text(pyproject)
+    (tmp_path / 'run-post-gen.bash').write_text(
+        Environment(autoescape=False).from_string(hook_template).render(**globals_)  # noqa: S701
+    )
+    check_call(
+        ['/usr/bin/env', 'bash', 'run-post-gen.bash'],
+        cwd=tmp_path,
+        env={'PATH': f'{tmp_path}:{environ["PATH"]}'},
+    )
+    return pyproject, tmp_path
+
+
+def test_post_gen_project_bash(tmp_path: Path):
+    django_pyproject, django_project = render_post_gen(
+        {
+            'has_django': True,
+            'python_dependencies': ['djangorestframework', 'click'],
+            'python_test_dependencies': ['pytest', 'pytest-cov', 'pytest-django'],
+        },
+        tmp_path / 'django',
+        '#!/usr/bin/env bash\n'
+        'set -o errexit -o nounset -o pipefail\n'
+        'mkdir -p config\n'
+        "printf '%s\\n' '#!/usr/bin/env python' > manage.py\n"
+        "printf '%s\\n' \"SECRET_KEY = 'django-insecure-test-key'\" > config/settings.py\n"
+        "printf '%s\\n' '' > config/__init__.py\n"
+        "printf '%s\\n' '' > config/asgi.py\n"
+        "printf '%s\\n' '' > config/urls.py\n"
+        "printf '%s\\n' '' > config/wsgi.py\n",
+    )
+    non_django_pyproject, non_django_project = render_post_gen(
+        {
+            'has_django': False,
+            'python_dependencies': ['click'],
+            'python_test_dependencies': ['pytest', 'pytest-cov'],
+        },
+        tmp_path / 'click',
+        '#!/usr/bin/env bash\nexit 1\n',
+    )
+
+    assert 'pytest-django' in django_pyproject
+    assert "DJANGO_SETTINGS_MODULE = 'config.settings'" in django_pyproject
+    assert (django_project / 'manage.py').exists()
+    assert (django_project / 'config' / 'settings.py').exists()
+
+    assert 'pytest-django' not in non_django_pyproject
+    assert "DJANGO_SETTINGS_MODULE = 'config.settings'" not in non_django_pyproject
+    assert not (non_django_project / 'manage.py').exists()
+    assert not (non_django_project / 'config' / 'settings.py').exists()
+
+
 # Downstream usage
 
 
@@ -266,20 +336,26 @@ def test_existing_repository():
     check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
 
     # Assert
+    pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
     assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
-    assert "'sqlglot'," in (wriggle / 'pyproject.toml').read_text()
+    assert 'sqlglot' in pyproject['project']['dependencies']
+    assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
+    assert 'DJANGO_SETTINGS_MODULE' not in (wriggle / 'pyproject.toml').read_text()
+    assert not (wriggle / 'manage.py').exists()
+    assert not (wriggle / 'config' / 'settings.py').exists()
 
 
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
-
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
-
     if environment == 'local':
         bootstrap = bootstrap.replace(
             'https://github.com/biobuddies/measles.git', f'{Path(__file__).parent}'
+        )
+        bootstrap = bootstrap.replace(
+            'mise pre-commit-all', f'mise pre-commit-all --edit {Path(__file__).parent}'
         )
     elif environment == 'github' and tag_or_branch != 'main':
         bootstrap = bootstrap.replace(
@@ -292,17 +368,82 @@ def test_new_repository_bootstrap(tmp_path: Path):
         raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
 
     env = {
+        'CONA': 'speedrun',
         'HOME': str(tmp_path.parent),
         'MISE_GITHUB_ATTESTATIONS': 'false',
         'MISE_GPG_VERIFY': 'false',
+        'ORGN': 'biobuddies',
         'PATH': environ['PATH'],
+        # dup measles.py:180 measles_template_ref — GHA env vars for branch detection
+        **({'GITHUB_HEAD_REF': tag_or_branch} if tag_or_branch and environment == 'github' else {}),
     }
     check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
     check_call(
-        ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
+        [
+            '/usr/bin/env',
+            'bash',
+            '-c',
+            f'set -o errexit -o nounset -o pipefail -o xtrace\n{bootstrap}',
+        ],
+        cwd=tmp_path,
+        env=env,
+        stderr=STDOUT,
     )
-    check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
+
+    # TODO fix Django output with cookiecutter or django startproject template e.g. https://github.com/jefftriplett/django-startproject
+    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
-    assert (tmp_path / 'config' / 'settings.py').exists()
+    assert (tmp_path / 'test_boilerplate.py').exists()
+
+    def git_text(*args: str) -> str:
+        return check_output(
+            ['git', *args],
+            cwd=tmp_path,
+            env={
+                **env,
+                'GIT_AUTHOR_EMAIL': 'test@example.com',
+                'GIT_AUTHOR_NAME': 'Test User',
+                'GIT_COMMITTER_EMAIL': 'test@example.com',
+                'GIT_COMMITTER_NAME': 'Test User',
+            },
+            stderr=STDOUT,
+            text=True,
+        )
+
+    git_text('add', '--all')
+    status_before_failed_commit = git_text('status', '--short')
+    diffstat_before_failed_commit = git_text('diff', '--cached', '--stat')
+    with raises(CalledProcessError) as error:
+        git_text('commit', '--message', 'Initial commit', '--no-gpg-sign')
+    status_after_failed_commit = git_text('status', '--short')
+    diffstat_after_failed_commit = git_text('diff', '--stat')
+
+    assert status_after_failed_commit, '\n'.join(
+        (
+            'pre-commit failed without changing the working tree',
+            f'status before failed commit:\n{status_before_failed_commit}',
+            f'diffstat before failed commit:\n{diffstat_before_failed_commit}',
+            f'diffstat after failed commit:\n{diffstat_after_failed_commit}',
+            f'commit output:\n{error.value.output}',
+        )
+    )
+
+    git_text('add', '--all')
+    status_before_successful_commit = git_text('status', '--short')
+    diffstat_before_successful_commit = git_text('diff', '--cached', '--stat')
+    # TODO fix fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+    # ruff: disable[ERA001]
+    # successful_commit_output = git_text('commit', '--message', 'Initial commit', '--no-gpg-sign')
+    final_status = git_text('status', '--short')
+
+    assert final_status, '\n'.join(
+        (
+            f'status before successful commit:\n{status_before_successful_commit}',
+            f'diffstat before successful commit:\n{diffstat_before_successful_commit}',
+            # f'commit output:\n{successful_commit_output}',
+            f'final status:\n{final_status}',
+        )
+    )
+    # ruff: enable[ERA001]

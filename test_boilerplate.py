@@ -1,0 +1,1 @@
+"""Test boilerplate generation."""

@@ -27,7 +27,7 @@ dependencies = [
         'validate-pyproject[all]',
         'yamllint',
     ],
-    'test': ['pytest', 'pytest-cov'],
+    'test': ['pytest', 'pytest-cov'] + (['pytest-django'] if has_django else []),
 } -%}
 {% set groups = dict(cookiecutter.python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
@@ -38,6 +38,15 @@ dependencies = [
 {{ "    '" ~ (dependencies|join("',\n    '")) ~ "'," if dependencies else '' }}
 ]
 {% endfor %}
+{%- if has_django or CONA == 'measles' %}
+[tool.pytest.ini_options]
+{%- if CONA == 'measles' %}
+{% raw %}norecursedirs = ['{{cookiecutter.dot}}']{% endraw %}
+{%- endif %}
+{%- if has_django %}
+DJANGO_SETTINGS_MODULE = 'config.settings'
+{%- endif %}
+{% endif %}
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'

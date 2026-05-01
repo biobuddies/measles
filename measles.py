@@ -7,6 +7,7 @@ from pathlib import Path
 from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
+from traceback import format_stack
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -17,7 +18,9 @@ from yaml import safe_load
 
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
-    if repository := getenv('GITHUB_REPOSITORY'):
+    if cona := getenv('CONA'):
+        pass
+    elif repository := getenv('GITHUB_REPOSITORY'):
         cona = repository.split('/')[-1]
     elif virtual_environment := getenv('VIRTUAL_ENV'):
         cona = Path(virtual_environment).parent.name
@@ -30,9 +33,13 @@ def cona() -> str:
 
 def orgn() -> str:
     """ORGanizatioN, a four-letter abbreviation."""
-    if repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
+    if orgn := getenv('ORGN'):
+        pass
+    elif repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
         orgn = repository_owner
     else:
+        if not (Path.cwd() / '.git').exists():
+            return 'github-organization-unknown'
         try:
             remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
         except CalledProcessError:
@@ -92,19 +99,57 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
+def cookiecutter_yaml() -> dict:
+    cwd = Path.cwd()
+    repository = cwd
+    if repository.name == 'measles' and cona() != 'measles':
+        frames = list(reversed(format_stack()))
+        for i, frame in enumerate(frames):
+            if cookiecutter := search(r'File "([^"]+/\.venv/bin/cookiecutter)"', frame):
+                repository = Path(cookiecutter.group(1)).resolve().parents[2]
+                break
+        else:
+            # uvx cookiecutter doesn't install into .venv; use the cached
+            # repository from the first call (before cookiecutter chdir'd)
+            repository = _cookiecutter_yaml_repository[0]
+    yaml_path = repository / '.cookiecutter.yaml'
+    if not _cookiecutter_yaml_repository:
+        _cookiecutter_yaml_repository.append(yaml_path.parent)
+    stderr.write(f'Configuring project based on {yaml_path.absolute()}\n')
+    return safe_load(yaml_path.read_text())
+
+
+_cookiecutter_yaml_repository: list = []
+
+
+def python_template_globals() -> dict[str, object]:
+    yaml = cookiecutter_yaml()
+    python_dependencies = yaml['default_context'].get('python_dependencies', [])
+    has_django = any('django' in dependency.lower() for dependency in python_dependencies)
+    # dup hooks/post_gen_project.bash:2 has_django — the template file is checked
+    measles_template_ref = getenv('GITHUB_HEAD_REF') or getenv('GITHUB_REF_NAME') or 'main'
+    return {
+        'has_django': has_django,
+        'measles_template_ref': measles_template_ref,
+        'python_dependencies': python_dependencies,
+        'python_test_dependencies': [
+            'pytest',
+            'pytest-cov',
+            *(('pytest-django',) if has_django else ()),
+        ],
+    }
+
+
 class Measles(Extension):
     """Set globals."""
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        globals_ = {
+            'CONA': cona(),
+            'ORGN': orgn(),
+            'gitignore': gitignore,
+            **python_template_globals(),
+        }
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
-        environment.globals.update(
-            {
-                'CONA': cona(),
-                'ORGN': orgn(),
-                'gitignore': gitignore,
-                'python_dependencies': safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
-                    'default_context'
-                ].get('python_dependencies', []),
-            }
-        )
+        environment.globals.update(globals_)
