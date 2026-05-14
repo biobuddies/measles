@@ -173,7 +173,7 @@ run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
 
 [tasks.ruff-format]
-run = 'mise run-on-sources ruff "*.py{,i}" format --force-exclude "$@"'
+run = 'mise run-on-sources ruff "*.{md,py,pyi}" format --force-exclude "$@"'
 
 [tasks.set-environment]
 run = """
