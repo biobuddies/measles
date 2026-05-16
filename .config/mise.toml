@@ -295,10 +295,7 @@ uv pip compile --all-extras --output-file requirements.txt --quiet \
 '''
 
 [tasks.update-lock-files]
-depends = [
-    'npm-package-lock',
-    'uv-pip-compile',
-]
+depends = ['npm-package-lock', 'uv-pip-compile']
 
 [tasks.validate-pyproject]
 run = 'validate-pyproject pyproject.toml "$@"'
