@@ -2,6 +2,8 @@ line-length = 100
 target-version = 'py312'
 
 [format]
+docstring-code-format = true
+preview = true
 quote-style = 'single'
 skip-magic-trailing-comma = true
 

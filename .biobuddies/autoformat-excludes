@@ -14,5 +14,3 @@
 ^\.shellcheckrc$
 ^\.yamllint\.yaml$
 ^\{\{cookiecutter\.dot\}\}/
-# Markdown with intentional trailing whitespace
-^README\.md$

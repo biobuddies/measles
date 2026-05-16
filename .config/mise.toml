@@ -55,13 +55,15 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 tool=${1:?missing executable}
+set -o noglob
 eval "glob=(${2:?missing source glob})"
+set +o noglob
 shift 2
 command_args=$*
 set -- $(
     git grep --color=never --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
-            grep --invert-match '^#' .biobuddies/autoformat-excludes
+            sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes
         ) || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
@@ -164,6 +166,7 @@ exit 1
 """
 
 [tasks.prettier-write]
+# Markdown skipped to conserve vertical space
 run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
 [tasks.pyrefly]
@@ -173,7 +176,7 @@ run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
 
 [tasks.ruff-format]
-run = 'mise run-on-sources ruff "*.py{,i}" format --force-exclude "$@"'
+run = 'mise run-on-sources ruff "*.{md,py,pyi}" format --force-exclude "$@"'
 
 [tasks.set-environment]
 run = """
@@ -292,10 +295,7 @@ uv pip compile --all-extras --output-file requirements.txt --quiet \
 '''
 
 [tasks.update-lock-files]
-depends = [
-    'npm-package-lock',
-    'uv-pip-compile',
-]
+depends = ['npm-package-lock', 'uv-pip-compile']
 
 [tasks.validate-pyproject]
 run = 'validate-pyproject pyproject.toml "$@"'
