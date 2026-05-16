@@ -42,6 +42,10 @@ simplest:
     - `from subprocess import check_call, check_output; check_call(...); check_output(...)`
     - Usually easiest to not `re.compile` at all than worry about aliasing the builtin
     - Omit `#!` shebang and explicit encoding lines
+* Write prose like Strunk, White, and Zinsser. Join sentences and sentence fragments with
+  appropriate punctuation; leave freestanding fragments unpunctuated. Use comma, colon, and
+  semicolon frequently. Use parenthesis occasionally. Use em dash rarely, typeset as `--` two
+  regular dashes or `&mdash;`.
 * `git` well:
     - Avoid committing unrelated files by avoiding `git add -a`, `git add --all`, `git add .`, etc.
     - If asked to clobber uncommitted changes, copy to /tmp/ first

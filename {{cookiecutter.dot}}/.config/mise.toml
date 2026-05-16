@@ -164,6 +164,7 @@ exit 1
 """
 
 [tasks.prettier-write]
+# Markdown skipped to conserve vertical space
 run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
 
 [tasks.pyrefly]
