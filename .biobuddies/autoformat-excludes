@@ -14,4 +14,3 @@
 ^\.shellcheckrc$
 ^\.yamllint\.yaml$
 ^\{\{cookiecutter\.dot\}\}/
-
