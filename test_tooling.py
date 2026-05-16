@@ -238,6 +238,23 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+def test_end_of_file_fixer():
+    test_path = Path('test.sed')
+    try:
+        test_path.write_text('s/old/new/\n\n')
+        with TemporaryDirectory() as tmpdir:
+            mock_git = Path(tmpdir) / 'git'
+            mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
+            mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+            env = environ.copy()
+            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
+            with raises(CalledProcessError):
+                check_output(['mise', 'end-of-file-fixer'], env=env)
+        assert test_path.read_text() == 's/old/new/\n'
+    finally:
+        test_path.unlink(missing_ok=True)
+
+
 # Downstream usage
 
 

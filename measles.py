@@ -98,13 +98,11 @@ class Measles(Extension):
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
-        environment.globals.update(
-            {
-                'CONA': cona(),
-                'ORGN': orgn(),
-                'gitignore': gitignore,
-                'python_dependencies': safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
-                    'default_context'
-                ].get('python_dependencies', []),
-            }
-        )
+        environment.globals.update({
+            'CONA': cona(),
+            'ORGN': orgn(),
+            'gitignore': gitignore,
+            'python_dependencies': safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
+                'default_context'
+            ].get('python_dependencies', []),
+        })
