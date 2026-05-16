@@ -287,7 +287,7 @@ def test_existing_repository():
     assert "'sqlglot'," in (wriggle / 'pyproject.toml').read_text()
 
 
-@mark.skip('')
+@mark.skip('complex malfunction in django detection')
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
