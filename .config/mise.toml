@@ -63,8 +63,7 @@ command_args=$*
 set -- $(
     git grep --color=never --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
-            grep --invert-match '^#' .biobuddies/autoformat-excludes \
-                | grep --invert-match '^$'
+            sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes
         ) || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
