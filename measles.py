@@ -17,7 +17,9 @@ from yaml import safe_load
 
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
-    if repository := getenv('GITHUB_REPOSITORY'):
+    if cona := getenv('CONA'):
+        pass
+    elif repository := getenv('GITHUB_REPOSITORY'):
         cona = repository.split('/')[-1]
     elif virtual_environment := getenv('VIRTUAL_ENV'):
         cona = Path(virtual_environment).parent.name
@@ -30,9 +32,13 @@ def cona() -> str:
 
 def orgn() -> str:
     """ORGanizatioN, a four-letter abbreviation."""
-    if repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
+    if orgn := getenv('ORGN'):
+        pass
+    elif repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
         orgn = repository_owner
     else:
+        if not (Path.cwd() / '.git').exists():
+            return 'github-organization-unknown'
         try:
             remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
         except CalledProcessError:
@@ -97,12 +103,14 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        yaml_path = Path.cwd() / '.cookiecutter.yaml'
+        stderr.write(f'Configuring project based on {yaml_path.absolute()}\n')
+        yaml = safe_load(yaml_path.read_text())
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
             'gitignore': gitignore,
-            'python_dependencies': safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
-                'default_context'
-            ].get('python_dependencies', []),
+            'measles_template_ref': getenv('GITHUB_HEAD_REF') or getenv('GITHUB_REF_NAME') or '',
+            'python_dependencies': yaml['default_context'].get('python_dependencies', []),
         })

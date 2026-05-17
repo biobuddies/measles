@@ -2,6 +2,7 @@
 
 import stat
 import sys
+import tomllib
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
@@ -283,11 +284,15 @@ def test_existing_repository():
     check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
 
     # Assert
+    pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
     assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
-    assert "'sqlglot'," in (wriggle / 'pyproject.toml').read_text()
+    assert 'sqlglot' in pyproject['project']['dependencies']
+    assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
+    assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
+    assert not (wriggle / 'manage.py').exists()
+    assert not (wriggle / 'config' / 'settings.py').exists()
 
 
-@mark.skip('complex malfunction in django detection')
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
@@ -298,6 +303,9 @@ def test_new_repository_bootstrap(tmp_path: Path):
     if environment == 'local':
         bootstrap = bootstrap.replace(
             'https://github.com/biobuddies/measles.git', f'{Path(__file__).parent}'
+        )
+        bootstrap = bootstrap.replace(
+            'mise pre-commit-all', f'mise pre-commit-all --edit {Path(__file__).parent}'
         )
     elif environment == 'github' and tag_or_branch != 'main':
         bootstrap = bootstrap.replace(
@@ -310,17 +318,27 @@ def test_new_repository_bootstrap(tmp_path: Path):
         raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
 
     env = {
+        'CONA': 'speedrun',
         'HOME': str(tmp_path.parent),
         'MISE_GITHUB_ATTESTATIONS': 'false',
         'MISE_GPG_VERIFY': 'false',
+        'ORGN': 'biobuddies',
         'PATH': environ['PATH'],
+        **({'GITHUB_HEAD_REF': tag_or_branch} if tag_or_branch and environment == 'github' else {}),
     }
     check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
     check_call(
-        ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
+        [
+            '/usr/bin/env',
+            'bash',
+            '-c',
+            f'set -o errexit -o nounset -o pipefail -o xtrace\n{bootstrap}',
+        ],
+        cwd=tmp_path,
+        env=env,
     )
     check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
-    assert (tmp_path / 'config' / 'settings.py').exists()
+    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR

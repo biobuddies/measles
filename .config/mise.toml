@@ -17,7 +17,7 @@ _.python.venv = { path = '.venv' }
 # WARNING: some kind of non-BASH shell on GitHub Actions
 postinstall = """
 set -o errexit -o nounset
-[ -d .git ] || git init
+[ -d .git ] || git init --initial-branch=main
 npm install --no-audit --no-fund &
 npm_pid=$!
 # dup :287 tasks.uv-pip-compile
@@ -27,6 +27,7 @@ uv venv --allow-existing --no-progress
 uv pip sync requirements.txt
 wait "$npm_pid"
 mise generate pre-commit > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 """
 
 # Prerequisite tasks
@@ -331,18 +332,29 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+git diff --color=always $( [[ $(mise envi) == local ]] || echo --exit-code )
+'''
 
 [tasks.pre-commit]
-depends = ['pre-commit-fast']
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+[[ $# -eq 0 || ${1-} =~ ^(-e|--edit)$ ]]
+mise pre-commit-fast
+'''
 
 [tasks.pre-commit-all]
-depends = [
-    'cookiecutter',    # needs Internet
-    'pre-commit-fast',
-    'uv-pip-compile',  # needs Internet
-]
-run = 'git diff --color=always --exit-code'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+mise cookiecutter "$@"  # needs Internet
+mise pre-commit "$@"
+mise uv-pip-compile  # needs Internet
+git diff --color=always $( [[ $(mise envi) == local ]] || echo --exit-code )
+'''
 
 [tools]
 'aqua:tofuutils/tenv' = '4.9.3'
