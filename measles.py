@@ -111,6 +111,5 @@ class Measles(Extension):
             'CONA': cona(),
             'ORGN': orgn(),
             'gitignore': gitignore,
-            'measles_template_ref': getenv('GITHUB_HEAD_REF') or getenv('GITHUB_REF_NAME') or '',
             'python_dependencies': yaml['default_context'].get('python_dependencies', []),
         })

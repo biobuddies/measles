@@ -11,15 +11,7 @@ import measles
 
 
 def clear_environment(monkeypatch: MonkeyPatch):
-    for key in (
-        'CONA',
-        'GITHUB_HEAD_REF',
-        'GITHUB_REF_NAME',
-        'GITHUB_REPOSITORY',
-        'GITHUB_REPOSITORY_OWNER',
-        'ORGN',
-        'VIRTUAL_ENV',
-    ):
+    for key in ('CONA', 'GITHUB_REPOSITORY', 'GITHUB_REPOSITORY_OWNER', 'ORGN', 'VIRTUAL_ENV'):
         monkeypatch.delitem(environ, key, raising=False)
 
 
@@ -125,13 +117,11 @@ def test_init(monkeypatch: MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(measles, 'cona', lambda: 'measles')
     monkeypatch.setattr(measles, 'orgn', lambda: 'biobuddies')
     monkeypatch.setattr(measles, 'gitignore', lambda languages: f'gitignore:{languages}')
-    monkeypatch.setenv('GITHUB_REF_NAME', 'topic-branch')
     environment = Environment(autoescape=False, extensions=[measles.Measles])  # noqa: S701
 
     assert (
         environment.from_string(
-            '{{ CONA }} {{ ORGN }} {{ python_dependencies|join(",") }}'
-            ' {{ measles_template_ref }} {{ gitignore("Python") }}'
+            '{{ CONA }} {{ ORGN }} {{ python_dependencies|join(",") }} {{ gitignore("Python") }}'
         ).render()
-        == 'measles biobuddies click topic-branch gitignore:Python'
+        == 'measles biobuddies click gitignore:Python'
     )

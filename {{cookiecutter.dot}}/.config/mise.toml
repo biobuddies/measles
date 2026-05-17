@@ -112,7 +112,7 @@ set -o errexit -o nounset -o pipefail
 if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
     template=${2:-$HOME/code/measles}
 else
-    template={{ '.' if ORGN == 'biobuddies' and CONA == 'measles' else 'https://github.com/biobuddies/measles.git' }}{% if measles_template_ref %} --checkout {{ measles_template_ref }}{% endif %}
+    template={{ '.' if ORGN == 'biobuddies' and CONA == 'measles' else 'https://github.com/biobuddies/measles.git' }}
 fi
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $template
 '''
@@ -332,11 +332,7 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
-run = '''
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-git diff --color=always $( [[ $(mise envi) == local ]] || echo --exit-code )
-'''
+run = 'git diff --color=always --exit-code'
 
 [tasks.pre-commit]
 run = '''
@@ -353,12 +349,9 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-git diff --color=always $( [[ $(mise envi) == local ]] || echo --exit-code )
+git diff --color=always --exit-code
 '''
 
 [tools]
-'aqua:tofuutils/tenv' = '4.9.3'
-gh = 'latest'
 node = '22'
-python = '3.12'
 uv = '0.10.10'
