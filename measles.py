@@ -2,7 +2,7 @@
 
 from base64 import b64decode
 from json import load
-from os import getenv
+from os import environ, getenv
 from pathlib import Path
 from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
@@ -103,8 +103,9 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
-        yaml_path = Path.cwd() / '.cookiecutter.yaml'
-        stderr.write(f'Configuring project based on {yaml_path.absolute()}\n')
+        # $PWD survives cookiecutter's os.chdir() to the template repo during
+        # run_hook_from_repo_dir() -- Path.cwd() would find the wrong .cookiecutter.yaml
+        yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
         yaml = safe_load(yaml_path.read_text())
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
