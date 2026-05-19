@@ -114,6 +114,7 @@ def test_init(monkeypatch: MonkeyPatch, tmp_path: Path):
         'default_context:\n    python_dependencies:\n    - click\n'
     )
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('PWD', str(tmp_path))
     monkeypatch.setattr(measles, 'cona', lambda: 'measles')
     monkeypatch.setattr(measles, 'orgn', lambda: 'biobuddies')
     monkeypatch.setattr(measles, 'gitignore', lambda languages: f'gitignore:{languages}')
