@@ -283,6 +283,9 @@ def test_existing_repository():
     # Act
     check_call(['mise', 'install'], cwd=wriggle, env=env)
     check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
+    # mise cookiecutter updated .config/mise.toml; re-run to apply new postinstall
+    # hook which generates pre-commit hook via mise generate pre-commit
+    check_call(['mise', 'install'], cwd=wriggle, env=env)
 
     # Assert
     pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
