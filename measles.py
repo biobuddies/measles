@@ -104,7 +104,7 @@ class Measles(Extension):
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
         # $PWD survives cookiecutter's os.chdir() to the template repo during
-        # run_hook_from_repo_dir() -- Path.cwd() would find the wrong .cookiecutter.yaml
+        # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
         yaml = safe_load(yaml_path.read_text())
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
