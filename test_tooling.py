@@ -2,12 +2,13 @@
 
 import stat
 import sys
+import tomllib
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
-from re import match
+from re import match, sub
 from subprocess import CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -280,47 +281,65 @@ def test_existing_repository():
     )
 
     # Act
+    check_call(['mise', 'install'], cwd=wriggle, env=env)
     check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
+    # mise cookiecutter updated .config/mise.toml; re-run to apply new postinstall
+    # hook which generates pre-commit hook via mise generate pre-commit
+    check_call(['mise', 'install'], cwd=wriggle, env=env)
 
     # Assert
+    pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
     assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
-    assert "'sqlglot'," in (wriggle / 'pyproject.toml').read_text()
+    assert 'sqlglot' in pyproject['project']['dependencies']
+    assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
+    assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
+    assert not (wriggle / 'manage.py').exists()
+    assert not (wriggle / 'config' / 'settings.py').exists()
 
 
 @mark.skip('complex malfunction in django detection')
 def test_new_repository_bootstrap(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
-    bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
+    original = readme.split('```bash\n')[1].split('\n```')[0]
 
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
 
+    # Use local files for speed and to avoid rate limits
     if environment == 'local':
-        bootstrap = bootstrap.replace(
-            'https://github.com/biobuddies/measles.git', f'{Path(__file__).parent}'
-        )
-    elif environment == 'github' and tag_or_branch != 'main':
-        bootstrap = bootstrap.replace(
-            'https://github.com/biobuddies/measles.git',
-            f'https://github.com/biobuddies/measles.git --checkout {tag_or_branch}',
-        )
-    elif environment == 'github' and tag_or_branch == 'main':
-        pass
+        replacements = (str(Path(__file__).parent), f' --edit {Path(__file__).parent}')
+    # Use URLs for parity with production
+    elif tag_or_branch != 'main':
+        replacements = (f'https://github.com/biobuddies/measles.git --checkout {tag_or_branch}', '')
     else:
-        raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
+        replacements = 'https://github.com/biobuddies/measles.git', ''
 
+    commands = sub(
+        r'(cookiecutter .+?) https://github\.com/biobuddies/measles\.git',
+        rf'\1 {replacements[0]}',
+        sub(r'(mise pre-commit-all)', rf'\1{replacements[1]}', original),
+    )
     env = {
+        'CONA': 'speedrun',
         'HOME': str(tmp_path.parent),
         'MISE_GITHUB_ATTESTATIONS': 'false',
         'MISE_GPG_VERIFY': 'false',
+        'ORGN': 'biobuddies',
         'PATH': environ['PATH'],
+        **({'GITHUB_HEAD_REF': tag_or_branch} if tag_or_branch and environment == 'github' else {}),
     }
-    check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env)
     check_call(
-        ['/usr/bin/env', 'bash', '-c', f'set -euxo pipefail\n{bootstrap}'], cwd=tmp_path, env=env
+        [
+            '/usr/bin/env',
+            'bash',
+            '-c',
+            f'set -o errexit -o nounset -o pipefail -o xtrace\n{commands}',
+        ],
+        cwd=tmp_path,
+        env=env,
     )
     check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
     assert (tmp_path / 'AGENTS.md').is_symlink()
     assert (tmp_path / 'CLAUDE.md').is_symlink()
     assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
-    assert (tmp_path / 'config' / 'settings.py').exists()
+    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR

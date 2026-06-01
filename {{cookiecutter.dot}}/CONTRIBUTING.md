@@ -62,6 +62,7 @@ simplest:
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
+        * Remove headers for empty Pull Request sections
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch

@@ -38,6 +38,8 @@ dependencies = [
 {{ "    '" ~ (dependencies|join("',\n    '")) ~ "'," if dependencies else '' }}
 ]
 {% endfor %}
+[tool.pytest.ini_options]
+norecursedirs = ['{{ '{{cookiecutter.dot}}' }}']
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'

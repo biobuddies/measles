@@ -2,7 +2,7 @@
 
 from base64 import b64decode
 from json import load
-from os import getenv
+from os import environ, getenv
 from pathlib import Path
 from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
@@ -17,7 +17,9 @@ from yaml import safe_load
 
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
-    if repository := getenv('GITHUB_REPOSITORY'):
+    if cona := getenv('CONA'):
+        pass
+    elif repository := getenv('GITHUB_REPOSITORY'):
         cona = repository.split('/')[-1]
     elif virtual_environment := getenv('VIRTUAL_ENV'):
         cona = Path(virtual_environment).parent.name
@@ -30,9 +32,13 @@ def cona() -> str:
 
 def orgn() -> str:
     """ORGanizatioN, a four-letter abbreviation."""
-    if repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
+    if orgn := getenv('ORGN'):
+        pass
+    elif repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
         orgn = repository_owner
     else:
+        if not (Path.cwd() / '.git').exists():
+            return 'github-organization-unknown'
         try:
             remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
         except CalledProcessError:
@@ -97,12 +103,14 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        # $PWD survives cookiecutter's os.chdir() to the template repo during
+        # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
+        yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
+        yaml = safe_load(yaml_path.read_text())
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
             'gitignore': gitignore,
-            'python_dependencies': safe_load((Path.cwd() / '.cookiecutter.yaml').read_text())[
-                'default_context'
-            ].get('python_dependencies', []),
+            'python_dependencies': yaml['default_context'].get('python_dependencies', []),
         })
