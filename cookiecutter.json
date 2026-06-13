@@ -1,6 +1,7 @@
 {
     "_copy_without_render": [],
     "_extensions": ["measles.Measles"],
+    "domain_name": "",
     "dot": ".",
     "languages": "Node,Python",
     "pull_request_background_links": "* ",

@@ -48,13 +48,17 @@ def test_four_letter_abbreviations():
         else check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip() + b'\n'
     )
 
+    assert check_output(['mise', 'fqdn']) == b''
+
 
 @mark.parametrize(
     ('git_describe', 'tabr'),
     (
+        # Happy paths
         ('remotes/origin/mybranch', 'mybranch'),
         ('heads/mybranch', 'mybranch'),
         ('tags/v2025.02.03', 'v2025.02.03'),
+        # Error
         ('heads/mybranch-dirty', ''),
     ),
 )
@@ -67,6 +71,49 @@ def test_tabr(git_describe: str, tabr: str):
     mocked = original.replace(target, f'echo "{git_describe}"')
     output = check_output(['/usr/bin/env', 'bash', '-c', mocked], env={}).decode().strip()
     assert output == tabr
+
+
+@mark.parametrize(
+    ('tabr', 'domain', 'fqdn'),
+    (
+        ('main', '', ''),
+        ('', 'cov.ing', ''),
+        ('main', 'cov.ing', 'cov.ing'),
+        ('my-feature', '', ''),
+        ('my-feature', 'cov.ing', 'my-feature.cov.ing'),
+    ),
+)
+def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
+    tabr_task = loads(check_output(['mise', 'tasks', 'info', 'tabr', '--json']))['run'][0].replace(
+        '\\n', '\n'
+    )
+    template = (
+        (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
+        .read_text()
+        .split('[tasks.fqdn]\n', 1)[1]
+        .split('[tasks.giha]')[0]
+    )
+    if domain:
+        fqdn_task = (
+            template
+            .strip()
+            .replace('{%- if cookiecutter.domain_name %}\n', '')
+            .replace("\n{%- else %}\nrun = ''\n{%- endif %}", '')
+            .replace('{{ cookiecutter.domain_name }}', domain)
+        )
+    else:
+        fqdn_task = "run = ''\n"
+    (tmp_path / '.config').mkdir()
+    (tmp_path / '.config' / 'mise.toml').write_text(
+        f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
+    )
+    mock_git = tmp_path / 'git'
+    describe = f'heads/{tabr}-dirty' if tabr == '' else f'heads/{tabr}'
+    mock_git.write_text(f'#!/usr/bin/env bash\necho "{describe}"\n')
+    mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
+    assert output == fqdn
 
 
 # (5+ letter) line keepers
