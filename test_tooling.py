@@ -286,6 +286,7 @@ def test_typos():
         input_path.unlink(missing_ok=True)
         output_path.unlink(missing_ok=True)
 
+
 def render_post_gen(
     globals_: dict[str, object], tmp_path: Path, uv_script: str
 ) -> tuple[str, Path]:
@@ -344,11 +345,15 @@ def test_post_gen_project_bash(tmp_path: Path):
     )
 
     assert 'pytest-django' in django_pyproject
+    assert "[tool.pytest.ini_options]\nnorecursedirs = ['{{cookiecutter.dot}}']" in django_pyproject
     assert "DJANGO_SETTINGS_MODULE = 'config.settings'" in django_pyproject
     assert (django_project / 'manage.py').exists()
     assert (django_project / 'config' / 'settings.py').exists()
 
     assert 'pytest-django' not in non_django_pyproject
+    assert "[tool.pytest.ini_options]\nnorecursedirs = ['{{cookiecutter.dot}}']" in (
+        non_django_pyproject
+    )
     assert "DJANGO_SETTINGS_MODULE = 'config.settings'" not in non_django_pyproject
     assert not (non_django_project / 'manage.py').exists()
     assert not (non_django_project / 'config' / 'settings.py').exists()
@@ -394,6 +399,10 @@ def test_existing_repository():
         )
         == b'wriggle\n'
     )
+    manage_path = wriggle / 'manage.py'
+    settings_path = wriggle / 'config' / 'settings.py'
+    had_manage = manage_path.exists()
+    had_settings = settings_path.exists()
 
     # Act
     check_call(['mise', 'install'], cwd=wriggle, env=env)
@@ -407,10 +416,12 @@ def test_existing_repository():
     assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
     assert 'sqlglot' in pyproject['project']['dependencies']
     assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
-    assert 'DJANGO_SETTINGS_MODULE' not in (wriggle / 'pyproject.toml').read_text()
+    pyproject_text = (wriggle / 'pyproject.toml').read_text()
+    assert "[tool.pytest.ini_options]\nnorecursedirs = ['{{cookiecutter.dot}}']" in pyproject_text
+    assert 'DJANGO_SETTINGS_MODULE' not in pyproject_text
     assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
-    assert not (wriggle / 'manage.py').exists()
-    assert not (wriggle / 'config' / 'settings.py').exists()
+    assert manage_path.exists() == had_manage
+    assert settings_path.exists() == had_settings
 
 
 @mark.skip('complex malfunction in django detection')
@@ -464,6 +475,7 @@ def test_new_repository_bootstrap(tmp_path: Path):
         'pytest-cov',
         'pytest-django',
     ]
+    assert "[tool.pytest.ini_options]\nnorecursedirs = ['{{cookiecutter.dot}}']" in pyproject_text
     assert "DJANGO_SETTINGS_MODULE = 'config.settings'" in pyproject_text
     assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert (tmp_path / 'AGENTS.md').is_symlink()
@@ -496,15 +508,13 @@ def test_new_repository_bootstrap(tmp_path: Path):
     status_after_failed_commit = git_text('status', '--short')
     diffstat_after_failed_commit = git_text('diff', '--stat')
 
-    assert status_after_failed_commit, '\n'.join(
-        (
-            'pre-commit failed without changing the working tree',
-            f'status before failed commit:\n{status_before_failed_commit}',
-            f'diffstat before failed commit:\n{diffstat_before_failed_commit}',
-            f'diffstat after failed commit:\n{diffstat_after_failed_commit}',
-            f'commit output:\n{error.value.output}',
-        )
-    )
+    assert status_after_failed_commit, '\n'.join((
+        'pre-commit failed without changing the working tree',
+        f'status before failed commit:\n{status_before_failed_commit}',
+        f'diffstat before failed commit:\n{diffstat_before_failed_commit}',
+        f'diffstat after failed commit:\n{diffstat_after_failed_commit}',
+        f'commit output:\n{error.value.output}',
+    ))
 
     git_text('add', '--all')
     status_before_successful_commit = git_text('status', '--short')
@@ -514,12 +524,10 @@ def test_new_repository_bootstrap(tmp_path: Path):
     # successful_commit_output = git_text('commit', '--message', 'Initial commit', '--no-gpg-sign')
     final_status = git_text('status', '--short')
 
-    assert final_status, '\n'.join(
-        (
-            f'status before successful commit:\n{status_before_successful_commit}',
-            f'diffstat before successful commit:\n{diffstat_before_successful_commit}',
-            # f'commit output:\n{successful_commit_output}',
-            f'final status:\n{final_status}',
-        )
-    )
+    assert final_status, '\n'.join((
+        f'status before successful commit:\n{status_before_successful_commit}',
+        f'diffstat before successful commit:\n{diffstat_before_successful_commit}',
+        # f'commit output:\n{successful_commit_output}',
+        f'final status:\n{final_status}',
+    ))
     # ruff: enable[ERA001]

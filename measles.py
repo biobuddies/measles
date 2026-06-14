@@ -113,7 +113,6 @@ def cookiecutter_yaml() -> dict:
     yaml_path = repository / '.cookiecutter.yaml'
     if not _cookiecutter_yaml_repository:
         _cookiecutter_yaml_repository.append(yaml_path.parent)
-    stderr.write(f'Configuring project based on {yaml_path.absolute()}\n')
     return safe_load(yaml_path.read_text())
 
 
@@ -124,10 +123,6 @@ def python_template_globals() -> dict[str, object]:
     yaml = cookiecutter_yaml()
     python_dependencies = yaml['default_context'].get('python_dependencies', [])
     has_django = any('django' in dependency.lower() for dependency in python_dependencies)
-    stderr.write(
-        f'DEBUG python_template_globals: cwd={Path.cwd()} cona={cona()} '
-        f'yaml={yaml} python_deps={python_dependencies} has_django={has_django}\n'
-    )
     return {
         'has_django': has_django,
         'python_dependencies': python_dependencies,
@@ -145,6 +140,9 @@ class Measles(Extension):
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
-        environment.globals.update(
-            {'CONA': cona(), 'ORGN': orgn(), 'gitignore': gitignore, **python_template_globals()}
-        )
+        environment.globals.update({
+            'CONA': cona(),
+            'ORGN': orgn(),
+            'gitignore': gitignore,
+            **python_template_globals(),
+        })
