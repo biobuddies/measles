@@ -7,7 +7,6 @@ from pathlib import Path
 from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
-from traceback import format_stack
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -100,23 +99,7 @@ def gitignore(languages: str) -> str:
 
 
 def cookiecutter_yaml() -> dict:
-    repository = Path(getenv('PWD', str(Path.cwd())))
-    if repository.name == 'measles' and cona() != 'measles':
-        for frame in reversed(format_stack()):
-            if cookiecutter := search(r'File "([^"]+/\.venv/bin/cookiecutter)"', frame):
-                repository = Path(cookiecutter.group(1)).resolve().parents[2]
-                break
-        else:
-            # uvx cookiecutter doesn't install into .venv; use the cached
-            # repository from the first call (before cookiecutter chdir'd)
-            repository = _cookiecutter_yaml_repository[0]
-    yaml_path = repository / '.cookiecutter.yaml'
-    if not _cookiecutter_yaml_repository:
-        _cookiecutter_yaml_repository.append(yaml_path.parent)
-    return safe_load(yaml_path.read_text())
-
-
-_cookiecutter_yaml_repository: list = []
+    return safe_load((Path(getenv('PWD', str(Path.cwd()))) / '.cookiecutter.yaml').read_text())
 
 
 def python_template_globals() -> dict[str, object]:
