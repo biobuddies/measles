@@ -44,6 +44,9 @@ else echo local
 fi
 """
 
+[tasks.fqdn]
+run = ''
+
 [tasks.giha]
 run = 'git describe --abbrev=40 --always --dirty --match=-'
 
@@ -76,12 +79,17 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${GITHUB_HEAD_REF-} ]]; then echo "$GITHUB_HEAD_REF"
-elif [[ ${GITHUB_REF_NAME-} ]]; then echo "$GITHUB_REF_NAME"
+if [[ ${GITHUB_HEAD_REF-} ]]; then tabr="$GITHUB_HEAD_REF"
+elif [[ ${GITHUB_REF_NAME-} ]]; then tabr="$GITHUB_REF_NAME"
 else
-    git describe --all --dirty --exact-match 2>/dev/null \
-        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p'
+    tabr=$(git describe --all --dirty --exact-match 2>/dev/null \
+        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p')
 fi
+if [[ $tabr == */* ]]; then
+    echo 'Slashes overcomplicate preview deployments.' >&2
+    exit 1
+fi
+if [[ $tabr ]]; then echo "$tabr"; fi
 '''
 
 [tasks.tinit]
@@ -186,6 +194,7 @@ set -o errexit -o nounset -o pipefail
 cat <<EOD | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
 CONA=measles
 ENVI=$(mise envi)
+FQDN=$(mise fqdn)
 GIHA=$(mise giha)
 ORGN=biobuddies
 ROLE=${ROLE-}
@@ -215,6 +224,7 @@ cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | ------------ | ---- | ------------ |
 | COdeNAme     | CONA | measles |
 | ENVIronment  | ENVI | $(mise envi) |
+| Fully Qualified Domain Name | FQDN | $(mise fqdn) |
 | GIt HAsH     | GIHA | $(mise giha) |
 | ORGanizatioN | ORGN | biobuddies |
 | ROLE         | ROLE | ${ROLE-} |
@@ -353,5 +363,6 @@ git diff --color=always --exit-code
 '''
 
 [tools]
+# latest gh from ~/.config/mise/config.toml
 node = '22'
 uv = '0.10.10'

@@ -14,6 +14,14 @@ simplest:
     - Use whole words like `index` and `--long-command-line-arguments`
     - Verbs over nouns
     - Avoid abbreviations like `i`
+    - Four Letter AbbreviatioNs (FLANs):
+        - COdeNAme (CONA)
+        - ENVIronment (ENVI)
+        - Fully Qualified Domain Name (FQDN)
+        - GIt HAsH (GIHA)
+        - ORGanizatioN (ORGN)
+        - ROLE (ROLE)
+        - TAg/BRanch (TABR)
     - Avoid substring matches
 * Chain function calls
 * Use the ternary operator
