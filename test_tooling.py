@@ -379,7 +379,7 @@ def test_end_of_file_fixer():
 # Downstream usage
 
 
-def test_existing_repository():
+def test_existing_unframed_repository_wriggle():
     # Check arrangement
     wriggle = Path.home() / 'code' / 'wriggle'
     cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
@@ -425,7 +425,7 @@ def test_existing_repository():
 
 
 @mark.skip('complex malfunction in django detection')
-def test_new_repository_bootstrap(tmp_path: Path):
+def test_new_django_repository_bootstrap_speedrun(tmp_path: Path):
     readme = (Path(__file__).parent / 'README.md').read_text()
     bootstrap = readme.split('```bash\n')[1].split('\n```')[0]
     environment = check_output(['mise', 'envi']).decode().strip()
@@ -448,7 +448,7 @@ def test_new_repository_bootstrap(tmp_path: Path):
         raise RuntimeError(f'Unsupported {environment=} {tag_or_branch=}')
 
     env = {
-        'CONA': 'wriggle',
+        'CONA': 'speedrun',
         'HOME': str(tmp_path.parent),
         'MISE_GITHUB_ATTESTATIONS': 'false',
         'MISE_GPG_VERIFY': 'false',

@@ -11,7 +11,14 @@ import measles
 
 
 def clear_environment(monkeypatch: MonkeyPatch):
-    for key in ('CONA', 'GITHUB_REPOSITORY', 'GITHUB_REPOSITORY_OWNER', 'ORGN', 'PWD', 'VIRTUAL_ENV'):
+    for key in (
+        'CONA',
+        'GITHUB_REPOSITORY',
+        'GITHUB_REPOSITORY_OWNER',
+        'ORGN',
+        'PWD',
+        'VIRTUAL_ENV',
+    ):
         monkeypatch.delitem(environ, key, raising=False)
 
 
