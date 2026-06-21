@@ -98,12 +98,13 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
-def cookiecutter_yaml() -> dict:
-    return safe_load((Path(getenv('PWD', str(Path.cwd()))) / '.cookiecutter.yaml').read_text())
-
-
-def python_template_globals() -> dict[str, object]:
-    yaml = cookiecutter_yaml()
+def file_derived_globals() -> dict[str, object]:
+    # Measles initializes multiple times: once while Cookiecutter runs from the
+    # output repository, and again while run_hook_from_repo_dir() has changed to
+    # the template repository. PWD keeps pointing at the output repository across
+    # both current working directories, so it is the reliable place to find
+    # .cookiecutter.yaml.
+    yaml = safe_load((Path(getenv('PWD', str(Path.cwd()))) / '.cookiecutter.yaml').read_text())
     python_dependencies = yaml['default_context'].get('python_dependencies', [])
     has_django = any('django' in dependency.lower() for dependency in python_dependencies)
     return {
@@ -127,5 +128,5 @@ class Measles(Extension):
             'CONA': cona(),
             'ORGN': orgn(),
             'gitignore': gitignore,
-            **python_template_globals(),
+            **file_derived_globals(),
         })

@@ -116,36 +116,26 @@ def test_orgn_rejects_bad_characters(monkeypatch: MonkeyPatch, tmp_path: Path):
         measles.orgn()
 
 
-def test_cookiecutter_yaml_from_pwd(monkeypatch: MonkeyPatch, tmp_path: Path):
+def test_file_derived_globals(monkeypatch: MonkeyPatch, tmp_path: Path):
+    clear_environment(monkeypatch)
     elsewhere = tmp_path / 'elsewhere'
     repository = tmp_path / 'wriggle'
     elsewhere.mkdir()
     repository.mkdir()
-    (repository / '.cookiecutter.yaml').write_text('default_context:\n')
     monkeypatch.chdir(elsewhere)
     monkeypatch.setenv('PWD', str(repository))
-
-    assert measles.cookiecutter_yaml() == {'default_context': None}
-
-
-def test_python_template_globals(monkeypatch: MonkeyPatch):
-    clear_environment(monkeypatch)
-    monkeypatch.setattr(
-        measles,
-        'cookiecutter_yaml',
-        lambda: {'default_context': {'python_dependencies': ['djangorestframework', 'requests']}},
+    (repository / '.cookiecutter.yaml').write_text(
+        'default_context:\n    python_dependencies:\n    - djangorestframework\n    - requests\n'
     )
-    assert measles.python_template_globals() == {
+    assert measles.file_derived_globals() == {
         'has_django': True,
         'python_dependencies': ['djangorestframework', 'requests'],
         'python_test_dependencies': ['pytest', 'pytest-cov', 'pytest-django'],
     }
-    monkeypatch.setattr(
-        measles,
-        'cookiecutter_yaml',
-        lambda: {'default_context': {'python_dependencies': ['click']}},
+    (repository / '.cookiecutter.yaml').write_text(
+        'default_context:\n    python_dependencies:\n    - click\n'
     )
-    assert measles.python_template_globals() == {
+    assert measles.file_derived_globals() == {
         'has_django': False,
         'python_dependencies': ['click'],
         'python_test_dependencies': ['pytest', 'pytest-cov'],
@@ -158,7 +148,7 @@ def test_init(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(measles, 'gitignore', lambda languages: f'gitignore:{languages}')
     monkeypatch.setattr(
         measles,
-        'python_template_globals',
+        'file_derived_globals',
         lambda: {
             'has_django': True,
             'python_dependencies': ['django'],

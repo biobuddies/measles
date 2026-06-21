@@ -39,10 +39,10 @@ dependencies = [
 ]
 {% endfor %}
 [tool.pytest.ini_options]
-norecursedirs = ['{{ '{{cookiecutter.dot}}' }}']
 {%- if has_django %}
 DJANGO_SETTINGS_MODULE = 'config.settings'
 {%- endif %}
+norecursedirs = ['{{ '{{cookiecutter.dot}}' }}']
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
