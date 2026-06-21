@@ -376,7 +376,7 @@ def test_post_gen_project_bash(tmp_path: Path):
 
     assert 'pytest-django' not in not_django_pyproject
     assert (
-        "[tool.pytest.ini_options]\nnorecursedirs = ['{{cookiecutter.dot}}']"
+        "[tool.pytest.ini_options]\n\nnorecursedirs = ['{{cookiecutter.dot}}']"
     ) in not_django_pyproject
     assert "DJANGO_SETTINGS_MODULE = 'config.settings'" not in not_django_pyproject
     assert not (not_django_project / 'manage.py').exists()
@@ -448,7 +448,7 @@ def test_existing_unframed_repository_wriggle():
     assert 'sqlglot' in pyproject['project']['dependencies']
     assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
     pyproject_text = (wriggle / 'pyproject.toml').read_text()
-    assert "[tool.pytest.ini_options]\nnorecursedirs = ['{{cookiecutter.dot}}']" in pyproject_text
+    assert "[tool.pytest.ini_options]\n\nnorecursedirs = ['{{cookiecutter.dot}}']" in pyproject_text
     assert 'DJANGO_SETTINGS_MODULE' not in pyproject_text
     assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert manage_path.exists() == had_manage

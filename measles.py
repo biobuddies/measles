@@ -98,35 +98,31 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
-def file_derived_globals() -> dict[str, object]:
-    # Measles initializes multiple times: once while Cookiecutter runs from the
-    # output repository, and again while run_hook_from_repo_dir() has changed to
-    # the template repository. PWD keeps pointing at the output repository across
-    # both current working directories, so it is the reliable place to find
-    # .cookiecutter.yaml.
-    yaml = safe_load((Path(getenv('PWD', str(Path.cwd()))) / '.cookiecutter.yaml').read_text())
-    python_dependencies = yaml['default_context'].get('python_dependencies', [])
-    has_django = any('django' in dependency.lower() for dependency in python_dependencies)
-    return {
-        'has_django': has_django,
-        'python_dependencies': python_dependencies,
-        'python_test_dependencies': [
-            'pytest',
-            'pytest-cov',
-            *(('pytest-django',) if has_django else ()),
-        ],
-    }
-
-
 class Measles(Extension):
     """Set globals."""
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        # Measles initializes multiple times: once while Cookiecutter runs from
+        # the output repository, and again while run_hook_from_repo_dir() has
+        # changed to the template repository. PWD keeps pointing at the output
+        # repository across both current working directories, so it is the
+        # reliable place to find .cookiecutter.yaml.
+        yaml = safe_load((Path(getenv('PWD', str(Path.cwd()))) / '.cookiecutter.yaml').read_text())
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
             'gitignore': gitignore,
-            **file_derived_globals(),
+            'has_django': any(
+                'django' in dependency.lower()
+                for dependency in yaml['default_context'].get('python_dependencies', [])
+            ),
+            'python_dependencies': yaml['default_context'].get('python_dependencies', []),
         })
+        # pyrefly: ignore[unsupported-operation]
+        environment.globals['python_test_dependencies'] = [
+            'pytest',
+            'pytest-cov',
+            *(('pytest-django',) if environment.globals['has_django'] else ()),
+        ]

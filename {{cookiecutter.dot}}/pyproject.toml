@@ -39,9 +39,7 @@ dependencies = [
 ]
 {% endfor %}
 [tool.pytest.ini_options]
-{%- if has_django %}
-DJANGO_SETTINGS_MODULE = 'config.settings'
-{%- endif %}
+{% if has_django %}DJANGO_SETTINGS_MODULE = 'config.settings'{% endif %}
 norecursedirs = ['{{ '{{cookiecutter.dot}}' }}']
 
 [tool.basedpyright]
