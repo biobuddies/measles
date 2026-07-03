@@ -1,7 +1,7 @@
 {
-    {%- if cookiecutter.node_dependencies %}
+    {%- if node_dependencies %}
     "dependencies": {
-        {% for package, version in cookiecutter.node_dependencies.items()|sort -%}
+        {% for package, version in node_dependencies.items()|sort -%}
         "{{ package }}": "{{ version }}"{{ "," if not loop.last }}
         {% endfor -%}
     },
@@ -13,7 +13,7 @@
             "prettier-plugin-jinja-template": "*",
             "prettier-plugin-organize-attributes": "*",
             "prettier-plugin-toml": "*"
-        }, **cookiecutter.node_dev_dependencies) -%}
+        }, **node_dev_dependencies) -%}
         {%- for package, version in dev_dependencies.items()|sort %}
         "{{ package }}": "{{ version }}"{{ "," if not loop.last }}
         {%- endfor %}

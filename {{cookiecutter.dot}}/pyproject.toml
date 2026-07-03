@@ -27,9 +27,9 @@ dependencies = [
         'validate-pyproject[all]',
         'yamllint',
     ],
-    'test': ['pytest', 'pytest-cov'],
+    'test': python_test_dependencies,
 } -%}
-{% set groups = dict(cookiecutter.python_optional_dependencies) -%}
+{% set groups = dict(python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
 {% set _ = groups.update({group: (dependencies + groups.get(group, []))|sort}) -%}
 {% endfor -%}
@@ -39,6 +39,7 @@ dependencies = [
 ]
 {% endfor %}
 [tool.pytest.ini_options]
+{{ "DJANGO_SETTINGS_MODULE = 'config.settings'\n" if has_django else '' -}}
 norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
 
 [tool.basedpyright]
