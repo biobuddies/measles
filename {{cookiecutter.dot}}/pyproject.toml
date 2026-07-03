@@ -39,7 +39,7 @@ dependencies = [
 ]
 {% endfor %}
 [tool.pytest.ini_options]
-norecursedirs = ['{{ '{{cookiecutter.dot}}' }}']
+norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
