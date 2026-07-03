@@ -84,8 +84,10 @@ set -- $(
         ) || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
+sources=("$@")
 [[ -z $command_args ]] || set -- $command_args "$@"
 "$tool" "$@"
+[[ $(mise envi) == local ]] && git add "${sources[@]}"
 '''
 
 [tasks.tabr]
@@ -316,6 +318,7 @@ run = 'uv pip check "$@"'
 run = '''
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform linux pyproject.toml "$@"
+[[ $(mise envi) == local ]] && git add requirements.txt
 '''
 
 [tasks.update-lock-files]
@@ -355,7 +358,13 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+# dup :389 pre-commit-all
+[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+git diff --cached --quiet || echo 'Auto-staged modifications.'
+'''
 
 [tasks.pre-commit]
 run = '''
@@ -372,7 +381,9 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-git diff --color=always --exit-code
+# dup :369 pre-commit-fast
+[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+git diff --cached --quiet || echo 'Auto-staged modifications.'
 '''
 
 [tools]
