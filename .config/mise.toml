@@ -71,8 +71,10 @@ set -- $(
         ) || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
+sources=("$@")
 [[ -z $command_args ]] || set -- $command_args "$@"
 "$tool" "$@"
+[[ $(mise envi) != local ]] || git add "${sources[@]}"
 '''
 
 [tasks.tabr]
@@ -303,6 +305,7 @@ run = 'uv pip check "$@"'
 run = '''
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform linux pyproject.toml "$@"
+[[ $(mise envi) != local ]] || git add requirements.txt
 '''
 
 [tasks.update-lock-files]
@@ -318,7 +321,9 @@ run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --j
 run = 'mise run-on-sources yamllint \*.yaml "$@"'
 
 # Task collections
-[tasks.pre-commit-fast]
+# Would name this pre-commit-fast to avoid substring-matching identifiers, but mise's built-in
+# hook generator defaults to this name
+[tasks.pre-commit]
 depends = [
     # line changers
     'django-upgrade',
@@ -342,14 +347,12 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
-run = 'git diff --color=always --exit-code'
-
-[tasks.pre-commit]
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-[[ $# -eq 0 || ${1-} =~ ^(-e|--edit)$ ]]
-mise pre-commit-fast
+# dup :365 tasks.pre-commit-all
+[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+git diff --cached --quiet || echo Auto-staged modifications
 '''
 
 [tasks.pre-commit-all]
@@ -359,7 +362,9 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-git diff --color=always --exit-code
+# dup :353 tasks.pre-commit
+[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+git diff --cached --quiet || echo Auto-staged modifications
 '''
 
 [tools]

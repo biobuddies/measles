@@ -70,6 +70,16 @@ simplest:
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
+        * Report testing as one of:
+            - `Existing automated tests only`
+            - `Added automated test...`
+            - A procedure future contributors can reproduce:
+              ```
+              # Manual test procedure
+              commands
+              to_reproduce
+              ```
+        * Never waste space counting or automating existing automated tests
         * Remove headers for empty Pull Request sections
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
