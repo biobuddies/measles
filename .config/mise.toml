@@ -321,8 +321,8 @@ run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --j
 run = 'mise run-on-sources yamllint \*.yaml "$@"'
 
 # Task collections
-# Would use pre-commit-fast to avoid substring-matching identifiers, but mise's built-in hook
-# generator defaults to pre-commit.
+# Would name this pre-commit-fast to avoid substring-matching identifiers, but mise's built-in
+# hook generator defaults to this name
 [tasks.pre-commit]
 depends = [
     # line changers
@@ -352,7 +352,7 @@ run = '''
 set -o errexit -o nounset -o pipefail
 # dup :365 tasks.pre-commit-all
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
-git diff --cached --quiet || echo 'Auto-staged modifications.'
+git diff --cached --quiet || echo Auto-staged modifications
 '''
 
 [tasks.pre-commit-all]
@@ -364,7 +364,7 @@ mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
 # dup :353 tasks.pre-commit
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
-git diff --cached --quiet || echo 'Auto-staged modifications.'
+git diff --cached --quiet || echo Auto-staged modifications
 '''
 
 [tools]
