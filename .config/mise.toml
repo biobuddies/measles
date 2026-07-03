@@ -74,7 +74,7 @@ set -- $(
 sources=("$@")
 [[ -z $command_args ]] || set -- $command_args "$@"
 "$tool" "$@"
-[[ $(mise envi) == local ]] && git add "${sources[@]}"
+[[ $(mise envi) != local ]] || git add "${sources[@]}"
 '''
 
 [tasks.tabr]
@@ -305,7 +305,7 @@ run = 'uv pip check "$@"'
 run = '''
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform linux pyproject.toml "$@"
-[[ $(mise envi) == local ]] && git add requirements.txt
+[[ $(mise envi) != local ]] || git add requirements.txt
 '''
 
 [tasks.update-lock-files]
