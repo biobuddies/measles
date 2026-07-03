@@ -334,7 +334,9 @@ run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --j
 run = 'mise run-on-sources yamllint \*.yaml "$@"'
 
 # Task collections
-[tasks.pre-commit-fast]
+# Would use pre-commit-fast to avoid substring-matching identifiers, but mise's built-in hook
+# generator defaults to pre-commit.
+[tasks.pre-commit]
 depends = [
     # line changers
     'django-upgrade',
@@ -361,17 +363,9 @@ depends = [
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-# dup :389 pre-commit-all
+# dup :378 tasks.pre-commit-all
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo 'Auto-staged modifications.'
-'''
-
-[tasks.pre-commit]
-run = '''
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-[[ $# -eq 0 || ${1-} =~ ^(-e|--edit)$ ]]
-mise pre-commit-fast
 '''
 
 [tasks.pre-commit-all]
@@ -381,7 +375,7 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-# dup :369 pre-commit-fast
+# dup :366 tasks.pre-commit
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo 'Auto-staged modifications.'
 '''
