@@ -7,7 +7,7 @@ from importlib import import_module
 
 
 def test_manage_check(monkeypatch):
-    monkeypatch.setattr('sys.argv', ['/home/biobuddy/code/newthing/manage.py', 'check'])
+    monkeypatch.setattr('sys.argv', ['/home/biobuddy/code/speedrun/manage.py', 'check'])
     import_module('manage').main()
 {% else %}
 def test_boilerplate():

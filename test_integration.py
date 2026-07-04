@@ -14,26 +14,9 @@ from yaml import safe_dump
 
 
 @fixture
-def cache_environment(tmp_path: Path) -> Callable[..., dict[str, str]]:
+def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
     home = Path.home()
     cache_home = Path(getenv('XDG_CACHE_HOME', str(home / '.cache')))
-    return lambda **overrides: {
-        'HOME': str(tmp_path.parent),
-        'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
-        'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
-        'MISE_GITHUB_ATTESTATIONS': 'false',
-        'MISE_GPG_VERIFY': 'false',
-        'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
-        'ORGN': 'biobuddies',
-        'PATH': environ['PATH'],
-        'PWD': str(tmp_path),
-        'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
-        **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
-        **overrides,
-    }
-
-
-def run_readme_bootstrap(tmp_path: Path, env: dict[str, str]) -> bytes:
     repository = Path(__file__).parent
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
@@ -58,47 +41,56 @@ def run_readme_bootstrap(tmp_path: Path, env: dict[str, str]) -> bytes:
             .split('\nEOF\n', 1)[1],
         ),
     ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
-    (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
-    return check_output(
-        ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
-        cwd=tmp_path,
-        env={
-            **env,
-            **(
-                {'GITHUB_HEAD_REF': tag_or_branch}
-                if tag_or_branch and environment == 'github'
-                else {}
-            ),
-        },
-        stderr=STDOUT,
-    )
 
-
-def test_missing_cookiecutter_yaml(
-    tmp_path: Path, cache_environment: Callable[..., dict[str, str]]
-):
-    (tmp_path / '.cookiecutter.yaml').touch()
-    with raises(CalledProcessError):
-        run_readme_bootstrap(tmp_path, cache_environment(CONA='speedrun'))
-
-
-def test_new_repository_not_django(
-    tmp_path: Path, cache_environment: Callable[..., dict[str, str]]
-):
-    (tmp_path / '.cookiecutter.yaml').write_text(
-        safe_dump(
-            {
-                'default_context': {
-                    'node_dependencies': {'react': '^19.0.0'},
-                    'node_dev_dependencies': {'vite': '^7.0.0'},
-                    'python_dependencies': ['click'],
-                    'python_optional_dependencies': {'test': ['pytest-httpserver']},
-                }
+    def bootstrap(cookiecutter: dict[str, object], **overrides: str) -> Path:
+        (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
+        (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
+        check_output(
+            ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
+            cwd=tmp_path,
+            env={
+                'HOME': str(tmp_path.parent),
+                'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
+                'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
+                'MISE_GITHUB_ATTESTATIONS': 'false',
+                'MISE_GPG_VERIFY': 'false',
+                'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
+                'ORGN': 'biobuddies',
+                'PATH': environ['PATH'],
+                'PWD': str(tmp_path),
+                'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
+                **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
+                **(
+                    {'GITHUB_HEAD_REF': tag_or_branch}
+                    if tag_or_branch and environment == 'github'
+                    else {}
+                ),
+                **overrides,
             },
-            sort_keys=False,
+            stderr=STDOUT,
         )
+        return tmp_path
+
+    return bootstrap
+
+
+def test_missing_cookiecutter_yaml(readme_bootstrap: Callable[..., Path]):
+    with raises(CalledProcessError):
+        readme_bootstrap({}, CONA='speedrun')
+
+
+def test_new_repository_not_django(readme_bootstrap: Callable[..., Path]):
+    tmp_path = readme_bootstrap(
+        {
+            'default_context': {
+                'node_dependencies': {'react': '^19.0.0'},
+                'node_dev_dependencies': {'vite': '^7.0.0'},
+                'python_dependencies': ['click'],
+                'python_optional_dependencies': {'test': ['pytest-httpserver']},
+            }
+        },
+        CONA='wriggle',
     )
-    run_readme_bootstrap(tmp_path, cache_environment(CONA='wriggle'))
 
     pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
     package = loads((tmp_path / 'package.json').read_text())
@@ -127,21 +119,16 @@ def test_new_repository_not_django(
         assert (tmp_path / link).readlink() == Path(target)
 
 
-def test_new_repository_yes_django(
-    tmp_path: Path, cache_environment: Callable[..., dict[str, str]]
-):
-    (tmp_path / '.cookiecutter.yaml').write_text(
-        safe_dump(
-            {
-                'default_context': {
-                    'python_dependencies': ['djangorestframework', 'requests'],
-                    'python_optional_dependencies': {'test': ['pytest-httpserver']},
-                }
-            },
-            sort_keys=False,
-        )
+def test_new_repository_yes_django(readme_bootstrap: Callable[..., Path]):
+    tmp_path = readme_bootstrap(
+        {
+            'default_context': {
+                'python_dependencies': ['djangorestframework', 'requests'],
+                'python_optional_dependencies': {'test': ['pytest-httpserver']},
+            }
+        },
+        CONA='speedrun',
     )
-    run_readme_bootstrap(tmp_path, cache_environment(CONA='speedrun'))
 
     pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
     assert pyproject['project']['optional-dependencies']['test'] == [
