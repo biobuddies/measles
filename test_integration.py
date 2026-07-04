@@ -50,31 +50,36 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
     def bootstrap(cookiecutter: dict[str, object], **overrides: str) -> Path:
         (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
+        env = {
+            'HOME': str(tmp_path.parent),
+            'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
+            'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
+            'MISE_GITHUB_ATTESTATIONS': 'false',
+            'MISE_GPG_VERIFY': 'false',
+            'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
+            'ORGN': 'biobuddies',
+            'PATH': environ['PATH'],
+            'PWD': str(tmp_path),
+            'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
+            **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
+            **(
+                {'GITHUB_HEAD_REF': tag_or_branch}
+                if tag_or_branch and environment == 'github'
+                else {}
+            ),
+            **overrides,
+        }
         check_output(
             ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
             cwd=tmp_path,
-            env={
-                'HOME': str(tmp_path.parent),
-                'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
-                'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
-                'MISE_GITHUB_ATTESTATIONS': 'false',
-                'MISE_GPG_VERIFY': 'false',
-                'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
-                'ORGN': 'biobuddies',
-                'PATH': environ['PATH'],
-                'PWD': str(tmp_path),
-                'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
-                **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
-                **(
-                    {'GITHUB_HEAD_REF': tag_or_branch}
-                    if tag_or_branch and environment == 'github'
-                    else {}
-                ),
-                **overrides,
-            },
+            env=env,
             stderr=STDOUT,
         )
         pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
+        assert (
+            check_output(['mise', 'cona'], cwd=tmp_path, env=env)
+            == (overrides['CONA'] + '\n').encode()
+        )
         assert pyproject['tool']['pytest']['ini_options']['norecursedirs'] == [
             '.venv',
             'node_modules',
@@ -173,8 +178,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     )
 
     check_call(['mise', 'install'], cwd=downstream, env=env)
-    check_call(['mise', 'cookiecutter', '--edit'], cwd=downstream, env=env)
-    # mise cookiecutter updated .config/mise.toml; re-run to apply the new postinstall hook
+    check_call(['mise', 'pre-commit-all', '--edit'], cwd=downstream, env=env)
     check_call(['mise', 'install'], cwd=downstream, env=env)
 
     pyproject = tomllib.loads((downstream / 'pyproject.toml').read_text())
