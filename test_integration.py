@@ -6,7 +6,7 @@ from collections.abc import Callable
 from json import loads
 from os import environ, getenv
 from pathlib import Path
-from re import sub
+from re import MULTILINE, sub
 from subprocess import STDOUT, CalledProcessError, check_call, check_output
 
 from pytest import fixture, mark, raises
@@ -21,25 +21,30 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
     uv_version = check_output(['mise', 'current', 'uv']).decode().strip()
-    replacements = (
-        (str(repository), f' --edit {repository}')
-        if environment == 'local'
-        else (f'https://github.com/biobuddies/measles.git --checkout {tag_or_branch}', '')
-        if tag_or_branch != 'main'
-        else ('https://github.com/biobuddies/measles.git', '')
+    cookiecutter_task = (
+        loads(check_output(['mise', 'tasks', 'info', 'cookiecutter', '--json']))['run'][0]
+        .replace('$(mise tabr)', tag_or_branch)
+        .replace('\ncookiecutter', '\nuvx cookiecutter')
     )
+    cookiecutter_task = (
+        f'set -- --edit {repository}\n{cookiecutter_task}'
+        if environment == 'local'
+        else cookiecutter_task
+    )
+    pre_commit_arguments = f' --edit {repository}' if environment == 'local' else ''
     commands = sub(
-        r'(cookiecutter .+?) https://github\.com/biobuddies/measles\.git',
-        rf'\1 {replacements[0]}',
+        r'^uvx cookiecutter .+$',
+        cookiecutter_task,
         sub(
             r'(mise pre-commit-all)',
-            rf'\1{replacements[1]}',
+            rf'\1{pre_commit_arguments}',
             (repository / 'README.md')
             .read_text()
             .split('```bash\n')[1]
             .split('\n```')[0]
             .split('\nEOF\n', 1)[1],
         ),
+        flags=MULTILINE,
     ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
 
     def bootstrap(cookiecutter: dict[str, object], **overrides: str) -> Path:
@@ -69,6 +74,20 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
             },
             stderr=STDOUT,
         )
+        pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
+        assert pyproject['tool']['pytest']['ini_options']['norecursedirs'] == [
+            '.venv',
+            'node_modules',
+            '{{cookiecutter.dot}}',
+        ]
+        assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
+        for link, target in (
+            ('AGENTS.md', 'CONTRIBUTING.md'),
+            ('CLAUDE.md', 'CONTRIBUTING.md'),
+            ('.github/copilot-instructions.md', '../CONTRIBUTING.md'),
+        ):
+            assert (tmp_path / link).is_symlink()
+            assert (tmp_path / link).readlink() == Path(target)
         return tmp_path
 
     return bootstrap
@@ -101,22 +120,9 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., Path]):
         'pytest-cov',
         'pytest-httpserver',
     ]
-    assert pyproject['tool']['pytest']['ini_options']['norecursedirs'] == [
-        '.venv',
-        'node_modules',
-        '{{cookiecutter.dot}}',
-    ]
     assert 'DJANGO_SETTINGS_MODULE' not in pyproject['tool']['pytest']['ini_options']
-    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
-    for link, target in (
-        ('AGENTS.md', 'CONTRIBUTING.md'),
-        ('CLAUDE.md', 'CONTRIBUTING.md'),
-        ('.github/copilot-instructions.md', '../CONTRIBUTING.md'),
-    ):
-        assert (tmp_path / link).is_symlink()
-        assert (tmp_path / link).readlink() == Path(target)
 
 
 def test_new_repository_yes_django(readme_bootstrap: Callable[..., Path]):
@@ -137,19 +143,6 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., Path]):
         'pytest-django',
         'pytest-httpserver',
     ]
-    assert pyproject['tool']['pytest']['ini_options']['norecursedirs'] == [
-        '.venv',
-        'node_modules',
-        '{{cookiecutter.dot}}',
-    ]
-    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
-    for link, target in (
-        ('AGENTS.md', 'CONTRIBUTING.md'),
-        ('CLAUDE.md', 'CONTRIBUTING.md'),
-        ('.github/copilot-instructions.md', '../CONTRIBUTING.md'),
-    ):
-        assert (tmp_path / link).is_symlink()
-        assert (tmp_path / link).readlink() == Path(target)
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert 'def test_manage_check(monkeypatch):' in (tmp_path / 'test_boilerplate.py').read_text()
 
