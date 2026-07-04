@@ -8,13 +8,14 @@ from os import environ, getenv
 from pathlib import Path
 from re import MULTILINE, sub
 from subprocess import STDOUT, CalledProcessError, check_call, check_output
+from typing import Any
 
 from pytest import fixture, mark, raises
 from yaml import safe_dump
 
 
 @fixture
-def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
+def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]]]:
     home = Path.home()
     cache_home = Path(getenv('XDG_CACHE_HOME', str(home / '.cache')))
     repository = Path(__file__).parent
@@ -47,7 +48,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
         flags=MULTILINE,
     ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
 
-    def bootstrap(cookiecutter: dict[str, object], **overrides: str) -> Path:
+    def bootstrap(cookiecutter: dict[str, object], **overrides: str) -> tuple[Path, dict[str, Any]]:
         (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
         env = {
@@ -93,18 +94,18 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., Path]:
         ):
             assert (tmp_path / link).is_symlink()
             assert (tmp_path / link).readlink() == Path(target)
-        return tmp_path
+        return tmp_path, pyproject
 
     return bootstrap
 
 
-def test_missing_cookiecutter_yaml(readme_bootstrap: Callable[..., Path]):
+def test_missing_cookiecutter_yaml(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
     with raises(CalledProcessError):
         readme_bootstrap({}, CONA='speedrun')
 
 
-def test_new_repository_not_django(readme_bootstrap: Callable[..., Path]):
-    tmp_path = readme_bootstrap(
+def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
+    tmp_path, pyproject = readme_bootstrap(
         {
             'default_context': {
                 'node_dependencies': {'react': '^19.0.0'},
@@ -116,7 +117,6 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., Path]):
         CONA='wriggle',
     )
 
-    pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
     package = loads((tmp_path / 'package.json').read_text())
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
@@ -130,8 +130,8 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., Path]):
     assert not (tmp_path / 'config' / 'settings.py').exists()
 
 
-def test_new_repository_yes_django(readme_bootstrap: Callable[..., Path]):
-    tmp_path = readme_bootstrap(
+def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
+    tmp_path, pyproject = readme_bootstrap(
         {
             'default_context': {
                 'python_dependencies': ['djangorestframework', 'requests'],
@@ -141,7 +141,6 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., Path]):
         CONA='speedrun',
     )
 
-    pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
     assert pyproject['project']['optional-dependencies']['test'] == [
         'pytest',
         'pytest-cov',
@@ -179,6 +178,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
 
     check_call(['mise', 'install'], cwd=downstream, env=env)
     check_call(['mise', 'pre-commit-all', '--edit'], cwd=downstream, env=env)
+    # In case mise cookiecutter updated the postinstall hook in .config/mise.toml
     check_call(['mise', 'install'], cwd=downstream, env=env)
 
     pyproject = tomllib.loads((downstream / 'pyproject.toml').read_text())
