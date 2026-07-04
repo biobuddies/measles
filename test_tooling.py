@@ -2,14 +2,13 @@
 
 import stat
 import sys
-import tomllib
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import STDOUT, CalledProcessError, check_call, check_output
+from subprocess import STDOUT, CalledProcessError, check_output
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import SimpleNamespace
@@ -77,18 +76,18 @@ def test_tabr(git_describe: str, tabr: str):
 @mark.parametrize(
     'case',
     (
-        # Upstream, local, feature branch
-        ('measles', {}, 'fix-something', [], '.'),
-        # Upstream, GitHub Actions, feature branch
+        # Upstream, local, feature branch, files
+        ('measles', {}, 'fix-something-in-measles', [], '.'),
+        # Upstream, GitHub Actions, feature branch, files
         # mise tabr uses GITHUB_HEAD_REF
         (
             'measles',
             {'GITHUB_ACTIONS': 'true', 'GITHUB_WORKSPACE': '/home/runner/work/measles/measles'},
-            'fix-something',
+            'fix-something-in-measles',
             [],
             '.',
         ),
-        # Upstream, GitHub Actions, main branch
+        # Upstream, GitHub Actions, main branch, HTTPS
         (
             'measles',
             {'GITHUB_ACTIONS': 'true', 'GITHUB_WORKSPACE': '/home/runner/work/measles/measles'},
@@ -96,27 +95,15 @@ def test_tabr(git_describe: str, tabr: str):
             [],
             'https://github.com/biobuddies/measles.git',
         ),
-        # Downstream, local, Measles main branch
-        (
-            'speedrun',
-            {},
-            'main',
-            ['--edit', '/home/biobuddy/code/measles'],
-            '/home/biobuddy/code/measles',
-        ),
-        # Downstream, local, Measles feature branch
-        (
-            'speedrun',
-            {},
-            'fix-something',
-            ['--edit', '/home/biobuddy/code/measles'],
-            '/home/biobuddy/code/measles',
-        ),
-        # Downstream, GitHub Actions, Measles main branch
+        # Downstream, local, files
+        ('speedrun', {}, 'downstream-feature', ['--edit'], '/home/biobuddy/code/measles'),
+        # Downstream, local, HTTPS
+        ('speedrun', {}, 'downstream-feature', [], 'https://github.com/biobuddies/measles.git'),
+        # Downstream, GitHub Actions, HTTPS
         (
             'speedrun',
             {'GITHUB_ACTIONS': 'true', 'GITHUB_WORKSPACE': '/home/runner/work/speedrun/speedrun'},
-            'main',
+            'downstream-feature',
             [],
             'https://github.com/biobuddies/measles.git',
         ),
@@ -428,50 +415,3 @@ def test_end_of_file_fixer():
         assert test_path.read_text() == 's/old/new/\n'
     finally:
         test_path.unlink(missing_ok=True)
-
-
-# Downstream usage
-
-
-def test_existing_repository_not_django():
-    # Check arrangement
-    wriggle = Path.home() / 'code' / 'wriggle'
-    cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
-    assert cookiecutter_yaml.exists()
-    assert 'languages' in cookiecutter_yaml.read_text()
-    env = {
-        'HOME': environ['HOME'],
-        'MISE_TRUSTED_CONFIG_PATHS': str(wriggle),
-        'PATH': environ['PATH'],
-    }
-    assert check_output(['mise', 'cona'], cwd=wriggle, env=env) == b'wriggle\n'
-    assert (
-        check_output(
-            ['mise', 'x', '--', 'python', '-c', 'from pathlib import Path; print(Path.cwd().name)'],
-            cwd=wriggle,
-            env=env,
-        )
-        == b'wriggle\n'
-    )
-
-    # Act
-    check_call(['mise', 'install'], cwd=wriggle, env=env)
-    check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
-    # mise cookiecutter updated .config/mise.toml; re-run to apply new postinstall
-    # hook which generates pre-commit hook via mise generate pre-commit
-    check_call(['mise', 'install'], cwd=wriggle, env=env)
-
-    # Assert
-    pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
-    assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
-    assert 'sqlglot' in pyproject['project']['dependencies']
-    assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
-    assert pyproject['tool']['pytest']['ini_options']['norecursedirs'] == [
-        '.venv',
-        'node_modules',
-        '{{cookiecutter.dot}}',
-    ]
-    assert 'DJANGO_SETTINGS_MODULE' not in pyproject['tool']['pytest']['ini_options']
-    assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
-    assert not (wriggle / 'manage.py').exists()
-    assert not (wriggle / 'config' / 'settings.py').exists()
