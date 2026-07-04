@@ -10,5 +10,6 @@ def test_manage_check(monkeypatch):
     monkeypatch.setattr('sys.argv', ['/home/biobuddy/code/newthing/manage.py', 'check'])
     import_module('manage').main()
 {% else %}
-# Currently only populated for Django projects.
+def test_boilerplate():
+    pass
 {% endif -%}

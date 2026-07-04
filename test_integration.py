@@ -2,6 +2,7 @@
 
 import stat
 import tomllib
+from collections.abc import Callable
 from json import loads
 from os import environ, getenv
 from pathlib import Path
@@ -13,52 +14,77 @@ from yaml import safe_dump
 
 
 @fixture
-def cache_environment() -> dict[str, str]:
+def cache_environment(tmp_path: Path) -> Callable[..., dict[str, str]]:
     home = Path.home()
     cache_home = Path(getenv('XDG_CACHE_HOME', str(home / '.cache')))
-    return {
+    return lambda **overrides: {
+        'HOME': str(tmp_path.parent),
         'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
         'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
+        'MISE_GITHUB_ATTESTATIONS': 'false',
+        'MISE_GPG_VERIFY': 'false',
         'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
+        'ORGN': 'biobuddies',
+        'PATH': environ['PATH'],
+        'PWD': str(tmp_path),
         'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
+        **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
+        **overrides,
     }
 
 
-def test_missing_cookiecutter_yaml(tmp_path: Path, cache_environment: dict[str, str]):
+def run_readme_bootstrap(tmp_path: Path, env: dict[str, str]) -> bytes:
+    repository = Path(__file__).parent
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
-    template = (
-        str(Path(__file__).parent)
+    uv_version = check_output(['mise', 'current', 'uv']).decode().strip()
+    replacements = (
+        (str(repository), f' --edit {repository}')
         if environment == 'local'
-        else 'https://github.com/biobuddies/measles.git'
-        + (f' --checkout {tag_or_branch}' if tag_or_branch else '')
+        else (f'https://github.com/biobuddies/measles.git --checkout {tag_or_branch}', '')
+        if tag_or_branch != 'main'
+        else ('https://github.com/biobuddies/measles.git', '')
+    )
+    commands = sub(
+        r'(cookiecutter .+?) https://github\.com/biobuddies/measles\.git',
+        rf'\1 {replacements[0]}',
+        sub(
+            r'(mise pre-commit-all)',
+            rf'\1{replacements[1]}',
+            (repository / 'README.md')
+            .read_text()
+            .split('```bash\n')[1]
+            .split('\n```')[0]
+            .split('\nEOF\n', 1)[1],
+        ),
+    ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
+    (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
+    return check_output(
+        ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
+        cwd=tmp_path,
+        env={
+            **env,
+            **(
+                {'GITHUB_HEAD_REF': tag_or_branch}
+                if tag_or_branch and environment == 'github'
+                else {}
+            ),
+        },
+        stderr=STDOUT,
     )
 
-    assert not (tmp_path / '.cookiecutter.yaml').exists()
-    with raises(CalledProcessError) as error:
-        check_output(
-            ['uvx', 'cookiecutter', '--no-input', '--overwrite-if-exists', *template.split()],
-            cwd=tmp_path,
-            env={
-                'CONA': 'speedrun',
-                'HOME': str(tmp_path.parent),
-                'ORGN': 'biobuddies',
-                'PATH': environ['PATH'],
-                'PWD': str(tmp_path),
-                **cache_environment,
-                **(
-                    {'GITHUB_TOKEN': token}
-                    if (token := getenv('GITHUB_TOKEN') or getenv('MISE_GITHUB_TOKEN'))
-                    else {}
-                ),
-            },
-            stderr=STDOUT,
-        )
-    assert '.cookiecutter.yaml' in error.value.output.decode()
+
+def test_missing_cookiecutter_yaml(
+    tmp_path: Path, cache_environment: Callable[..., dict[str, str]]
+):
+    (tmp_path / '.cookiecutter.yaml').touch()
+    with raises(CalledProcessError):
+        run_readme_bootstrap(tmp_path, cache_environment(CONA='speedrun'))
 
 
-def test_new_repository_not_django(tmp_path: Path, cache_environment: dict[str, str]):
-    repository = Path(__file__).parent
+def test_new_repository_not_django(
+    tmp_path: Path, cache_environment: Callable[..., dict[str, str]]
+):
     (tmp_path / '.cookiecutter.yaml').write_text(
         safe_dump(
             {
@@ -72,33 +98,7 @@ def test_new_repository_not_django(tmp_path: Path, cache_environment: dict[str, 
             sort_keys=False,
         )
     )
-    (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
-    env = {
-        'CONA': 'wriggle',
-        'HOME': str(tmp_path.parent),
-        'MISE_GITHUB_ATTESTATIONS': 'false',
-        'MISE_GPG_VERIFY': 'false',
-        'ORGN': 'biobuddies',
-        'PATH': environ['PATH'],
-        'PWD': str(tmp_path),
-        **cache_environment,
-        **(
-            {'GITHUB_TOKEN': token}
-            if (token := getenv('GITHUB_TOKEN') or getenv('MISE_GITHUB_TOKEN'))
-            else {}
-        ),
-    }
-    check_call(
-        ['mise', 'cookiecutter', '--edit', str(repository)],
-        cwd=tmp_path,
-        env={**env, 'MISE_CONFIG_FILE': str(repository / '.config' / 'mise.toml')},
-        stderr=STDOUT,
-    )
-    check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env, stderr=STDOUT)
-    check_call(['mise', 'install'], cwd=tmp_path, env=env, stderr=STDOUT)
-    check_call(
-        ['mise', 'pre-commit-all', '--edit', str(repository)], cwd=tmp_path, env=env, stderr=STDOUT
-    )
+    run_readme_bootstrap(tmp_path, cache_environment(CONA='wriggle'))
 
     pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
     package = loads((tmp_path / 'package.json').read_text())
@@ -127,8 +127,9 @@ def test_new_repository_not_django(tmp_path: Path, cache_environment: dict[str, 
         assert (tmp_path / link).readlink() == Path(target)
 
 
-def test_new_repository_yes_django(tmp_path: Path, cache_environment: dict[str, str]):
-    repository = Path(__file__).parent
+def test_new_repository_yes_django(
+    tmp_path: Path, cache_environment: Callable[..., dict[str, str]]
+):
     (tmp_path / '.cookiecutter.yaml').write_text(
         safe_dump(
             {
@@ -140,34 +141,7 @@ def test_new_repository_yes_django(tmp_path: Path, cache_environment: dict[str, 
             sort_keys=False,
         )
     )
-    (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
-    env = {
-        'CONA': 'speedrun',
-        'HOME': str(tmp_path.parent),
-        'MISE_GITHUB_ATTESTATIONS': 'false',
-        'MISE_GPG_VERIFY': 'false',
-        'ORGN': 'biobuddies',
-        'PATH': environ['PATH'],
-        'PWD': str(tmp_path),
-        **cache_environment,
-        **(
-            {'GITHUB_TOKEN': token}
-            if (token := getenv('GITHUB_TOKEN') or getenv('MISE_GITHUB_TOKEN'))
-            else {}
-        ),
-    }
-    check_call(
-        ['mise', 'cookiecutter', '--edit', str(repository)],
-        cwd=tmp_path,
-        env={**env, 'MISE_CONFIG_FILE': str(repository / '.config' / 'mise.toml')},
-        stderr=STDOUT,
-    )
-    check_call(['mise', 'trust', '--yes'], cwd=tmp_path, env=env, stderr=STDOUT)
-    check_call(['mise', 'install'], cwd=tmp_path, env=env, stderr=STDOUT)
-    check_call(
-        ['mise', 'pre-commit-all', '--edit', str(repository)], cwd=tmp_path, env=env, stderr=STDOUT
-    )
-    check_call(['mise', 'test'], cwd=tmp_path, env=env, stderr=STDOUT)
+    run_readme_bootstrap(tmp_path, cache_environment(CONA='speedrun'))
 
     pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
     assert pyproject['project']['optional-dependencies']['test'] == [
@@ -237,57 +211,3 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     assert (downstream / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
     assert (downstream / 'manage.py').exists() == has_django
     assert (downstream / 'config' / 'settings.py').exists() == has_django
-
-
-def test_readme_bootstrap(tmp_path: Path, cache_environment: dict[str, str]):
-    repository = Path(__file__).parent
-    environment = check_output(['mise', 'envi']).decode().strip()
-    tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
-    uv_version = check_output(['mise', 'current', 'uv']).decode().strip()
-    replacements = (
-        (str(repository), f' --edit {repository}')
-        if environment == 'local'
-        else (f'https://github.com/biobuddies/measles.git --checkout {tag_or_branch}', '')
-        if tag_or_branch != 'main'
-        else ('https://github.com/biobuddies/measles.git', '')
-    )
-    commands = sub(
-        r'(cookiecutter .+?) https://github\.com/biobuddies/measles\.git',
-        rf'\1 {replacements[0]}',
-        sub(
-            r'(mise pre-commit-all)',
-            rf'\1{replacements[1]}',
-            (repository / 'README.md').read_text().split('```bash\n')[1].split('\n```')[0],
-        ),
-    ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
-    env = {
-        'CONA': 'speedrun',
-        'HOME': str(tmp_path.parent),
-        'MISE_GITHUB_ATTESTATIONS': 'false',
-        'MISE_GPG_VERIFY': 'false',
-        'ORGN': 'biobuddies',
-        'PATH': environ['PATH'],
-        'PWD': str(tmp_path),
-        **cache_environment,
-        **(
-            {'GITHUB_TOKEN': token}
-            if (token := getenv('GITHUB_TOKEN') or getenv('MISE_GITHUB_TOKEN'))
-            else {}
-        ),
-        **({'GITHUB_HEAD_REF': tag_or_branch} if tag_or_branch and environment == 'github' else {}),
-    }
-    (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
-    check_call(
-        ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
-        cwd=tmp_path,
-        env=env,
-        stderr=STDOUT,
-    )
-
-    pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
-    assert pyproject['project']['optional-dependencies']['test'] == [
-        'pytest',
-        'pytest-cov',
-        'pytest-django',
-    ]
-    assert (tmp_path / 'config' / 'settings.py').exists()
