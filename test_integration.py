@@ -48,7 +48,9 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
         flags=MULTILINE,
     ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
 
-    def bootstrap(cookiecutter: dict[str, object], **overrides: str) -> tuple[Path, dict[str, Any]]:
+    def bootstrap(
+        cookiecutter: dict[str, object], *, has_django: bool, **overrides: str
+    ) -> tuple[Path, dict[str, Any]]:
         (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
         env = {
@@ -86,6 +88,9 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
             'node_modules',
             '{{cookiecutter.dot}}',
         ]
+        assert (
+            'DJANGO_SETTINGS_MODULE' in pyproject['tool']['pytest']['ini_options']
+        ) == has_django
         assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
         for link, target in (
             ('AGENTS.md', 'CONTRIBUTING.md'),
@@ -101,7 +106,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
 
 def test_missing_cookiecutter_yaml(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
     with raises(CalledProcessError):
-        readme_bootstrap({}, CONA='speedrun')
+        readme_bootstrap({}, has_django=False, CONA='speedrun')
 
 
 def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
@@ -114,6 +119,7 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
                 'python_optional_dependencies': {'test': ['pytest-httpserver']},
             }
         },
+        has_django=False,
         CONA='wriggle',
     )
 
@@ -125,7 +131,6 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
         'pytest-cov',
         'pytest-httpserver',
     ]
-    assert 'DJANGO_SETTINGS_MODULE' not in pyproject['tool']['pytest']['ini_options']
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
 
@@ -138,6 +143,7 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
                 'python_optional_dependencies': {'test': ['pytest-httpserver']},
             }
         },
+        has_django=True,
         CONA='speedrun',
     )
 
