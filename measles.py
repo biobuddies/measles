@@ -55,7 +55,8 @@ def orgn() -> str:
 
 def gitignore(languages: str) -> str:
     names = languages.split(',')
-    existing = (Path(environ['PWD']) / '.gitignore').read_text().splitlines()
+    gitignore_path = Path(environ['PWD']) / '.gitignore'
+    existing = gitignore_path.read_text().splitlines() if gitignore_path.exists() else []
     body_index = 3
     hashes = []
     while body_index < len(existing) and existing[body_index].startswith('# '):

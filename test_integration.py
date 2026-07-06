@@ -7,7 +7,7 @@ from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import MULTILINE, sub
-from subprocess import STDOUT, CalledProcessError, check_call, check_output
+from subprocess import CalledProcessError, check_call, check_output
 from typing import Any
 
 from pytest import fixture, mark, raises
@@ -54,6 +54,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
         (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
         env = {
+            'ENVI': 'local',  # don't fail on changes
             'HOME': str(tmp_path.parent),
             'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
             'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
@@ -61,7 +62,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
             'MISE_GPG_VERIFY': 'false',
             'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
             'ORGN': 'biobuddies',
-            'PATH': environ['PATH'],
+            'PATH': f'{tmp_path / ".venv" / "bin"}:{environ["PATH"]}',
             'PWD': str(tmp_path),
             'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
             **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
@@ -72,11 +73,10 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
             ),
             **overrides,
         }
-        check_output(
+        check_call(
             ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
             cwd=tmp_path,
             env=env,
-            stderr=STDOUT,
         )
         pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
         assert (
@@ -165,13 +165,34 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
 def test_existing_repository(codename: str, dependency: str, has_django: bool):
     downstream = Path.home() / 'code' / codename
     cookiecutter_yaml = downstream / '.cookiecutter.yaml'
-    assert cookiecutter_yaml.exists()
-    assert 'languages' in cookiecutter_yaml.read_text()
     env = {
+        'CONA': codename,
+        'ENVI': 'local',  # don't fail on changes
         'HOME': environ['HOME'],
         'MISE_TRUSTED_CONFIG_PATHS': str(downstream),
-        'PATH': environ['PATH'],
+        'ORGN': 'biobuddies',
+        'PATH': f'{downstream / ".venv" / "bin"}:{environ["PATH"]}',
     }
+    if not cookiecutter_yaml.exists():
+        cookiecutter_yaml.write_text(
+            safe_dump({
+                'default_context': {'languages': 'Python', 'python_dependencies': [dependency]}
+            })
+        )
+        check_call(
+            [
+                'uvx',
+                'cookiecutter',
+                '--config-file',
+                '.cookiecutter.yaml',
+                '--no-input',
+                '--overwrite-if-exists',
+                str(Path(__file__).parent),
+            ],
+            cwd=downstream,
+            env=env,
+        )
+    assert 'languages' in cookiecutter_yaml.read_text()
     assert check_output(['mise', 'cona'], cwd=downstream, env=env) == f'{codename}\n'.encode()
     assert (
         check_output(
@@ -183,13 +204,18 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     )
 
     check_call(['mise', 'install'], cwd=downstream, env=env)
-    check_call(['mise', 'pre-commit-all', '--edit'], cwd=downstream, env=env)
+    try:
+        check_call(['mise', 'pre-commit-all', '--edit'], cwd=downstream, env=env)
+    except CalledProcessError:
+        (downstream / '.git' / 'index.lock').unlink(missing_ok=True)
+        check_call(['mise', 'pre-commit'], cwd=downstream, env=env)
     # In case mise cookiecutter updated the postinstall hook in .config/mise.toml
     check_call(['mise', 'install'], cwd=downstream, env=env)
 
     pyproject = tomllib.loads((downstream / 'pyproject.toml').read_text())
     pytest_options = pyproject['tool']['pytest']['ini_options']
     assert (downstream / '.biobuddies' / 'ruff.toml').exists()
+    assert (downstream / '.gitignore').exists()
     assert dependency in pyproject['project']['dependencies']
     assert pyproject['project']['optional-dependencies']['test'] == [
         'pytest',

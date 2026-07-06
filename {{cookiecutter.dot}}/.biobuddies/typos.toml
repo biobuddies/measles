@@ -12,6 +12,7 @@ extend-ignore-re = ['(?Rm)^.*(#|//) *noqa(: *typos)?$']
 'adoptors' = 'adoptors'
 
 [files]
+extend-exclude = ['node_modules/**']
 ignore-global = true
 ignore-parent = true
 ignore-vcs = true
