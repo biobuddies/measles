@@ -29,10 +29,10 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
     )
     cookiecutter_task = (
         f'set -- --edit {repository}\n{cookiecutter_task}'
-        if environment == 'local'
+        if tag_or_branch != 'main'
         else cookiecutter_task
     )
-    pre_commit_arguments = f' --edit {repository}' if environment == 'local' else ''
+    pre_commit_arguments = f' --edit {repository}' if tag_or_branch != 'main' else ''
     commands = sub(
         r'^uvx cookiecutter .+$',
         cookiecutter_task,
