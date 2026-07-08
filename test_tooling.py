@@ -8,7 +8,7 @@ from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import STDOUT, CalledProcessError, check_output
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import SimpleNamespace
@@ -210,26 +210,30 @@ def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
     assert error.value.output.decode().endswith(output)
 
 
-def test_run_on_sources():
-    binary_path = Path('test.zip')
-    try:
-        binary_path.write_bytes(
-            b'PK\x03\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+def test_run_on_sources(tmp_path: Path):
+    """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries."""
+    script = loads(check_output(['mise', 'tasks', 'info', 'run-on-sources', '--json']))['run'][
+        0
+    ].replace('\\n', '\n')
+    check_call(['git', 'init', '--quiet', str(tmp_path)])
+    (tmp_path / '.biobuddies').mkdir()
+    (tmp_path / '.biobuddies' / 'autoformat-excludes').write_text('')
+    (tmp_path / 'top.py').write_text('top = 1\n')
+    (tmp_path / 'speedrun').mkdir()
+    (tmp_path / 'speedrun' / '__init__.py').write_text('nested = 1\n')
+    (tmp_path / 'binary.py').write_bytes(b'PK\x03\x04\x00\n')
+    check_call(['git', '-C', str(tmp_path), 'add', '--all'])
+    sources = (
+        check_output(
+            ['/usr/bin/env', 'bash', '-c', script, 'bash', 'echo', '*.py{,i}'],
+            cwd=tmp_path,
+            env={'HOME': environ['HOME'], 'PATH': environ['PATH']},
+            stderr=DEVNULL,
         )
-        with TemporaryDirectory() as tmpdir:
-            mock_git = Path(tmpdir) / 'git'
-            mock_git.write_text(
-                f'#!/usr/bin/env bash\n[[ $1 == grep ]] && exit 1\necho {binary_path}\n'
-            )
-            mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
-            env = environ.copy()
-            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
-            output = check_output(
-                ['mise', 'run-on-sources', 'echo', str(binary_path)], env=env
-            ).decode()
-        assert str(binary_path) not in output
-    finally:
-        binary_path.unlink(missing_ok=True)
+        .decode()
+        .split()
+    )
+    assert set(sources) == {'speedrun/__init__.py', 'top.py'}
 
 
 # Line changers
