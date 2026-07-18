@@ -56,6 +56,10 @@ jobs:
 
                   # shellcheck disable=SC2086
                   git clone --branch main \
+                      https://github.com/biobuddies/speedrun.git \
+                      $HOME/code/speedrun
+                  # shellcheck disable=SC2086
+                  git clone --branch main \
                       https://github.com/biobuddies/wriggle.git \
                       $HOME/code/wriggle
             - run: mise test

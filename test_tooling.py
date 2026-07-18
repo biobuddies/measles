@@ -2,22 +2,22 @@
 
 import stat
 import sys
-import tomllib
 from base64 import b64encode
 from io import BytesIO
 from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
-from re import match, sub
-from subprocess import CalledProcessError, check_call, check_output
+from re import match
+from subprocess import STDOUT, CalledProcessError, check_output
 from tempfile import TemporaryDirectory
+from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request
 
-from _pytest.monkeypatch import MonkeyPatch
-from pytest import CaptureFixture, fail, fixture, mark, raises
+from jinja2 import Environment
+from pytest import CaptureFixture, MonkeyPatch, fail, fixture, mark, raises
 
 import measles
 
@@ -71,6 +71,75 @@ def test_tabr(git_describe: str, tabr: str):
     mocked = original.replace(target, f'echo "{git_describe}"')
     output = check_output(['/usr/bin/env', 'bash', '-c', mocked], env={}).decode().strip()
     assert output == tabr
+
+
+@mark.parametrize(
+    'case',
+    (
+        # Upstream, local, feature branch, files
+        ('measles', {}, 'fix-something-in-measles', [], '.'),
+        # Upstream, GitHub Actions, feature branch, files
+        # mise tabr uses GITHUB_HEAD_REF
+        (
+            'measles',
+            {'GITHUB_ACTIONS': 'true', 'GITHUB_WORKSPACE': '/home/runner/work/measles/measles'},
+            'fix-something-in-measles',
+            [],
+            '.',
+        ),
+        # Upstream, GitHub Actions, main branch, HTTPS
+        (
+            'measles',
+            {'GITHUB_ACTIONS': 'true', 'GITHUB_WORKSPACE': '/home/runner/work/measles/measles'},
+            'main',
+            [],
+            'https://github.com/biobuddies/measles.git',
+        ),
+        # Downstream, local, files
+        ('speedrun', {}, 'downstream-feature', ['--edit'], '/home/biobuddy/code/measles'),
+        # Downstream, local, HTTPS
+        ('speedrun', {}, 'downstream-feature', [], 'https://github.com/biobuddies/measles.git'),
+        # Downstream, GitHub Actions, HTTPS
+        (
+            'speedrun',
+            {'GITHUB_ACTIONS': 'true', 'GITHUB_WORKSPACE': '/home/runner/work/speedrun/speedrun'},
+            'downstream-feature',
+            [],
+            'https://github.com/biobuddies/measles.git',
+        ),
+    ),
+)
+def test_cookiecutter(tmp_path: Path, case: tuple[str, dict[str, str], str, list[str], str]):
+    codename, environment, branch, arguments, expected = case
+    # Not running mise directly because .venv/bin/cookiecutter is tricky to stub
+    task = loads(check_output(['mise', 'tasks', 'info', 'cookiecutter', '--json']))['run'][0]
+    task = task.replace('\\n', '\n').replace('tabr=$(mise tabr)', f'tabr={branch}')
+    mock_cookiecutter = tmp_path / 'cookiecutter'
+    mock_cookiecutter.write_text('#!/usr/bin/env echo\n')
+    mock_cookiecutter.chmod(mock_cookiecutter.stat().st_mode | stat.S_IEXEC)
+
+    output = (
+        check_output(
+            ['/usr/bin/env', 'bash', '-c', task, 'cookiecutter', *arguments],
+            env={
+                'CONA': codename,
+                'HOME': '/home/biobuddy',
+                'ORGN': 'biobuddies',
+                'PATH': f'{tmp_path}:{environ["PATH"]}',
+                **environment,
+            },
+        )
+        .decode()
+        .split()[1:]
+    )
+
+    assert output == [
+        '--config-file',
+        '.cookiecutter.yaml',
+        '--no-input',
+        '--overwrite-if-exists',
+        expected,
+    ]
 
 
 @mark.parametrize(
@@ -203,6 +272,7 @@ def test_gitignore_with_token_and_sed_substitution(
     monkeypatch: MonkeyPatch, tmp_path: Path, gitignore_request: SimpleNamespace
 ):
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
+    (tmp_path / '.gitignore').write_text('#\n#\n#\n')
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('GITHUB_TOKEN', 'test-token')
 
@@ -286,6 +356,50 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+def test_post_gen_project_bash(tmp_path: Path):
+    hook = (
+        Environment(autoescape=False)  # noqa: S701
+        .from_string((Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text())
+        .render(CONA='speedrun', ORGN='biobuddies', has_django=True)
+    )
+    (tmp_path / '.github').mkdir()
+    (tmp_path / 'CONTRIBUTING.md').write_text('')
+    fake_uv = tmp_path / 'uv'
+    fake_uv.write_text(
+        dedent("""
+            #!/usr/bin/env bash
+            set -o errexit -o nounset -o pipefail
+            mkdir -p config
+            touch manage.py
+            echo "SECRET_KEY = 'django-insecure-test-key'" > config/settings.py
+        """).lstrip()
+    )
+    fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IEXEC)
+    (tmp_path / 'run-post-gen.bash').write_text(hook)
+    assert check_output(
+        ['/usr/bin/env', 'bash', 'run-post-gen.bash'],
+        cwd=tmp_path,
+        env={'PATH': f'{tmp_path}:{environ["PATH"]}'},
+        stderr=STDOUT,
+    ).decode().splitlines()[0] == (
+        '+ : CONA=speedrun ORGN=biobuddies '
+        'template=hooks/post_gen_project.bash via=run-post-gen.bash'
+    )
+    assert (tmp_path / 'manage.py').exists()
+    assert (tmp_path / 'config' / 'settings.py').read_text() == (
+        "SECRET_KEY = 'django-insecure-test-key'  # noqa: typos\n"
+    )
+    assert not (tmp_path / 'config' / 'settings.py.bak').exists()
+
+    for link, target in (
+        ('AGENTS.md', 'CONTRIBUTING.md'),
+        ('CLAUDE.md', 'CONTRIBUTING.md'),
+        ('.github/copilot-instructions.md', '../CONTRIBUTING.md'),
+    ):
+        assert (tmp_path / link).is_symlink()
+        assert (tmp_path / link).readlink() == Path(target)
+
+
 def test_end_of_file_fixer():
     test_path = Path('test.sed')
     try:
@@ -301,92 +415,3 @@ def test_end_of_file_fixer():
         assert test_path.read_text() == 's/old/new/\n'
     finally:
         test_path.unlink(missing_ok=True)
-
-
-# Downstream usage
-
-
-def test_existing_repository():
-    # Check arrangement
-    wriggle = Path.home() / 'code' / 'wriggle'
-    cookiecutter_yaml = wriggle / '.cookiecutter.yaml'
-    assert cookiecutter_yaml.exists()
-    assert 'languages' in cookiecutter_yaml.read_text()
-    env = {
-        'HOME': environ['HOME'],
-        'MISE_TRUSTED_CONFIG_PATHS': str(wriggle),
-        'PATH': environ['PATH'],
-    }
-    assert check_output(['mise', 'cona'], cwd=wriggle, env=env) == b'wriggle\n'
-    assert (
-        check_output(
-            ['mise', 'x', '--', 'python', '-c', 'from pathlib import Path; print(Path.cwd().name)'],
-            cwd=wriggle,
-            env=env,
-        )
-        == b'wriggle\n'
-    )
-
-    # Act
-    check_call(['mise', 'install'], cwd=wriggle, env=env)
-    check_call(['mise', 'cookiecutter', '--edit'], cwd=wriggle, env=env)
-    # mise cookiecutter updated .config/mise.toml; re-run to apply new postinstall
-    # hook which generates pre-commit hook via mise generate pre-commit
-    check_call(['mise', 'install'], cwd=wriggle, env=env)
-
-    # Assert
-    pyproject = tomllib.loads((wriggle / 'pyproject.toml').read_text())
-    assert (wriggle / '.biobuddies' / 'ruff.toml').exists()
-    assert 'sqlglot' in pyproject['project']['dependencies']
-    assert pyproject['project']['optional-dependencies']['test'] == ['pytest', 'pytest-cov']
-    assert (wriggle / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
-    assert not (wriggle / 'manage.py').exists()
-    assert not (wriggle / 'config' / 'settings.py').exists()
-
-
-@mark.skip('complex malfunction in django detection')
-def test_new_repository_bootstrap(tmp_path: Path):
-    readme = (Path(__file__).parent / 'README.md').read_text()
-    original = readme.split('```bash\n')[1].split('\n```')[0]
-
-    environment = check_output(['mise', 'envi']).decode().strip()
-    tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
-
-    # Use local files for speed and to avoid rate limits
-    if environment == 'local':
-        replacements = (str(Path(__file__).parent), f' --edit {Path(__file__).parent}')
-    # Use URLs for parity with production
-    elif tag_or_branch != 'main':
-        replacements = (f'https://github.com/biobuddies/measles.git --checkout {tag_or_branch}', '')
-    else:
-        replacements = 'https://github.com/biobuddies/measles.git', ''
-
-    commands = sub(
-        r'(cookiecutter .+?) https://github\.com/biobuddies/measles\.git',
-        rf'\1 {replacements[0]}',
-        sub(r'(mise pre-commit-all)', rf'\1{replacements[1]}', original),
-    )
-    env = {
-        'CONA': 'speedrun',
-        'HOME': str(tmp_path.parent),
-        'MISE_GITHUB_ATTESTATIONS': 'false',
-        'MISE_GPG_VERIFY': 'false',
-        'ORGN': 'biobuddies',
-        'PATH': environ['PATH'],
-        **({'GITHUB_HEAD_REF': tag_or_branch} if tag_or_branch and environment == 'github' else {}),
-    }
-    check_call(
-        [
-            '/usr/bin/env',
-            'bash',
-            '-c',
-            f'set -o errexit -o nounset -o pipefail -o xtrace\n{commands}',
-        ],
-        cwd=tmp_path,
-        env=env,
-    )
-    check_call(['mise', 'run', 'pre-commit'], cwd=tmp_path, env=env)
-    assert (tmp_path / 'AGENTS.md').is_symlink()
-    assert (tmp_path / 'CLAUDE.md').is_symlink()
-    assert (tmp_path / '.github' / 'copilot-instructions.md').is_symlink()
-    assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR

@@ -84,8 +84,9 @@ set -o errexit -o nounset -o pipefail
 if [[ ${GITHUB_HEAD_REF-} ]]; then tabr="$GITHUB_HEAD_REF"
 elif [[ ${GITHUB_REF_NAME-} ]]; then tabr="$GITHUB_REF_NAME"
 else
+    # 128 if no commits yet
     tabr=$(git describe --all --dirty --exact-match 2>/dev/null \
-        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p')
+        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p') || [[ $? -eq 128 ]]
 fi
 if [[ $tabr == */* ]]; then
     echo 'Slashes overcomplicate preview deployments.' >&2
@@ -119,10 +120,14 @@ run = 'mise run-on-sources basedpyright "*.py{,i}" --level error "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+tabr=$(mise tabr)
 if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
     template=${2:-$HOME/code/measles}
-else
+elif [[ ${CONA-$(mise cona)} == measles && ${ORGN-$(mise orgn)} == biobuddies \
+    && $tabr != main ]]; then
     template=.
+else
+    template=https://github.com/biobuddies/measles.git
 fi
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $template
 '''

@@ -1,6 +1,7 @@
 """Continuous cookiecutter featuring mise."""
 
 from base64 import b64decode
+from collections import defaultdict
 from json import load
 from os import environ, getenv
 from pathlib import Path
@@ -54,7 +55,8 @@ def orgn() -> str:
 
 def gitignore(languages: str) -> str:
     names = languages.split(',')
-    existing = (Path(__file__).parent / '.gitignore').read_text().splitlines()
+    gitignore_path = Path(environ['PWD']) / '.gitignore'
+    existing = gitignore_path.read_text().splitlines() if gitignore_path.exists() else []
     body_index = 3
     hashes = []
     while body_index < len(existing) and existing[body_index].startswith('# '):
@@ -106,11 +108,27 @@ class Measles(Extension):
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
-        yaml = safe_load(yaml_path.read_text())
+        default_context = defaultdict(dict, safe_load(yaml_path.read_text())['default_context'])
+
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
             'gitignore': gitignore,
-            'python_dependencies': yaml['default_context'].get('python_dependencies', []),
+            'python_dependencies': default_context.get('python_dependencies', []),
+            'node_dependencies': default_context['node_dependencies'],
+            'node_dev_dependencies': default_context['node_dev_dependencies'],
+            'python_optional_dependencies': default_context['python_optional_dependencies'],
         })
+        # pyrefly: ignore[not-iterable,unsupported-operation]
+        environment.globals['has_django'] = any(
+            'django' in dependency.lower()
+            # pyrefly: ignore[not-iterable]
+            for dependency in environment.globals['python_dependencies']
+        )
+        # pyrefly: ignore[unsupported-operation]
+        environment.globals['python_test_dependencies'] = [
+            'pytest',
+            'pytest-cov',
+            *(('pytest-django',) if environment.globals['has_django'] else ()),
+        ]
