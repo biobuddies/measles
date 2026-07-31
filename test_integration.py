@@ -172,6 +172,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
         'MISE_TRUSTED_CONFIG_PATHS': str(downstream),
         'ORGN': 'biobuddies',
         'PATH': f'{downstream / ".venv" / "bin"}:{environ["PATH"]}',
+        **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
     }
     if not cookiecutter_yaml.exists():
         cookiecutter_yaml.write_text(
