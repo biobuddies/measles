@@ -8,6 +8,8 @@ set -o errexit -o nounset -o pipefail -o xtrace
 sed -i.bak "/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }" config/settings.py
 rm config/settings.py.bak
 {% endif %}
+# djlint owns the .j2.yaml template; the rendered workflow is plain YAML
+mv .github/workflows/act.j2.yaml .github/workflows/act.yaml
 # https://developers.openai.com/codex/guides/agents-md
 # https://forgecode.dev/docs/custom-rules/
 ln -sf CONTRIBUTING.md AGENTS.md

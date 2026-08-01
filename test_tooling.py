@@ -366,7 +366,8 @@ def test_post_gen_project_bash(tmp_path: Path):
         .from_string((Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text())
         .render(CONA='speedrun', ORGN='biobuddies', has_django=True)
     )
-    (tmp_path / '.github').mkdir()
+    (tmp_path / '.github' / 'workflows').mkdir(parents=True)
+    (tmp_path / '.github' / 'workflows' / 'act.j2.yaml').write_text('name: act\n')
     (tmp_path / 'CONTRIBUTING.md').write_text('')
     fake_uv = tmp_path / 'uv'
     fake_uv.write_text(
@@ -394,6 +395,8 @@ def test_post_gen_project_bash(tmp_path: Path):
         "SECRET_KEY = 'django-insecure-test-key'  # noqa: typos\n"
     )
     assert not (tmp_path / 'config' / 'settings.py.bak').exists()
+    assert not (tmp_path / '.github' / 'workflows' / 'act.j2.yaml').exists()
+    assert (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text() == 'name: act\n'
 
     for link, target in (
         ('AGENTS.md', 'CONTRIBUTING.md'),
