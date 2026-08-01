@@ -10,7 +10,11 @@ for config in .config/mise.toml mise.toml; do
     version=$(sed -nE "s|^'aqua:tofuutils/tenv' = '([^']+)'.*|\1|p" "$config")
     [ -n "$version" ] && break
 done
-[ -n "$version" ] || exit 0
-export MISE_DISABLE_TOOLS=aqua:tofuutils/tenv
-echo "export MISE_DISABLE_TOOLS=$MISE_DISABLE_TOOLS" >>"$CLAUDE_ENV_FILE"
-mise use --global "go:github.com/tofuutils/tenv/v${version%%.*}/cmd/tenv@$version"
+if [ -n "$version" ]; then
+    export MISE_DISABLE_TOOLS=aqua:tofuutils/tenv
+    echo "export MISE_DISABLE_TOOLS=$MISE_DISABLE_TOOLS" >>"$CLAUDE_ENV_FILE"
+    mise use --global "go:github.com/tofuutils/tenv/v${version%%.*}/cmd/tenv@$version"
+fi
+mise trust --yes
+mise install
+mise env --shell bash >>"$CLAUDE_ENV_FILE"
