@@ -149,8 +149,23 @@ run = 'mise run-on-sources django-upgrade \*.py "$@"'
 [tasks.djlint-django]
 run = 'mise run-on-sources djlint \*.dj.html --profile=django --reformat "$@"'
 
-[tasks.djlint-jinja]
+[tasks.djlint-jinja-html]
 run = 'mise run-on-sources djlint \*.j2.html --profile=jinja --reformat "$@"'
+
+[tasks.djlint-jinja-yaml]
+# djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
+# mangling YAML.
+# Not using run-on-sources lets prettier exclude nested workflow templates like
+# */.github/workflows/act.yaml while djlint still formats them. Longer term, run-on-sources
+# probably needs tool-specific exclusion capability like asottile's pre-commit.
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+mapfile -t sources < <(git ls-files \*.j2.yaml '*/.github/workflows/act.yaml')
+[[ -z ${sources[*]} ]] && exit 0
+djlint "${sources[@]}" --profile=jinja --reformat \
+    --preserve-blank-lines --preserve-leading-space --no-function-formatting "$@"
+'''
 
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
@@ -193,8 +208,11 @@ exit 1
 """
 
 [tasks.prettier-write]
-# Markdown skipped to conserve vertical space
-run = 'mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml}" --write "$@"'
+# Markdown skipped to conserve vertical space; .j2.yaml routed to djlint-jinja-yaml
+run = '''
+mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.yaml" \
+    --write "$@"
+'''
 
 [tasks.pyrefly]
 run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
@@ -344,7 +362,8 @@ depends = [
     # line changers
     'django-upgrade',
     'djlint-django',
-    'djlint-jinja',
+    'djlint-jinja-html',
+    'djlint-jinja-yaml',
     'end-of-file-fixer',
     'prettier-write',
     'ruff-check-fix',
