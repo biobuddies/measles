@@ -73,6 +73,8 @@ simplest:
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
+        * Write only highlights and surprises for changes. The details must stay in the Files
+          changed tab / git diff.
         * Report testing as one of:
             - `Existing automated tests only`
             - `Added automated test...`
