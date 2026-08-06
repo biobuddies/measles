@@ -6,6 +6,7 @@ simplest:
 * Define before use, close to use
 * Inline single-use literals
 * For twice-used literals:
+    - Rendered templates, tests, and migrations do not count as usages
     - Reuse single definition when diverging values would cause critical failure
     - Duplicate and inline otherwise, commenting in both places, e.g. same file
       `# dup :12 tasks.uv-pip-compile` or `# dup other/file.py:345 favorite_function()`
