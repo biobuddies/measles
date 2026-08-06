@@ -19,3 +19,15 @@ mise install
 mise pre-commit-all
 mise test
 ```
+
+## Agent sandboxes
+
+`.biobuddies/setup.sh` installs mise and the tools of the repository containing it, appending to
+`/tmp/setup.log`. Codex Cloud runs it through `.codex/setup.sh`; Claude Code on the web runs it
+through the `.claude/hooks/session-start.sh` SessionStart hook, once per source repository, but
+only while snapshotting the environment. Repositories added later, or lacking `.claude`, need the
+environment setup script to cover them:
+
+```bash
+for setup in ~/*/.biobuddies/setup.sh; do "$setup"; done
+```
