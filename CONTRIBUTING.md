@@ -6,6 +6,7 @@ simplest:
 * Define before use, close to use
 * Inline single-use literals
 * For twice-used literals:
+    - Rendered templates, tests, and migrations do not count as usages
     - Reuse single definition when diverging values would cause critical failure
     - Duplicate and inline otherwise, commenting in both places, e.g. same file
       `# dup :12 tasks.uv-pip-compile` or `# dup other/file.py:345 favorite_function()`
@@ -67,11 +68,14 @@ simplest:
           `git branch --set-upstream-to=origin/main`)
         * `git pull` discovers new commits and rebases because `pull.rebase=true`
         * `git push` publishes to the current branch name because `push.default=current`
-    - Omit any `$BRAND/` prefix from branch names: the slash breaks many contexts, especially
-      subdomains, and the branding wastes space that must describe the changes
+    - Slashless branches explicitly permitted. Characters like slash break reuse in contexts like
+      subdomains. Omit any `$BRAND/` prefix from branch names. Branding wastes space that should
+      describe the changes.
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
+        * Write only highlights and surprises for changes. The details must stay in the Files
+          changed tab / git diff.
         * Report testing as one of:
             - `Existing automated tests only`
             - `Added automated test...`
