@@ -210,7 +210,7 @@ exit 1
 [tasks.prettier-write]
 # Markdown skipped to conserve vertical space; .j2.yaml routed to djlint-jinja-yaml
 run = '''
-mise run-on-sources prettier "*.{html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.yaml" \
+mise run-on-sources prettier "*.{css,html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.yaml" \
     --write "$@"
 '''
 
