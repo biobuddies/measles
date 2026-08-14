@@ -14,6 +14,7 @@ ignore = [
     'ANN401', # `**kwargs: Any` is reasonable
     'BLE001', # except Exception is okay
     'COM812', # Insists on `join([],)` over `join([])`
+    'CPY001', # Git records authors and dates
     'D101',
     'D103',
     'D104',
