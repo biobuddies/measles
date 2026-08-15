@@ -1,0 +1,1 @@
+# Intercepts djlint's upward config search to skip the Jinja-templated pyproject.toml above.
