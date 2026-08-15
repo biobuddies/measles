@@ -73,6 +73,8 @@ simplest:
     - Slashless branches explicitly permitted. Characters like slash break reuse in contexts like
       subdomains. Omit any `$BRAND/` prefix from branch names. Branding wastes space that should
       describe the changes.
+    - Expect concurrent edits to Pull Request title and description (top comment); always read
+      before revising
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
