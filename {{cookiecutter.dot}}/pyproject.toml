@@ -47,3 +47,9 @@ extends = '.biobuddies/basedpyright.toml'
 
 [tool.ruff]
 extend = '.biobuddies/ruff.toml'
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]

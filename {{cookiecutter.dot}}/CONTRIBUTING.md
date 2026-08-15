@@ -57,6 +57,8 @@ simplest:
   regular dashes or `&mdash;`.
 * `git` well:
     - Avoid committing unrelated files by avoiding `git add -a`, `git add --all`, `git add .`, etc.
+    - Generally treat removing lint, autogenerating and cleanups as relevant; include them
+      beside features and fixes
     - If asked to clobber uncommitted changes, copy to /tmp/ first
     - Avoid train-of-thought and bisect-breaking commits
     - Be ready to read the (appropriately filtered) git log:
