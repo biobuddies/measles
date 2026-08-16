@@ -18,14 +18,19 @@ from yaml import safe_load
 
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
-    if cona := getenv('CONA'):
-        pass
-    elif repository := getenv('GITHUB_REPOSITORY'):
-        cona = repository.split('/')[-1]
-    elif virtual_environment := getenv('VIRTUAL_ENV'):
+    cona = getenv('CONA', '')
+    if not cona and (repository_from_environment := getenv('GITHUB_REPOSITORY')):
+        cona = repository_from_environment.split('/')[-1]
+    if not cona and (Path.cwd() / '.git').exists():
+        try:
+            remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
+            if repository_from_remote := search(r'github.com[:/][^/]+/([^/]+)', remote):
+                cona = repository_from_remote.group(1).removesuffix('.git')
+        except CalledProcessError:
+            pass
+    if not cona and (virtual_environment := getenv('VIRTUAL_ENV')):
         cona = Path(virtual_environment).parent.name
-    else:
-        cona = Path.cwd().name
+    cona = cona or Path.cwd().name
     if fullmatch(r'[A-Za-z0-9._-]+', cona):
         return cona
     raise ValueError(f'Unexpected CONA characters: {cona!r}')

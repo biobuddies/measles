@@ -1,13 +1,5 @@
 # TODO
 
-## Format jinja-templated YAML
-
-`prettier-plugin-jinja-template` formats non-jinja content as HTML, so it cannot format
-jinja-wrapped YAML like
-[`{{cookiecutter.dot}}/.github/workflows/act.yaml`](%7B%7Bcookiecutter.dot%7D%7D/.github/workflows/act.yaml),
-which `.biobuddies/autoformat-excludes` therefore skips. Teach the plugin, or a `.j2.yaml`
-parser override, to format the underlying YAML so these templates can be autoformatted.
-
 ## Improve fresh-repo bootstrap
 
 A fresh repo should pass `mise install && mise pre-commit` immediately after generation.

@@ -34,7 +34,7 @@ editorconfig==0.17.1
     #   jsbeautifier
 fastjsonschema==2.21.2
     # via validate-pyproject
-hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git@446db46ab58b26eb8e40d5626c1229e8cf75b3b5
+hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git@6e7504451511eaeb62a3e7f14d63b0296cbf86eb
     # via measles (pyproject.toml)
 idna==3.11
     # via requests

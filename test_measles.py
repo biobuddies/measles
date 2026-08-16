@@ -58,12 +58,43 @@ def test_cona_uses_github_repository(
     assert measles.cona() == 'measles'
 
 
+def test_cona_uses_git_remote(
+    monkeypatch: MonkeyPatch, tmp_path: Path, precise_environment: Callable[..., None]
+):
+    repository = tmp_path / 'repo'
+    repository.mkdir()
+    (repository / '.git').mkdir()
+    monkeypatch.chdir(repository)
+    precise_environment()
+    monkeypatch.setattr(
+        measles, 'check_output', lambda _: b'https://github.com/biobuddies/wriggle.git\n'
+    )
+
+    assert measles.cona() == 'wriggle'
+
+
+def test_cona_uses_git_remote_in_worktree(
+    monkeypatch: MonkeyPatch, tmp_path: Path, precise_environment: Callable[..., None]
+):
+    repository = tmp_path / 'repo'
+    repository.mkdir()
+    (repository / '.git').write_text('gitdir: /tmp/main/.git/worktrees/repo\n')
+    monkeypatch.chdir(repository)
+    precise_environment()
+    monkeypatch.setattr(
+        measles, 'check_output', lambda _: b'git@github.com:biobuddies/wriggle.git\n'
+    )
+
+    assert measles.cona() == 'wriggle'
+
+
 def test_cona_virtual_env(
     monkeypatch: MonkeyPatch, tmp_path: Path, precise_environment: Callable[..., None]
 ):
     monkeypatch.chdir(tmp_path)
     precise_environment(VIRTUAL_ENV=str(tmp_path / 'measles' / '.venv'))
 
+    assert not (tmp_path / '.git').exists()
     assert measles.cona() == 'measles'
 
 
