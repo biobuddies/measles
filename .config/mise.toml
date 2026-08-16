@@ -400,5 +400,6 @@ git diff --cached --quiet || echo Auto-staged modifications
 
 [tools]
 # latest gh from ~/.config/mise/config.toml
-node = '22'
-uv = '0.11.30'
+node = '24'
+# python from uv, pinned by .python-version
+uv = '0.12.5'
