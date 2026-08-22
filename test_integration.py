@@ -113,6 +113,7 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
     tmp_path, pyproject = readme_bootstrap(
         {
             'default_context': {
+                'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
                 'node_dependencies': {'react': '^19.0.0'},
                 'node_dev_dependencies': {'vite': '^7.0.0'},
                 'python_dependencies': ['click'],
@@ -124,6 +125,9 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
     )
 
     package = loads((tmp_path / 'package.json').read_text())
+    assert pyproject['project']['description'] == (
+        'Enforce append-only Write Once, Read Many (WORM) data flows'
+    )
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
     assert pyproject['project']['optional-dependencies']['test'] == [

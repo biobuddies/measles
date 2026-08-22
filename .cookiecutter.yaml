@@ -1,4 +1,5 @@
 default_context:
+    description: Continuous cookiecutter featuring mise
     languages: Node,Python
     peer_checkouts:
         biobuddies/speedrun: main

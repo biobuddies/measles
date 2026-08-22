@@ -13,7 +13,7 @@ default_context:
         - django
 EOF
 mise use uv@latest
-uvx cookiecutter --no-input --overwrite-if-exists https://github.com/biobuddies/measles.git
+uvx cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists https://github.com/biobuddies/measles.git
 mise trust --yes
 mise install
 mise pre-commit-all
