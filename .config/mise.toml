@@ -155,13 +155,11 @@ run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja 
 [tasks.djlint-jinja-yaml]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
 # mangling YAML.
-# Not using run-on-sources lets prettier exclude nested workflow templates like
-# */.github/workflows/act.yaml while djlint still formats them. Longer term, run-on-sources
-# probably needs tool-specific exclusion capability like asottile's pre-commit.
+# Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-mapfile -t sources < <(git ls-files \*.j2.yaml '*/.github/workflows/act.yaml')
+mapfile -t sources < <(git ls-files \*.j2.yaml)
 [[ -z ${sources[*]} ]] && exit 0
 djlint "${sources[@]}" \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \

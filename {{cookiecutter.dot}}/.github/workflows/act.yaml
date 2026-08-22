@@ -51,7 +51,7 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-{%- endraw %}
+            {%- endraw %}
             - run: |
                   # shellcheck disable=SC2086
                   mkdir -p $HOME/code
@@ -62,22 +62,20 @@ jobs:
                   git clone --branch {{ branch }} \
                       https://github.com/{{ repository }}.git \
                       $HOME/code/{{ repository.split('/')[-1] }}
-{%- endfor %}
-{%- raw %}
+                  {%- endfor %}
+            {%- raw %}
             - run: mise test
 
     # Leaf jobs
     build:
         needs: test
-{%- endraw -%}
-{% if cookiecutter.publish_to_pypi %}
-    {%- raw %}
+        {%- endraw -%}
+        {%- if cookiecutter.publish_to_pypi %}
         permissions:
             contents: read
             id-token: write
-    {%- endraw -%}
-{% endif -%}
-{% raw %}
+        {%- endif -%}
+        {% raw %}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
@@ -85,13 +83,11 @@ jobs:
               with:
                   experimental: true
             - run: mise build
-{%- endraw -%}
-{% if cookiecutter.publish_to_pypi %}
-    {%- raw %}
+            {%- endraw -%}
+            {%- if cookiecutter.publish_to_pypi %}
             - if: github.event_name == 'release'
               uses: pypa/gh-action-pypi-publish@release/v1
-    {%- endraw -%}
-{% endif %}
+            {%- endif %}
 {% raw -%}
 
 on: # yamllint disable-line rule:truthy
@@ -99,15 +95,13 @@ on: # yamllint disable-line rule:truthy
     push:
         branches:
             - main
-{%- endraw %}
-{% if cookiecutter.publish_to_pypi %}
-    {%- raw %}
+    {%- endraw %}
+    {%- if cookiecutter.publish_to_pypi %}
     release:
         types:
             - published
-    {%- endraw -%}
-{% endif %}
-{% raw %}
+    {%- endif %}
+    {%- raw %}
     workflow_dispatch:
 run-name: Checking on behalf of ${{ github.actor }}
 {% endraw -%}

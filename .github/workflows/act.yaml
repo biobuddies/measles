@@ -86,10 +86,8 @@ on: # yamllint disable-line rule:truthy
     push:
         branches:
             - main
-
     release:
         types:
             - published
-
     workflow_dispatch:
 run-name: Checking on behalf of ${{ github.actor }}

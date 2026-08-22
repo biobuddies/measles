@@ -151,9 +151,13 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
     ),
 )
 def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
-    describe = f'heads/{tabr}-dirty' if tabr == '' else f'heads/{tabr}'
     tabr_task = replaced_mise_task(
-        'tabr', {'git describe --all --dirty --exact-match': f'echo "{describe}"'}
+        'tabr',
+        {
+            'git describe --all --dirty --exact-match': (
+                f'echo "heads/{tabr}-dirty"' if tabr == '' else f'echo "heads/{tabr}"'
+            )
+        },
     )
     template = (
         (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
