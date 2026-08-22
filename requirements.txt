@@ -105,6 +105,8 @@ ruamel-yaml==0.19.1
     # via pre-commit-hooks
 ruff==0.15.10
     # via measles (pyproject.toml)
+setuptools==84.0.0
+    # via measles (pyproject.toml)
 shellcheck-py==0.11.0.1
     # via measles (pyproject.toml)
 shfmt-py==3.12.0.2

@@ -224,7 +224,7 @@ run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-prefix=$(date -u '+v%G.%V.')
+prefix=$(date -u '+v%Y.%U.')
 git fetch --tags
 latest=$(git tag --list "$prefix*" --sort=-version:refname | head -1)
 count=${latest#"$prefix"}
