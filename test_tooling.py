@@ -63,13 +63,10 @@ def test_four_letter_abbreviations():
     ),
 )
 def test_tabr(git_describe: str, tabr: str):
-    original = loads(check_output(['mise', 'tasks', 'info', 'tabr', '--json']))['run'][0].replace(
-        '\\n', '\n'
+    task = replaced_mise_task(
+        'tabr', {'git describe --all --dirty --exact-match': f'echo "{git_describe}"'}
     )
-    target = 'git describe --all --dirty --exact-match'
-    assert target in original
-    mocked = original.replace(target, f'echo "{git_describe}"')
-    output = check_output(['/usr/bin/env', 'bash', '-c', mocked], env={}).decode().strip()
+    output = check_output(['/usr/bin/env', 'bash', '-c', task], env={}).decode().strip()
     assert output == tabr
 
 
@@ -109,14 +106,15 @@ def test_tabr(git_describe: str, tabr: str):
         ),
     ),
 )
-def test_cookiecutter(tmp_path: Path, case: tuple[str, dict[str, str], str, list[str], str]):
+def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
     codename, environment, branch, arguments, expected = case
-    # Not running mise directly because .venv/bin/cookiecutter is tricky to stub
-    task = loads(check_output(['mise', 'tasks', 'info', 'cookiecutter', '--json']))['run'][0]
-    task = task.replace('\\n', '\n').replace('tabr=$(mise tabr)', f'tabr={branch}')
-    mock_cookiecutter = tmp_path / 'cookiecutter'
-    mock_cookiecutter.write_text('#!/usr/bin/env echo\n')
-    mock_cookiecutter.chmod(mock_cookiecutter.stat().st_mode | stat.S_IEXEC)
+    task = replaced_mise_task(
+        'cookiecutter',
+        {
+            'cookiecutter --config-file': 'echo cookiecutter --config-file',
+            'tabr=$(mise tabr)': f'tabr={branch}',
+        },
+    )
 
     output = (
         check_output(
@@ -125,7 +123,7 @@ def test_cookiecutter(tmp_path: Path, case: tuple[str, dict[str, str], str, list
                 'CONA': codename,
                 'HOME': '/home/biobuddy',
                 'ORGN': 'biobuddies',
-                'PATH': f'{tmp_path}:{environ["PATH"]}',
+                'PATH': environ['PATH'],
                 **environment,
             },
         )
@@ -153,8 +151,9 @@ def test_cookiecutter(tmp_path: Path, case: tuple[str, dict[str, str], str, list
     ),
 )
 def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
-    tabr_task = loads(check_output(['mise', 'tasks', 'info', 'tabr', '--json']))['run'][0].replace(
-        '\\n', '\n'
+    describe = f'heads/{tabr}-dirty' if tabr == '' else f'heads/{tabr}'
+    tabr_task = replaced_mise_task(
+        'tabr', {'git describe --all --dirty --exact-match': f'echo "{describe}"'}
     )
     template = (
         (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
@@ -176,16 +175,65 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
     )
-    mock_git = tmp_path / 'git'
-    describe = f'heads/{tabr}-dirty' if tabr == '' else f'heads/{tabr}'
-    mock_git.write_text(f'#!/usr/bin/env bash\necho "{describe}"\n')
-    mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
-    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH']}
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
     assert output == fqdn
 
 
 # (5+ letter) line keepers
+
+
+def replaced_mise_task(name: str, replacements: dict[str, str]) -> str:
+    task = verbatim_mise_task(name)
+    for old, new in replacements.items():
+        assert old in task
+        task = task.replace(old, new)
+    return task
+
+
+def verbatim_mise_task(name: str) -> str:
+    return loads(check_output(['mise', 'tasks', 'info', name, '--json']))['run'][0].replace(
+        '\\n', '\n'
+    )
+
+
+def write_mock_executable(path: Path, body: str) -> None:
+    path.write_text(
+        '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\n' + dedent(body).lstrip()
+    )
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+
+
+@mark.parametrize('docker_files', ((), ('Dockerfile',), ('Dockerfile', 'compose.yaml')))
+def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
+    calls = tmp_path / 'calls'
+    environment = {'CALLS': str(calls), 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    for executable in ('docker', 'uv', 'uvx'):
+        write_mock_executable(
+            tmp_path / executable,
+            f"""
+            printf '{executable} %s\\n' "$*" >> "$CALLS"
+            if [[ {executable} == uv && ${{1-}} == build ]]; then
+                mkdir dist
+                touch dist/package-1.tar.gz dist/package-1.whl
+            fi
+            """,
+        )
+    for docker_file in docker_files:
+        (tmp_path / docker_file).touch()
+
+    check_call(
+        ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('build'), 'build', '--pull'],
+        cwd=tmp_path,
+        env=environment,
+    )
+
+    assert calls.read_text().splitlines() == [
+        'uv build',
+        'uv publish --dry-run dist/package-1.tar.gz dist/package-1.whl',
+        'uvx twine check --strict dist/package-1.tar.gz dist/package-1.whl',
+        *(('docker compose --progress=plain build --pull',) if len(docker_files) == 2 else ()),
+    ]
 
 
 @mark.parametrize(
@@ -197,24 +245,15 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
     ),
 )
 def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
-    task = loads(check_output(['mise', 'tasks', 'info', 'no-field-separators', '--json']))['run'][
-        0
-    ].replace('\\n', '\n')
-    mock_git = tmp_path / 'git'
-    mock_git.write_text(f'#!/usr/bin/env bash\nprintf "{git_output}"\n')
-    mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
-    environment = {'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    task = replaced_mise_task('no-field-separators', {'git ls-files -z': f'printf "{git_output}"'})
     with raises(CalledProcessError) as error:
-        check_output(['/usr/bin/env', 'bash', '-c', task], env=environment, stderr=-1)
+        check_output(['/usr/bin/env', 'bash', '-c', task], cwd=tmp_path, stderr=-1)
     assert error.value.returncode == 1
     assert error.value.output.decode().endswith(output)
 
 
 def test_run_on_sources(tmp_path: Path):
     """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries."""
-    script = loads(check_output(['mise', 'tasks', 'info', 'run-on-sources', '--json']))['run'][
-        0
-    ].replace('\\n', '\n')
     check_call(['git', 'init', '--quiet', str(tmp_path)])
     (tmp_path / '.biobuddies').mkdir()
     (tmp_path / '.biobuddies' / 'autoformat-excludes').write_text('')
@@ -225,7 +264,15 @@ def test_run_on_sources(tmp_path: Path):
     check_call(['git', '-C', str(tmp_path), 'add', '--all'])
     sources = (
         check_output(
-            ['/usr/bin/env', 'bash', '-c', script, 'bash', 'echo', '*.py{,i}'],
+            [
+                '/usr/bin/env',
+                'bash',
+                '-c',
+                verbatim_mise_task('run-on-sources'),
+                'run-on-sources',
+                'echo',
+                '*.py{,i}',
+            ],
             cwd=tmp_path,
             env={'HOME': environ['HOME'], 'PATH': environ['PATH']},
             stderr=DEVNULL,
@@ -234,6 +281,41 @@ def test_run_on_sources(tmp_path: Path):
         .split()
     )
     assert set(sources) == {'speedrun/__init__.py', 'top.py'}
+
+
+def test_release(tmp_path: Path):
+    calls = tmp_path / 'calls'
+    environment = {'CALLS': str(calls), 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    write_mock_executable(
+        tmp_path / 'date',
+        """
+        [[ $* == '-u +v%Y.%U.' ]]
+        echo v2026.34. # Sunday, August 23, 2026
+        """,
+    )
+    write_mock_executable(tmp_path / 'gh', '''printf 'gh %s\n' "$*" >> "$CALLS"''')
+    write_mock_executable(
+        tmp_path / 'git',
+        """
+        if [[ $1 == fetch ]]; then
+            printf 'git %s\n' "$*" >> "$CALLS"
+        elif [[ $1 == tag ]]; then
+            printf 'git %s\n' "$*" >> "$CALLS"
+            echo v2026.34.08
+        fi
+        """,
+    )
+
+    check_call(
+        ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('release')], cwd=tmp_path, env=environment
+    )
+
+    assert calls.read_text().splitlines() == [
+        'git fetch --tags',
+        'git tag --list v2026.34.* --sort=-version:refname',
+        'gh release create v2026.34.09 --generate-notes',
+        'git fetch --tags',
+    ]
 
 
 # Line changers
