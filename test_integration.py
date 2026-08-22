@@ -161,9 +161,16 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
 def test_new_repository_publishes_to_pypi(
     readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]],
 ):
-    tmp_path, _ = readme_bootstrap(
+    tmp_path, pyproject = readme_bootstrap(
         {'default_context': {'publish_to_pypi': True}}, has_django=False, CONA='package'
     )
+
+    assert pyproject['build-system']['backend-path'] == ['']
+    assert pyproject['build-system']['build-backend'] == 'pypi_compatible_build'
+    assert pyproject['project']['readme'] == 'README.md'
+    assert pyproject['tool']['setuptools']['py-modules'] == ['package']
+    assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
+    assert (tmp_path / 'pypi_compatible_build.py').exists()
 
     workflow = (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
     assert '    build:\n        needs: test' in workflow

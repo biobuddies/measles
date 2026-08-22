@@ -1,5 +1,11 @@
+[build-system]
+backend-path = ['']
+build-backend = 'pypi_compatible_build'
+requires = ['setuptools']
+
 [project]
 name = 'measles'
+readme = 'README.md'
 requires-python = '>=3.12'
 version = '0'
 
@@ -32,6 +38,9 @@ test = [
 
 [tool.pytest.ini_options]
 norecursedirs = ['.venv', 'node_modules', '{{cookiecutter.dot}}']
+
+[tool.setuptools]
+py-modules = ['measles']
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
