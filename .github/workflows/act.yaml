@@ -13,6 +13,7 @@ env:
     INSH_TF: tofu
     PATH: .venv/bin:/home/runner/.local/bin:/home/runner/.local/share/mise/shims:/usr/bin:/bin
 jobs:
+    # Root jobs
     check:
         runs-on: ubuntu-latest
         steps:
@@ -65,8 +66,8 @@ jobs:
                       $HOME/code/wriggle
             - run: mise test
 
-    publish:
-        if: github.event_name == 'release'
+    # Leaf jobs
+    build:
         needs: test
         permissions:
             contents: read
@@ -77,17 +78,16 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-            - run: uv build
-            - uses: pypa/gh-action-pypi-publish@release/v1
+            - run: mise build
+            - if: github.event_name == 'release'
+              uses: pypa/gh-action-pypi-publish@release/v1
 on: # yamllint disable-line rule:truthy
     pull_request:
     push:
         branches:
             - main
-
     release:
         types:
             - published
-
     workflow_dispatch:
 run-name: Checking on behalf of ${{ github.actor }}

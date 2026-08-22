@@ -131,6 +131,8 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
         'pytest-cov',
         'pytest-httpserver',
     ]
+    assert 'build' not in pyproject['project']['optional-dependencies']
+    assert 'setuptools' not in pyproject['project']['optional-dependencies']['pre-commit']
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
     assert '    publish:' not in (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
@@ -161,14 +163,29 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
 def test_new_repository_publishes_to_pypi(
     readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]],
 ):
-    tmp_path, _ = readme_bootstrap(
+    tmp_path, pyproject = readme_bootstrap(
         {'default_context': {'publish_to_pypi': True}}, has_django=False, CONA='package'
     )
 
+    assert pyproject['build-system']['backend-path'] == ['']
+    assert pyproject['build-system']['build-backend'] == 'pypi_compatible_build'
+    assert pyproject['project']['optional-dependencies']['build'] == ['setuptools']
+    assert pyproject['project']['readme'] == 'README.md'
+    assert 'setuptools' not in pyproject['project']['optional-dependencies']['pre-commit']
+    assert pyproject['tool']['setuptools']['py-modules'] == ['package']
+    assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
+    assert (tmp_path / 'pypi_compatible_build.py').exists()
+
     workflow = (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
-    assert "        if: github.event_name == 'release'" in workflow
-    assert '            - uses: pypa/gh-action-pypi-publish@release/v1' in workflow
+    assert '    build:\n        needs: test' in workflow
+    assert '            - run: mise build' in workflow
+    assert "            - if: github.event_name == 'release'" in workflow
+    assert '              uses: pypa/gh-action-pypi-publish@release/v1' in workflow
     assert '    release:' in workflow
+
+    mise = (tmp_path / '.config' / 'mise.toml').read_text()
+    assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in mise
+    assert 'uvx twine check --strict dist/*' in mise
 
 
 @mark.parametrize(

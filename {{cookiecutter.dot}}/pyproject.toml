@@ -1,5 +1,13 @@
+{% if cookiecutter.publish_to_pypi -%}
+[build-system]
+backend-path = ['']
+build-backend = 'pypi_compatible_build'
+requires = ['setuptools']
+
+{% endif -%}
 [project]
 name = '{{ CONA }}'
+readme = 'README.md'
 requires-python = '>=3.12'
 version = '0'
 
@@ -29,6 +37,9 @@ dependencies = [
     ],
     'test': python_test_dependencies,
 } -%}
+{% if cookiecutter.publish_to_pypi -%}
+{% set _ = base.update({'build': ['setuptools']}) -%}
+{% endif -%}
 {% set groups = dict(python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
 {% set _ = groups.update({group: (dependencies + groups.get(group, []))|sort}) -%}
@@ -42,6 +53,11 @@ dependencies = [
 {{ "DJANGO_SETTINGS_MODULE = 'config.settings'\n" if has_django else '' -}}
 norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
 
+{% if cookiecutter.publish_to_pypi -%}
+[tool.setuptools]
+py-modules = ['{{ CONA|replace('-', '_') }}']
+
+{% endif -%}
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'
 

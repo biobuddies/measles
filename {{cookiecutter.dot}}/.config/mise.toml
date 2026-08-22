@@ -127,6 +127,21 @@ run = 'env bash --login -o errexit -o pipefail'
 [tasks.basedpyright]
 run = 'mise run-on-sources basedpyright "*.py{,i}" --level error "$@"'
 
+[tasks.build]
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+{% if cookiecutter.publish_to_pypi -%}
+rm -rf dist
+uv build
+uv publish --dry-run dist/*
+uvx twine check --strict dist/*
+{% endif -%}
+if [[ -f Dockerfile && -f compose.yaml ]]; then
+    docker compose --progress=plain build "$@"
+fi
+'''
+
 [tasks.cookiecutter]
 run = '''
 #!/usr/bin/env bash
@@ -155,13 +170,11 @@ run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja 
 [tasks.djlint-jinja-yaml]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
 # mangling YAML.
-# Not using run-on-sources lets prettier exclude nested workflow templates like
-# */.github/workflows/act.yaml while djlint still formats them. Longer term, run-on-sources
-# probably needs tool-specific exclusion capability like asottile's pre-commit.
+# Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-mapfile -t sources < <(git ls-files \*.j2.yaml '*/.github/workflows/act.yaml')
+mapfile -t sources < <(git ls-files \*.j2.yaml)
 [[ -z ${sources[*]} ]] && exit 0
 djlint "${sources[@]}" \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
@@ -217,6 +230,18 @@ mise run-on-sources prettier "*.{css,html,j2.html,js,json,jsx,toml,ts,tsx,yaml} 
 
 [tasks.pyrefly]
 run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
+
+[tasks.release]
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+prefix=$(date -u '+v%Y.%U.')
+git fetch --tags
+latest=$(git tag --list "$prefix*" --sort=-version:refname | head -1)
+count=${latest#"$prefix"}
+gh release create "$prefix$(printf '%02d' "$((10#${count:-0} + 1))")" --generate-notes
+git fetch --tags
+'''
 
 [tasks.ruff-check-fix]
 run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
