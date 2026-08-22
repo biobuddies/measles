@@ -45,6 +45,8 @@ simplest:
     - Add fewer than 500 lines per commit/pull request
     - Split files around 500 lines
 * Alphabetize, sometimes within sections (header worth a comment)
+* Order command arguments: positional arguments, alphabetized `--flags`, then alphabetized
+  `--keyword=arguments`
 * Use Python 3.12+ idioms like:
     - `from pytest import mark; @mark.parametrize()`
     - `from pathlib import Path; Path('a') / 'b'`
