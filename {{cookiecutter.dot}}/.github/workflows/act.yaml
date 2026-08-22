@@ -65,23 +65,23 @@ jobs:
 {%- raw %}
             - run: mise test
 {%- endraw %}
-{% if cookiecutter.publish_to_pypi %}
-    {%- raw %}
-    publish:
-        if: github.event_name == 'release'
+    build:
         needs: test
+{% if cookiecutter.publish_to_pypi %}
         permissions:
             contents: read
             id-token: write
+{% endif %}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
-            - run: uv build
-            - uses: pypa/gh-action-pypi-publish@release/v1
-    {%- endraw -%}
+            - run: mise build
+{% if cookiecutter.publish_to_pypi %}
+            - if: github.event_name == 'release'
+              uses: pypa/gh-action-pypi-publish@release/v1
 {% endif %}
 {% raw -%}
 

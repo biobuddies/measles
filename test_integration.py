@@ -166,9 +166,15 @@ def test_new_repository_publishes_to_pypi(
     )
 
     workflow = (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
-    assert "        if: github.event_name == 'release'" in workflow
-    assert '            - uses: pypa/gh-action-pypi-publish@release/v1' in workflow
+    assert '    build:\n        needs: test' in workflow
+    assert '            - run: mise build' in workflow
+    assert "            - if: github.event_name == 'release'" in workflow
+    assert '              uses: pypa/gh-action-pypi-publish@release/v1' in workflow
     assert '    release:' in workflow
+
+    mise = (tmp_path / '.config' / 'mise.toml').read_text()
+    assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in mise
+    assert 'uvx twine check --strict dist/*' in mise
 
 
 @mark.parametrize(
