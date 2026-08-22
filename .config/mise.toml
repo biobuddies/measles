@@ -134,10 +134,10 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 run = 'mise run-on-sources django-upgrade \*.py "$@"'
 
 [tasks.djlint-django]
-run = 'mise run-on-sources djlint \*.dj.html --profile=django --reformat "$@"'
+run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@"'
 
 [tasks.djlint-jinja-html]
-run = 'mise run-on-sources djlint \*.j2.html --profile=jinja --reformat "$@"'
+run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@"'
 
 [tasks.djlint-jinja-yaml]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
@@ -150,8 +150,9 @@ run = '''
 set -o errexit -o nounset -o pipefail
 mapfile -t sources < <(git ls-files \*.j2.yaml '*/.github/workflows/act.yaml')
 [[ -z ${sources[*]} ]] && exit 0
-djlint "${sources[@]}" --profile=jinja --reformat \
-    --preserve-blank-lines --preserve-leading-space --no-function-formatting "$@"
+djlint "${sources[@]}" \
+    --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
+    --profile=jinja "$@"
 '''
 
 [tasks.end-of-file-fixer]

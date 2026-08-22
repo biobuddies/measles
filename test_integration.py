@@ -133,6 +133,7 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
     ]
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
+    assert '    publish:' not in (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
 
 
 def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
@@ -155,6 +156,19 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
     ]
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert 'def test_manage_check(monkeypatch):' in (tmp_path / 'test_boilerplate.py').read_text()
+
+
+def test_new_repository_publishes_to_pypi(
+    readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]],
+):
+    tmp_path, _ = readme_bootstrap(
+        {'default_context': {'publish_to_pypi': True}}, has_django=False, CONA='package'
+    )
+
+    workflow = (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
+    assert "        if: github.event_name == 'release'" in workflow
+    assert '            - uses: pypa/gh-action-pypi-publish@release/v1' in workflow
+    assert '    release:' in workflow
 
 
 @mark.parametrize(

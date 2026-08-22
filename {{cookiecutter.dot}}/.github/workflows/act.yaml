@@ -64,12 +64,41 @@ jobs:
 {%- endfor %}
 {%- raw %}
             - run: mise test
+{%- endraw %}
+{% if cookiecutter.publish_to_pypi %}
+    {%- raw %}
+    publish:
+        if: github.event_name == 'release'
+        needs: test
+        permissions:
+            contents: read
+            id-token: write
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: jdx/mise-action@v3
+              with:
+                  experimental: true
+            - run: uv build
+            - uses: pypa/gh-action-pypi-publish@release/v1
+    {%- endraw -%}
+{% endif %}
+{% raw -%}
 
 on: # yamllint disable-line rule:truthy
     pull_request:
     push:
         branches:
             - main
+{%- endraw %}
+{% if cookiecutter.publish_to_pypi %}
+    {%- raw %}
+    release:
+        types:
+            - published
+    {%- endraw -%}
+{% endif %}
+{% raw %}
     workflow_dispatch:
 run-name: Checking on behalf of ${{ github.actor }}
 {% endraw -%}
