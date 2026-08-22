@@ -14,6 +14,7 @@ env:
     INSH_TF: tofu
     PATH: .venv/bin:/home/runner/.local/bin:/home/runner/.local/share/mise/shims:/usr/bin:/bin
 jobs:
+    # Root jobs
     check:
         runs-on: ubuntu-latest
         steps:
@@ -64,14 +65,19 @@ jobs:
 {%- endfor %}
 {%- raw %}
             - run: mise test
-{%- endraw %}
+
+    # Leaf jobs
     build:
         needs: test
+{%- endraw -%}
 {% if cookiecutter.publish_to_pypi %}
+    {%- raw %}
         permissions:
             contents: read
             id-token: write
-{% endif %}
+    {%- endraw -%}
+{% endif -%}
+{% raw %}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
@@ -79,9 +85,12 @@ jobs:
               with:
                   experimental: true
             - run: mise build
+{%- endraw -%}
 {% if cookiecutter.publish_to_pypi %}
+    {%- raw %}
             - if: github.event_name == 'release'
               uses: pypa/gh-action-pypi-publish@release/v1
+    {%- endraw -%}
 {% endif %}
 {% raw -%}
 

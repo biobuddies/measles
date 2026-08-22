@@ -14,6 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+build = [
+    'setuptools',
+]
 pre-commit = [
     'actionlint-py',
     'basedpyright',
@@ -24,7 +27,6 @@ pre-commit = [
     'pre-commit-hooks',
     'pyrefly',
     'ruff',
-    'setuptools',
     'shellcheck-py',
     'shfmt-py',
     'typos',

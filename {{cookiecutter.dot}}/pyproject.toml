@@ -29,7 +29,6 @@ dependencies = [
         'pre-commit-hooks',
         'pyrefly',
         'ruff',
-        'setuptools',
         'shellcheck-py',
         'shfmt-py',
         'typos',
@@ -38,6 +37,9 @@ dependencies = [
     ],
     'test': python_test_dependencies,
 } -%}
+{% if cookiecutter.publish_to_pypi -%}
+{% set _ = base.update({'build': ['setuptools']}) -%}
+{% endif -%}
 {% set groups = dict(python_optional_dependencies) -%}
 {% for group, dependencies in base.items() -%}
 {% set _ = groups.update({group: (dependencies + groups.get(group, []))|sort}) -%}

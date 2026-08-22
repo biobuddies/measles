@@ -131,6 +131,8 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
         'pytest-cov',
         'pytest-httpserver',
     ]
+    assert 'build' not in pyproject['project']['optional-dependencies']
+    assert 'setuptools' not in pyproject['project']['optional-dependencies']['pre-commit']
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
     assert '    publish:' not in (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
@@ -167,7 +169,9 @@ def test_new_repository_publishes_to_pypi(
 
     assert pyproject['build-system']['backend-path'] == ['']
     assert pyproject['build-system']['build-backend'] == 'pypi_compatible_build'
+    assert pyproject['project']['optional-dependencies']['build'] == ['setuptools']
     assert pyproject['project']['readme'] == 'README.md'
+    assert 'setuptools' not in pyproject['project']['optional-dependencies']['pre-commit']
     assert pyproject['tool']['setuptools']['py-modules'] == ['package']
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()

@@ -13,6 +13,7 @@ env:
     INSH_TF: tofu
     PATH: .venv/bin:/home/runner/.local/bin:/home/runner/.local/share/mise/shims:/usr/bin:/bin
 jobs:
+    # Root jobs
     check:
         runs-on: ubuntu-latest
         steps:
@@ -64,13 +65,13 @@ jobs:
                       https://github.com/biobuddies/wriggle.git \
                       $HOME/code/wriggle
             - run: mise test
+
+    # Leaf jobs
     build:
         needs: test
-
         permissions:
             contents: read
             id-token: write
-
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
@@ -78,10 +79,8 @@ jobs:
               with:
                   experimental: true
             - run: mise build
-
             - if: github.event_name == 'release'
               uses: pypa/gh-action-pypi-publish@release/v1
-
 on: # yamllint disable-line rule:truthy
     pull_request:
     push:
