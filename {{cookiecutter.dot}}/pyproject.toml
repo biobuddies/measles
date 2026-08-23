@@ -7,6 +7,7 @@ requires = ['setuptools']
 {% endif -%}
 [project]
 name = '{{ CONA }}'
+description = '{{ cookiecutter.description }}'
 readme = 'README.md'
 requires-python = '>=3.12'
 version = '0'
