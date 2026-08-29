@@ -488,7 +488,6 @@ def test_typos():
 
 
 def test_python_version():
-    """One .cookiecutter.yaml value floors requires-python, ruff and uv resolution together."""
     template = Path(__file__).parent / '{{cookiecutter.dot}}'
     context = {'CONA': 'speedrun', 'cookiecutter': SimpleNamespace(python_version='3.13')}
     environment = Environment(autoescape=False)  # noqa: S701

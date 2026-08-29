@@ -22,10 +22,8 @@ mise test
 
 ## Autoformat excludes
 
-Autoformatters and linters skip paths matching the extended regular expressions in
-`.biobuddies/autoformat-excludes`, which `mise cookiecutter` overwrites. Add project-specific
-patterns, anchored against paths relative to the repository root, to
-`.config/autoformat-excludes`:
+To exclude files from autoformatting and linting, add extended regular expressions
+for relative paths from the repository root to `.config/autoformat-excludes` like:
 
 ```
 ^public/bundle\.min\.js$
