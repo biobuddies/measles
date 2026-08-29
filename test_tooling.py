@@ -256,11 +256,18 @@ def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
     assert error.value.output.decode().endswith(output)
 
 
-def test_run_on_sources(tmp_path: Path):
-    """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries."""
+@mark.parametrize('downstream_excludes', (False, True))
+def test_run_on_sources(tmp_path: Path, downstream_excludes: bool):
+    """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries.
+
+    Optional .config/autoformat-excludes extends the generated .biobuddies list.
+    """
     check_call(['git', 'init', '--quiet', str(tmp_path)])
     (tmp_path / '.biobuddies').mkdir()
     (tmp_path / '.biobuddies' / 'autoformat-excludes').write_text('')
+    if downstream_excludes:
+        (tmp_path / '.config').mkdir()
+        (tmp_path / '.config' / 'autoformat-excludes').write_text('# comment\n\n^top\\.py$\n')
     (tmp_path / 'top.py').write_text('top = 1\n')
     (tmp_path / 'speedrun').mkdir()
     (tmp_path / 'speedrun' / '__init__.py').write_text('nested = 1\n')
@@ -284,7 +291,9 @@ def test_run_on_sources(tmp_path: Path):
         .decode()
         .split()
     )
-    assert set(sources) == {'speedrun/__init__.py', 'top.py'}
+    assert set(sources) == (
+        {'speedrun/__init__.py'} if downstream_excludes else {'speedrun/__init__.py', 'top.py'}
+    )
 
 
 def test_release(tmp_path: Path):
