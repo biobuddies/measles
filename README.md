@@ -20,6 +20,18 @@ mise pre-commit-all
 mise test
 ```
 
+## Autoformat excludes
+
+Autoformatters and linters skip paths matching the extended regular expressions in
+`.biobuddies/autoformat-excludes`, which `mise cookiecutter` overwrites. Add project-specific
+patterns, anchored against paths relative to the repository root, to
+`.config/autoformat-excludes`:
+
+```
+^public/bundle\.min\.js$
+^publickey\.asc$
+```
+
 ## Agent sandboxes
 
 `.biobuddies/setup.bash` installs mise and the tools of the repository containing it, appending to
