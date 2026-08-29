@@ -22,7 +22,7 @@ npm install --no-audit --no-fund &
 npm_pid=$!
 # dup :359 tasks.uv-pip-compile
 uv pip compile --all-extras --output-file requirements.txt --quiet \
-    --python-platform linux pyproject.toml
+    --python-platform linux --python-version 3.12 pyproject.toml
 uv venv --allow-existing --no-progress
 uv pip sync requirements.txt
 wait "$npm_pid"
@@ -357,7 +357,7 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 uv pip compile --all-extras --output-file requirements.txt --quiet \
-    --python-platform linux pyproject.toml "$@"
+    --python-platform linux --python-version 3.12 pyproject.toml "$@"
 [[ $(mise envi) != local ]] || git add requirements.txt
 '''
 
@@ -439,5 +439,5 @@ git diff --cached --quiet || echo Auto-staged modifications
 [tools]
 # latest gh from ~/.config/mise/config.toml
 node = '24'
-# python from uv, pinned by .python-version
+# python from uv, optionally pinned by .python-version
 uv = '0.12.5'

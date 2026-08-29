@@ -487,6 +487,22 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+def test_python_version():
+    """One .cookiecutter.yaml value floors requires-python, ruff and uv resolution together."""
+    template = Path(__file__).parent / '{{cookiecutter.dot}}'
+    context = {'CONA': 'speedrun', 'cookiecutter': SimpleNamespace(python_version='3.13')}
+    environment = Environment(autoescape=False)  # noqa: S701
+    assert "requires-python = '>=3.13'" in environment.from_string(
+        (template / 'pyproject.toml').read_text().split('dependencies = [', 1)[0]
+    ).render(context)
+    assert "target-version = 'py313'" in environment.from_string(
+        (template / '.biobuddies' / 'ruff.toml').read_text()
+    ).render(context)
+    assert '--python-version 3.13' in environment.from_string(
+        (template / '.config' / 'mise.toml').read_text()
+    ).render({**context, 'cookiecutter': SimpleNamespace(languages='', python_version='3.13')})
+
+
 @mark.parametrize(
     ('languages', 'has_rust'),
     (('Node,Python', False), ('Node,Python,Rust', True), ('node,python,rust', True)),

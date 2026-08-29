@@ -1,5 +1,5 @@
 line-length = 100
-target-version = 'py312'
+target-version = 'py{{ cookiecutter.python_version | replace('.', '') }}'
 
 [format]
 docstring-code-format = true
