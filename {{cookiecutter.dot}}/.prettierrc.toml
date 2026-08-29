@@ -1,6 +1,6 @@
 bracketSpacing = false
 plugins = [
-    'prettier-plugin-jinja-template',
+    './vendor/prettier-plugin-jinja-template-yaml/index.cjs',
     'prettier-plugin-organize-attributes',
     'prettier-plugin-toml',
 ]
