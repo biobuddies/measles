@@ -8,7 +8,7 @@ from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output, run
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import SimpleNamespace
@@ -254,6 +254,27 @@ def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
         check_output(['/usr/bin/env', 'bash', '-c', task], cwd=tmp_path, stderr=-1)
     assert error.value.returncode == 1
     assert error.value.output.decode().endswith(output)
+
+
+@mark.parametrize(
+    ('branch', 'head_ref', 'returncode'),
+    (('good-name', '', 0), ('bad/name', '', 1), ('good-name', 'bad/name', 1)),
+)
+def test_no_branch_slashes(tmp_path: Path, branch: str, head_ref: str, returncode: int):
+    """Unlike tabr, this reads the branch of the dirty worktree every commit has."""
+    check_call(['git', 'init', '--quiet', '--initial-branch', branch, str(tmp_path)])
+    (tmp_path / 'dirty.py').write_text('dirty = 1\n')
+    process = run(
+        ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('no-branch-slashes')],
+        capture_output=True,
+        check=False,
+        cwd=tmp_path,
+        env={'GITHUB_HEAD_REF': head_ref, 'PATH': environ['PATH']},
+    )
+    assert (process.returncode, process.stderr.decode()) == (
+        returncode,
+        'Slashes overcomplicate preview deployments.\n' if returncode else '',
+    )
 
 
 def test_run_on_sources(tmp_path: Path):
