@@ -487,6 +487,23 @@ def test_typos():
         output_path.unlink(missing_ok=True)
 
 
+@mark.parametrize(
+    ('languages', 'has_rust'),
+    (('Node,Python', False), ('Node,Python,Rust', True), ('node,python,rust', True)),
+)
+def test_rust_tool(languages: str, has_rust: bool):
+    assert (
+        "rust = 'stable'"
+        in Environment(autoescape=False)  # noqa: S701
+        .from_string(
+            (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
+            .read_text()
+            .split('[tools]\n', 1)[1]
+        )
+        .render(cookiecutter=SimpleNamespace(languages=languages))
+    ) == has_rust
+
+
 def test_post_gen_project_bash(tmp_path: Path):
     hook = (
         Environment(autoescape=False)  # noqa: S701

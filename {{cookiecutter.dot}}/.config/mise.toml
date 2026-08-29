@@ -454,7 +454,7 @@ git diff --cached --quiet || echo Auto-staged modifications
 # latest gh from ~/.config/mise/config.toml
 node = '24'
 # python from uv, pinned by .python-version
-{% if 'Rust' in cookiecutter.languages.split(',') -%}
+{% if 'rust' in cookiecutter.languages.lower().split(',') -%}
 rust = 'stable'
 {% endif -%}
 uv = '0.12.5'
