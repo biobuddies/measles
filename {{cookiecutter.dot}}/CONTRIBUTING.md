@@ -62,8 +62,7 @@ simplest:
     - Keep prototypes, debug output, and similar files out of the worktree when practical:
         * Save or move files generated during the current session to `/tmp`
         * Move leftovers from concurrent or historical sessions to `untracked/`
-        * Do not use `.claude/` for scratch files; tooling may grant that directory's contents
-          extra permissions
+        * Do not use `.claude/` for scratch files; edits there are often gated
     - Generally include autoformatting, autogeneration, and cleanup from `mise pre-commit-all`
       with contemporary features and fixes. Large changes may warrant a separate preparatory
       commit and Pull Request.
@@ -89,8 +88,8 @@ simplest:
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
         * Use a terse title and short sentences. Write only highlights and surprises; details
-          belong in the Files changed tab / git diff. Leave the body empty when the title says
-          everything worth highlighting.
+          belong in the Files changed tab / git diff. Leave the body empty when the title
+          suffices.
         * Standard section headers are `### Background and links`, `### Changes and testing`, and
           `### Followup and questions`. Use a header only when its section has at least three
           bullets.
