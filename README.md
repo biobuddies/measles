@@ -20,6 +20,16 @@ mise pre-commit-all
 mise test
 ```
 
+## Autoformat excludes
+
+To exclude files from autoformatting and linting, add extended regular expressions
+for relative paths from the repository root to `.config/autoformat-excludes` like:
+
+```
+^public/bundle\.min\.js$
+^publickey\.asc$
+```
+
 ## Agent sandboxes
 
 `.biobuddies/setup.bash` installs mise and the tools of the repository containing it, appending to

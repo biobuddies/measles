@@ -9,6 +9,7 @@
     "publish_to_pypi": false,
     "// python_dependencies": "Read from .cookiecutter.yaml by measles.Measles to avoid prompt_choice_for_config weirdly interpreting the list of strings",
     "python_optional_dependencies": {},
+    "python_version": "3.12",
     "node_dependencies": {},
     "node_dev_dependencies": {}
 }

@@ -256,35 +256,75 @@ def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
     assert error.value.output.decode().endswith(output)
 
 
+def test_no_branch_slashes(tmp_path: Path):
+    """Unlike tabr, this reads the branch of the dirty worktree every commit has."""
+    # Arrange good name
+    check_call(['git', 'init', '--quiet', '--initial-branch', 'good-name', str(tmp_path)])
+    (tmp_path / 'dirty.py').write_text('dirty = 1\n')
+    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('no-branch-slashes')]
+    environment = {'GITHUB_HEAD_REF': '', 'PATH': environ['PATH']}
+
+    # Act on good name
+    check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+
+    # Arrange bad name
+    check_call(['git', '-C', str(tmp_path), 'switch', '--quiet', '--create', 'bad/name'])
+
+    # Act on and assert bad name
+    with raises(CalledProcessError) as error:
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
+
+    # Arrange bad head reference
+    check_call(['git', '-C', str(tmp_path), 'switch', '--quiet', '--create', 'good-name'])
+    environment['GITHUB_HEAD_REF'] = 'bad/name'
+
+    # Act on and assert bad head reference
+    with raises(CalledProcessError) as error:
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
+
+
 def test_run_on_sources(tmp_path: Path):
     """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries."""
+    # Arrange
     check_call(['git', 'init', '--quiet', str(tmp_path)])
-    (tmp_path / '.biobuddies').mkdir()
-    (tmp_path / '.biobuddies' / 'autoformat-excludes').write_text('')
     (tmp_path / 'top.py').write_text('top = 1\n')
     (tmp_path / 'speedrun').mkdir()
     (tmp_path / 'speedrun' / '__init__.py').write_text('nested = 1\n')
     (tmp_path / 'binary.py').write_bytes(b'PK\x03\x04\x00\n')
     check_call(['git', '-C', str(tmp_path), 'add', '--all'])
-    sources = (
-        check_output(
-            [
-                '/usr/bin/env',
-                'bash',
-                '-c',
-                verbatim_mise_task('run-on-sources'),
-                'run-on-sources',
-                'echo',
-                '*.py{,i}',
-            ],
-            cwd=tmp_path,
-            env={'HOME': environ['HOME'], 'PATH': environ['PATH']},
-            stderr=DEVNULL,
-        )
-        .decode()
-        .split()
-    )
-    assert set(sources) == {'speedrun/__init__.py', 'top.py'}
+    command = [
+        '/usr/bin/env',
+        'bash',
+        '-c',
+        verbatim_mise_task('run-on-sources'),
+        'run-on-sources',
+        'echo',
+        '*.py{,i}',
+    ]
+    environment = {'HOME': environ['HOME'], 'PATH': environ['PATH']}
+
+    # Act on and assert unset excludes
+    with raises(CalledProcessError) as error:
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert 'AUTOFORMAT_EXCLUDES' in error.value.output.decode()
+
+    # Arrange empty excludes
+    environment['AUTOFORMAT_EXCLUDES'] = ''
+
+    # Act on and assert empty excludes
+    assert set(
+        check_output(command, cwd=tmp_path, env=environment, stderr=DEVNULL).decode().split()
+    ) == {'speedrun/__init__.py', 'top.py'}
+
+    # Arrange top-level excludes
+    environment['AUTOFORMAT_EXCLUDES'] = '^top\\.py$'
+
+    # Act on and assert top-level excludes
+    assert set(
+        check_output(command, cwd=tmp_path, env=environment, stderr=DEVNULL).decode().split()
+    ) == {'speedrun/__init__.py'}
 
 
 def test_release(tmp_path: Path):
@@ -421,6 +461,7 @@ def test_prettier():
             mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
             mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
             env = environ.copy()
+            env['AUTOFORMAT_EXCLUDES'] = ''
             env['PATH'] = f'{tmpdir}:{env["PATH"]}'
             check_output(['mise', 'prettier-write'], env=env)
         assert test_path.read_text() == (
@@ -444,6 +485,38 @@ def test_typos():
     finally:
         input_path.unlink(missing_ok=True)
         output_path.unlink(missing_ok=True)
+
+
+def test_python_version():
+    template = Path(__file__).parent / '{{cookiecutter.dot}}'
+    context = {'CONA': 'speedrun', 'cookiecutter': SimpleNamespace(python_version='3.13')}
+    environment = Environment(autoescape=False)  # noqa: S701
+    assert "requires-python = '>=3.13'" in environment.from_string(
+        (template / 'pyproject.toml').read_text().split('dependencies = [', 1)[0]
+    ).render(context)
+    assert "target-version = 'py313'" in environment.from_string(
+        (template / '.biobuddies' / 'ruff.toml').read_text()
+    ).render(context)
+    assert '--python-version 3.13' in environment.from_string(
+        (template / '.config' / 'mise.toml').read_text()
+    ).render({**context, 'cookiecutter': SimpleNamespace(languages='', python_version='3.13')})
+
+
+@mark.parametrize(
+    ('languages', 'has_rust'),
+    (('Node,Python', False), ('Node,Python,Rust', True), ('node,python,rust', True)),
+)
+def test_rust_tool(languages: str, has_rust: bool):
+    assert (
+        "rust = 'stable'"
+        in Environment(autoescape=False)  # noqa: S701
+        .from_string(
+            (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
+            .read_text()
+            .split('[tools]\n', 1)[1]
+        )
+        .render(cookiecutter=SimpleNamespace(languages=languages))
+    ) == has_rust
 
 
 def test_post_gen_project_bash(tmp_path: Path):
@@ -499,6 +572,7 @@ def test_end_of_file_fixer():
             mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
             mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
             env = environ.copy()
+            env['AUTOFORMAT_EXCLUDES'] = ''
             env['PATH'] = f'{tmpdir}:{env["PATH"]}'
             with raises(CalledProcessError):
                 check_output(['mise', 'end-of-file-fixer'], env=env)

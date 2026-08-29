@@ -38,6 +38,7 @@ jobs:
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
+                  install: false
             - run: mise tabularize
     test:
         runs-on: ubuntu-latest
