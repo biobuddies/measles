@@ -77,11 +77,11 @@ eval "glob=(${2:?missing source glob})"
 set +o noglob
 shift 2
 command_args=$*
+: "${AUTOFORMAT_EXCLUDES?}"
 set -- $(
     git grep --color=never --files-with-matches -I -e '' -- "${glob[@]}" \
         | grep --invert-match --extended-regexp --file <(
-            sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes \
-                .config/autoformat-excludes 2>/dev/null
+            printf %s "$AUTOFORMAT_EXCLUDES"
         ) || [[ $? -eq 1 ]]
 )
 [[ $# -eq 0 ]] && exit 0
@@ -387,9 +387,7 @@ run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --j
 run = 'mise run-on-sources yamllint \*.yaml "$@"'
 
 # Task collections
-# Would name this pre-commit-fast to avoid substring-matching identifiers, but mise's built-in
-# hook generator defaults to this name
-[tasks.pre-commit]
+[tasks.parallel-pre-commit]
 depends = [
     # line changers
     'django-upgrade',
@@ -415,18 +413,25 @@ depends = [
     'validate-pyproject',
     'yamllint',
 ]
+
+# Would name this pre-commit-fast to avoid substring-matching identifiers, but mise's built-in
+# hook generator defaults to this name
+[tasks.pre-commit]
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-# dup :365 tasks.pre-commit-all
+# Compose once; mise exports through parallel-pre-commit to the dependencies it fans out to
+export AUTOFORMAT_EXCLUDES=$(sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes \
+    .config/autoformat-excludes 2>/dev/null)
+mise parallel-pre-commit
+# dup :434 tasks.pre-commit-all
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 # Stage once where the parallel run-on-sources tasks join; concurrent git add raced index.lock
-# dup :68 tasks.run-on-sources
+# dup :71 tasks.run-on-sources
 mapfile -t staged < <(
     git diff --name-only \
         | grep --invert-match --extended-regexp --file <(
-            sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes \
-                .config/autoformat-excludes 2>/dev/null
+            printf %s "$AUTOFORMAT_EXCLUDES"
         ) || [[ $? -eq 1 ]]
 )
 [[ -z ${staged[*]} ]] || git add -- "${staged[@]}"
@@ -440,7 +445,7 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-# dup :353 tasks.pre-commit
+# dup :413 tasks.pre-commit
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo Auto-staged modifications
 '''

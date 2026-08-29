@@ -285,44 +285,46 @@ def test_no_branch_slashes(tmp_path: Path):
     assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
 
 
-@mark.parametrize('downstream_excludes', (False, True))
-def test_run_on_sources(tmp_path: Path, downstream_excludes: bool):
-    """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries.
-
-    Optional .config/autoformat-excludes extends the generated .biobuddies list.
-    """
+def test_run_on_sources(tmp_path: Path):
+    """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries."""
+    # Arrange
     check_call(['git', 'init', '--quiet', str(tmp_path)])
-    (tmp_path / '.biobuddies').mkdir()
-    (tmp_path / '.biobuddies' / 'autoformat-excludes').write_text('')
-    if downstream_excludes:
-        (tmp_path / '.config').mkdir()
-        (tmp_path / '.config' / 'autoformat-excludes').write_text('# comment\n\n^top\\.py$\n')
     (tmp_path / 'top.py').write_text('top = 1\n')
     (tmp_path / 'speedrun').mkdir()
     (tmp_path / 'speedrun' / '__init__.py').write_text('nested = 1\n')
     (tmp_path / 'binary.py').write_bytes(b'PK\x03\x04\x00\n')
     check_call(['git', '-C', str(tmp_path), 'add', '--all'])
-    sources = (
-        check_output(
-            [
-                '/usr/bin/env',
-                'bash',
-                '-c',
-                verbatim_mise_task('run-on-sources'),
-                'run-on-sources',
-                'echo',
-                '*.py{,i}',
-            ],
-            cwd=tmp_path,
-            env={'HOME': environ['HOME'], 'PATH': environ['PATH']},
-            stderr=DEVNULL,
-        )
-        .decode()
-        .split()
-    )
-    assert set(sources) == (
-        {'speedrun/__init__.py'} if downstream_excludes else {'speedrun/__init__.py', 'top.py'}
-    )
+    command = [
+        '/usr/bin/env',
+        'bash',
+        '-c',
+        verbatim_mise_task('run-on-sources'),
+        'run-on-sources',
+        'echo',
+        '*.py{,i}',
+    ]
+    environment = {'HOME': environ['HOME'], 'PATH': environ['PATH']}
+
+    # Act on and assert unset excludes
+    with raises(CalledProcessError) as error:
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert 'AUTOFORMAT_EXCLUDES' in error.value.output.decode()
+
+    # Arrange empty excludes
+    environment['AUTOFORMAT_EXCLUDES'] = ''
+
+    # Act on and assert empty excludes
+    assert set(
+        check_output(command, cwd=tmp_path, env=environment, stderr=DEVNULL).decode().split()
+    ) == {'speedrun/__init__.py', 'top.py'}
+
+    # Arrange top-level excludes
+    environment['AUTOFORMAT_EXCLUDES'] = '^top\\.py$'
+
+    # Act on and assert top-level excludes
+    assert set(
+        check_output(command, cwd=tmp_path, env=environment, stderr=DEVNULL).decode().split()
+    ) == {'speedrun/__init__.py'}
 
 
 def test_release(tmp_path: Path):
@@ -459,6 +461,7 @@ def test_prettier():
             mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
             mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
             env = environ.copy()
+            env['AUTOFORMAT_EXCLUDES'] = ''
             env['PATH'] = f'{tmpdir}:{env["PATH"]}'
             check_output(['mise', 'prettier-write'], env=env)
         assert test_path.read_text() == (
@@ -537,6 +540,7 @@ def test_end_of_file_fixer():
             mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
             mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
             env = environ.copy()
+            env['AUTOFORMAT_EXCLUDES'] = ''
             env['PATH'] = f'{tmpdir}:{env["PATH"]}'
             with raises(CalledProcessError):
                 check_output(['mise', 'end-of-file-fixer'], env=env)
