@@ -87,10 +87,6 @@ else
     tabr=$(git describe --all --dirty --exact-match 2>/dev/null \
         | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p') || [[ $? -eq 128 ]]
 fi
-if [[ $tabr == */* ]]; then
-    echo 'Slashes overcomplicate preview deployments.' >&2
-    exit 1
-fi
 if [[ $tabr ]]; then echo "$tabr"; fi
 '''
 
@@ -190,6 +186,15 @@ for repeat in $(echo "$emails_names" | cut -f 1 | uniq --repeated); do
 done
 [[ $return_code == 0 ]] || echo 'Multiple names are associated with the same email address.'
 exit $return_code
+"""
+
+[tasks.no-branch-slashes]
+run = """
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+[[ ${GITHUB_HEAD_REF:-$(git branch --show-current)} == */* ]] || exit 0
+echo 'Slashes overcomplicate preview deployments.' >&2
+exit 1
 """
 
 [tasks.no-field-separators]
@@ -387,6 +392,7 @@ depends = [
     'actionlint',
     'hadolint',
     'mailmap',
+    'no-branch-slashes',
     'no-field-separators',
     'pyrefly',
     'shellcheck',

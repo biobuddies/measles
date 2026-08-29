@@ -256,6 +256,35 @@ def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
     assert error.value.output.decode().endswith(output)
 
 
+def test_no_branch_slashes(tmp_path: Path):
+    """Unlike tabr, this reads the branch of the dirty worktree every commit has."""
+    # Arrange good name
+    check_call(['git', 'init', '--quiet', '--initial-branch', 'good-name', str(tmp_path)])
+    (tmp_path / 'dirty.py').write_text('dirty = 1\n')
+    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('no-branch-slashes')]
+    environment = {'GITHUB_HEAD_REF': '', 'PATH': environ['PATH']}
+
+    # Act on good name
+    check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+
+    # Arrange bad name
+    check_call(['git', '-C', str(tmp_path), 'switch', '--quiet', '--create', 'bad/name'])
+
+    # Act on and assert bad name
+    with raises(CalledProcessError) as error:
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
+
+    # Arrange bad head reference
+    check_call(['git', '-C', str(tmp_path), 'switch', '--quiet', '--create', 'good-name'])
+    environment['GITHUB_HEAD_REF'] = 'bad/name'
+
+    # Act on and assert bad head reference
+    with raises(CalledProcessError) as error:
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
+
+
 @mark.parametrize('downstream_excludes', (False, True))
 def test_run_on_sources(tmp_path: Path, downstream_excludes: bool):
     """Noglob keeps brace globs literal so git pathspecs reach nested sources; -I skips binaries.
