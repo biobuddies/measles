@@ -423,7 +423,7 @@ set -o errexit -o nounset -o pipefail
 export AUTOFORMAT_EXCLUDES=$(sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes \
     .config/autoformat-excludes 2>/dev/null)
 mise parallel-pre-commit
-# dup :434 tasks.pre-commit-all
+# dup :433 tasks.pre-commit-all
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 # Stage once where the parallel run-on-sources tasks join; concurrent git add raced index.lock
 # dup :71 tasks.run-on-sources
@@ -444,7 +444,7 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise uv-pip-compile  # needs Internet
-# dup :413 tasks.pre-commit
+# dup :412 tasks.pre-commit
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo Auto-staged modifications
 '''
