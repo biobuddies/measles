@@ -420,7 +420,6 @@ depends = [
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-# Compose once; mise exports through parallel-pre-commit to the dependencies it fans out to
 export AUTOFORMAT_EXCLUDES=$(sed -nE '/^#|^$/!p' .biobuddies/autoformat-excludes \
     .config/autoformat-excludes 2>/dev/null)
 mise parallel-pre-commit
