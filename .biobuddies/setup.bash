@@ -6,8 +6,8 @@ log=/tmp/setup.log
 exec > >(tee -a "$log") 2>&1
 datetimez() { date -u '+%F %TZ'; }
 trap 'echo "ERROR $(datetimez) $PWD"' ERR
-# cd "$(git rev-parse --show-toplevel)" would stay put on the empty string outside a repository
-toplevel=$(git rev-parse --show-toplevel)
+# Resolve the checkout from this script because Codex may run setup from another directory.
+toplevel=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 cd "$toplevel"
 echo "Start $(datetimez) $PWD"
 export PATH="$HOME/.local/bin:$PATH"
