@@ -65,6 +65,11 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
             'PATH': f'{tmp_path / ".venv" / "bin"}:{environ["PATH"]}',
             'PWD': str(tmp_path),
             'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
+            **{
+                name: value
+                for name, value in environ.items()
+                if name.upper().endswith(('_CA_CERTS', '_CERT', '_CERT_FILE', '_PROXY'))
+            },
             **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
             **(
                 {'GITHUB_HEAD_REF': tag_or_branch}
@@ -114,6 +119,7 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
         {
             'default_context': {
                 'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
+                'languages': 'Node,Python,Rust',
                 'node_dependencies': {'react': '^19.0.0'},
                 'node_dev_dependencies': {'vite': '^7.0.0'},
                 'python_dependencies': ['click'],
@@ -125,11 +131,13 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
     )
 
     package = loads((tmp_path / 'package.json').read_text())
+    mise = tomllib.loads((tmp_path / '.config' / 'mise.toml').read_text())
     assert pyproject['project']['description'] == (
         'Enforce append-only Write Once, Read Many (WORM) data flows'
     )
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
+    assert mise['tools']['rust'] == 'stable'
     assert pyproject['project']['optional-dependencies']['test'] == [
         'pytest',
         'pytest-cov',
@@ -160,6 +168,7 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
         'pytest-django',
         'pytest-httpserver',
     ]
+    assert 'rust' not in tomllib.loads((tmp_path / '.config' / 'mise.toml').read_text())['tools']
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert 'def test_manage_check(monkeypatch):' in (tmp_path / 'test_boilerplate.py').read_text()
 
