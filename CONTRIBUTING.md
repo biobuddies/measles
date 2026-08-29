@@ -59,8 +59,13 @@ simplest:
   regular dashes or `&mdash;`.
 * `git` well:
     - Avoid committing unrelated files by avoiding `git add -a`, `git add --all`, `git add .`, etc.
-    - Generally treat removing lint, autogenerating and cleanups as relevant; include them
-      beside features and fixes
+    - Keep prototypes, debug output, and similar files out of the worktree when practical:
+        * Save or move files generated during the current session to `/tmp`
+        * Move leftovers from concurrent or historical sessions to `untracked/`
+        * Do not use `.claude/` for scratch files; edits there are often gated
+    - Generally include autoformatting, autogeneration, and cleanup from `mise pre-commit-all`
+      with contemporary features and fixes. Large changes may warrant a separate preparatory
+      commit and Pull Request.
     - If asked to clobber uncommitted changes, copy to /tmp/ first
     - Avoid train-of-thought and bisect-breaking commits
     - Be ready to read the (appropriately filtered) git log:
@@ -77,22 +82,31 @@ simplest:
       describe the changes.
     - Expect concurrent edits to Pull Request title and description (top comment); always read
       before revising
-    - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits
+    - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits: updating
+      already-tracked files is usually right. Untrack files added accidentally or retained
+      past their useful life.
     - `GIT_SEQUENCE_EDITOR=:` or similar to avoid interactive commands; stdin is unreliable
     - Follow .github/pull_request_template.md for commit messages / top Pull Request comments
-        * Write only highlights and surprises for changes. The details must stay in the Files
-          changed tab / git diff.
-        * Report testing as one of:
-            - `Existing automated tests only`
+        * Use a terse title and short sentences. Write only highlights and surprises; details
+          belong in the Files changed tab / git diff. Leave the body empty when the title
+          suffices.
+        * Standard section headers are `### Background and links`, `### Changes and testing`, and
+          `### Followup and questions`. Use a header only when its section has at least three
+          bullets.
+        * Automated testing should cover most code changes. Name the one to three existing,
+          expanded, or new tests that provide the most useful coverage. Report testing as:
+            - `Existing automated test...`
+            - `Expanded automated test...`
             - `Added automated test...`
-            - A procedure future contributors can reproduce:
+            - A procedure contributors can reproduce:
               ```
               # Manual test procedure
               commands
               to_reproduce
               ```
-        * Never waste space counting or automating existing automated tests
-        * Remove headers for empty Pull Request sections
+        * Put commands unlikely to remain useful, such as old/new equivalence checks or tests
+          requiring dependencies absent from GitHub Actions, in the Pull Request top comment / git
+          commit body rather than a version-controlled file. Use a `bash` fenced code block.
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
