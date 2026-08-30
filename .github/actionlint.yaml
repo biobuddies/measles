@@ -1,0 +1,4 @@
+paths:
+    .github/workflows/act.yaml:
+        ignore:
+            - '^"github\.head_ref" is potentially untrusted\..*for more details$'
