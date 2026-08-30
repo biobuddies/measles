@@ -51,6 +51,20 @@ def test_four_letter_abbreviations():
     assert check_output(['mise', 'fqdn']) == b''
 
 
+def verbatim_mise_task(name: str) -> str:
+    return loads(check_output(['mise', 'tasks', 'info', name, '--json']))['run'][0].replace(
+        '\\n', '\n'
+    )
+
+
+def replaced_mise_task(name: str, replacements: dict[str, str]) -> str:
+    task = verbatim_mise_task(name)
+    for old, new in replacements.items():
+        assert old in task
+        task = task.replace(old, new)
+    return task
+
+
 @mark.parametrize(
     ('git_describe', 'tabr'),
     (
@@ -141,16 +155,17 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
 
 
 @mark.parametrize(
-    ('tabr', 'domain', 'fqdn'),
+    ('tabr', 'domain', 'event', 'fqdn'),
     (
-        ('main', '', ''),
-        ('', 'cov.ing', ''),
-        ('main', 'cov.ing', 'cov.ing'),
-        ('my-feature', '', ''),
-        ('my-feature', 'cov.ing', 'my-feature.cov.ing'),
+        ('main', '', '', ''),
+        ('', 'cov.ing', '', ''),
+        ('main', 'cov.ing', '', 'cov.ing'),
+        ('my-feature', '', '', ''),
+        ('my-feature', 'cov.ing', '', 'my-feature.cov.ing'),
+        ('v2026.34.01', 'cov.ing', 'release', 'cov.ing'),
     ),
 )
-def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
+def test_fqdn(tmp_path: Path, tabr: str, domain: str, event: str, fqdn: str):
     tabr_task = replaced_mise_task(
         'tabr',
         {
@@ -179,26 +194,16 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
     )
-    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH']}
+    env = {
+        'GITHUB_EVENT_NAME': event,
+        'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path),
+        'PATH': environ['PATH'],
+    }
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
     assert output == fqdn
 
 
 # (5+ letter) line keepers
-
-
-def replaced_mise_task(name: str, replacements: dict[str, str]) -> str:
-    task = verbatim_mise_task(name)
-    for old, new in replacements.items():
-        assert old in task
-        task = task.replace(old, new)
-    return task
-
-
-def verbatim_mise_task(name: str) -> str:
-    return loads(check_output(['mise', 'tasks', 'info', name, '--json']))['run'][0].replace(
-        '\\n', '\n'
-    )
 
 
 def write_mock_executable(path: Path, body: str) -> None:
@@ -256,12 +261,12 @@ def test_no_field_separators(tmp_path: Path, git_output: str, output: str):
     assert error.value.output.decode().endswith(output)
 
 
-def test_no_branch_slashes(tmp_path: Path):
+def test_check_branch(tmp_path: Path):
     """Unlike tabr, this reads the branch of the dirty worktree every commit has."""
     # Arrange good name
     check_call(['git', 'init', '--quiet', '--initial-branch', 'good-name', str(tmp_path)])
     (tmp_path / 'dirty.py').write_text('dirty = 1\n')
-    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('no-branch-slashes')]
+    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('check-branch')]
     environment = {'GITHUB_HEAD_REF': '', 'PATH': environ['PATH']}
 
     # Act on good name

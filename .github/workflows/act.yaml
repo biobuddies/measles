@@ -68,20 +68,32 @@ jobs:
             - run: mise test
 
     # Leaf jobs
-    build:
+    build-deploy:
         needs: test
         permissions:
-            contents: read
+            contents: write
             id-token: write
         runs-on: ubuntu-latest
+        environment:
+            name: >-
+                ${{ github.event_name == 'release'
+                && 'prod'
+                || github.head_ref
+                || github.ref_name }}
         steps:
             - uses: actions/checkout@v6
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
+            - run: mise set-environment
             - run: mise build
             - if: github.event_name == 'release'
               uses: pypa/gh-action-pypi-publish@release/v1
+            - if: github.event_name == 'release'
+              run: |
+                  expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
+                  git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod
+
 on: # yamllint disable-line rule:truthy
     pull_request:
     push:
@@ -91,4 +103,4 @@ on: # yamllint disable-line rule:truthy
         types:
             - published
     workflow_dispatch:
-run-name: Checking on behalf of ${{ github.actor }}
+run-name: Acting on behalf of ${{ github.actor }}

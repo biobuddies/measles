@@ -68,28 +68,52 @@ jobs:
             - run: mise test
 
     # Leaf jobs
-    build:
+    build-deploy:
         needs: test
+        permissions:
+            contents: write
         {%- endraw -%}
         {%- if cookiecutter.publish_to_pypi %}
-        permissions:
-            contents: read
             id-token: write
         {%- endif -%}
         {% raw %}
         runs-on: ubuntu-latest
+        environment:
+            name: >-
+                ${{ github.event_name == 'release'
+                && 'prod'
+                || github.head_ref
+                || github.ref_name }}
+        {%- endraw -%}
+        {%- if cookiecutter.domain_name %}
+            # Synchronize with .config/mise.toml:50 tasks.fqdn.
+            url: >-
+                https://${{ '${{' }} (github.event_name == 'release'
+                || github.ref_name == 'main')
+                && '{{ cookiecutter.domain_name }}'
+                || format('{0}.{{ cookiecutter.domain_name }}',
+                github.head_ref || github.ref_name) {{ '}}' }}
+        {%- endif -%}
+        {% raw %}
         steps:
             - uses: actions/checkout@v6
             - uses: jdx/mise-action@v3
               with:
                   experimental: true
+            - run: mise set-environment
             - run: mise build
             {%- endraw -%}
             {%- if cookiecutter.publish_to_pypi %}
             - if: github.event_name == 'release'
               uses: pypa/gh-action-pypi-publish@release/v1
+            {%- else %}
+            - run: mise deploy
             {%- endif %}
-{% raw -%}
+            {%- raw %}
+            - if: github.event_name == 'release'
+              run: |
+                  expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
+                  git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod
 
 on: # yamllint disable-line rule:truthy
     pull_request:
@@ -97,12 +121,10 @@ on: # yamllint disable-line rule:truthy
         branches:
             - main
     {%- endraw %}
-    {%- if cookiecutter.publish_to_pypi %}
     release:
         types:
             - published
-    {%- endif %}
     {%- raw %}
     workflow_dispatch:
-run-name: Checking on behalf of ${{ github.actor }}
+run-name: Acting on behalf of ${{ github.actor }}
 {% endraw -%}
