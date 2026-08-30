@@ -2,6 +2,7 @@
 # Override from mise.toml
 [settings]
 experimental = true
+lockfile = true
 
 [settings.python]
 uv_venv_auto = 'create|source'
@@ -143,6 +144,9 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 [tasks.django-upgrade]
 run = 'mise run-on-sources django-upgrade \*.py "$@"'
 
+[tasks.deploy]
+run = ''
+
 [tasks.djlint-django]
 run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@"'
 
@@ -172,6 +176,9 @@ run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
 [tasks.helicopyter]
 run = 'python -m helicopyter --format_with=${INSH_TF:-terraform} all "$@"'
 
+[tasks.lychee]
+run = 'lychee --no-progress "$@" .'
+
 [tasks.mailmap]
 run = """
 #!/usr/bin/env bash
@@ -188,7 +195,7 @@ done
 exit $return_code
 """
 
-[tasks.no-branch-slashes]
+[tasks.check-branch]
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
@@ -390,9 +397,9 @@ depends = [
     'typos',
     # line keepers
     'actionlint',
+    'check-branch',
     'hadolint',
     'mailmap',
-    'no-branch-slashes',
     'no-field-separators',
     'pyrefly',
     'shellcheck',
@@ -430,6 +437,7 @@ run = '''
 set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
+mise lychee  # Requires Internet
 mise uv-pip-compile  # needs Internet
 # dup :414 tasks.pre-commit
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
@@ -438,6 +446,7 @@ git diff --cached --quiet || echo Auto-staged modifications
 
 [tools]
 # latest gh from ~/.config/mise/config.toml
+lychee = '0.23.0'
 node = '24'
 # python from uv
 uv = '0.12.5'
