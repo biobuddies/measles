@@ -215,8 +215,8 @@ exit $return_code
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-[[ ${GITHUB_HEAD_REF:-$(git branch --show-current)} == */* ]] || exit 0
-echo 'Slashes overcomplicate preview deployments.' >&2
+[[ ${GITHUB_HEAD_REF:-$(git branch --show-current)} =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] && exit 0
+echo 'Branch names must use lowercase letters and digits separated by single hyphens.' >&2
 exit 1
 """
 

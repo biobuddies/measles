@@ -69,7 +69,7 @@ jobs:
 
     # Leaf jobs
     build-deploy:
-        needs: test
+        needs: [check, test]
         permissions:
             contents: write
         {%- endraw -%}
@@ -88,7 +88,7 @@ jobs:
         {%- if cookiecutter.domain_name %}
             # Synchronize with .config/mise.toml:50 tasks.fqdn.
             url: >-
-                https://${{ '${{' }} (github.event_name == 'release'
+                https://{{ '${{' }} (github.event_name == 'release'
                 || github.ref_name == 'main')
                 && '{{ cookiecutter.domain_name }}'
                 || format('{0}.{{ cookiecutter.domain_name }}',
@@ -107,7 +107,11 @@ jobs:
             - if: github.event_name == 'release'
               uses: pypa/gh-action-pypi-publish@release/v1
             {%- else %}
-            - run: mise deploy
+            - run: >-
+                  mise deploy "{{ '${{' }} github.event_name == 'release'
+                  && 'prod'
+                  || github.head_ref
+                  || github.ref_name {{ '}}' }}"
             {%- endif %}
             {%- raw %}
             - if: github.event_name == 'release'

@@ -278,7 +278,9 @@ def test_check_branch(tmp_path: Path):
     # Act on and assert bad name
     with raises(CalledProcessError) as error:
         check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
-    assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
+    assert error.value.output == (
+        b'Branch names must use lowercase letters and digits separated by single hyphens.\n'
+    )
 
     # Arrange bad head reference
     check_call(['git', '-C', str(tmp_path), 'switch', '--quiet', '--create', 'good-name'])
@@ -287,7 +289,21 @@ def test_check_branch(tmp_path: Path):
     # Act on and assert bad head reference
     with raises(CalledProcessError) as error:
         check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
-    assert error.value.output == b'Slashes overcomplicate preview deployments.\n'
+    assert error.value.output == (
+        b'Branch names must use lowercase letters and digits separated by single hyphens.\n'
+    )
+
+
+@mark.parametrize(
+    'head_ref', ('Bad-name', 'bad--name', 'bad.name', 'bad_name', 'bad$(touch pwned)')
+)
+def test_check_branch_rejects_weird_head_references(tmp_path: Path, head_ref: str):
+    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('check-branch')]
+    environment = {'GITHUB_HEAD_REF': head_ref, 'PATH': environ['PATH']}
+
+    with raises(CalledProcessError):
+        check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
+    assert not (tmp_path / 'pwned').exists()
 
 
 def test_run_on_sources(tmp_path: Path):
