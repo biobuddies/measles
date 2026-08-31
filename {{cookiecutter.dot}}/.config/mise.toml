@@ -174,11 +174,7 @@ run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja 
 # mangling YAML.
 # Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
 run = '''
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-mapfile -t sources < <(git ls-files \*.j2.yaml)
-[[ -z ${sources[*]} ]] && exit 0
-djlint "${sources[@]}" \
+mise run-on-sources djlint \*.j2.yaml \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
     --profile=jinja "$@"
 '''

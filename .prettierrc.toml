@@ -1,14 +1,16 @@
 bracketSpacing = false
-plugins = [
-    'prettier-plugin-jinja-template',
-    'prettier-plugin-organize-attributes',
-    'prettier-plugin-toml',
-]
+plugins = ['prettier-plugin-organize-attributes']
 semi = false
 singleQuote = true
 jsxSingleQuote = true
 
 [[overrides]]
-files = ['*.j2.html']
+files = ['*.dj.html', '*.j2.html']
 [overrides.options]
 parser = 'jinja-template'
+plugins = ['prettier-plugin-jinja-template']
+
+[[overrides]]
+files = ['*.toml']
+[overrides.options]
+plugins = ['prettier-plugin-toml']
