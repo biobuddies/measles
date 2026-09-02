@@ -7,19 +7,22 @@ from io import BytesIO
 from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
-from re import match
+from re import match, sub
 from shlex import quote
 from subprocess import DEVNULL, STDOUT, CalledProcessError, call, check_call, check_output
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from tomllib import loads as load_toml
 from types import SimpleNamespace
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request
 from warnings import warn
 
+from django.template import Context, Engine
 from jinja2 import Environment
 from pytest import CaptureFixture, MonkeyPatch, fail, fixture, mark, raises
+from yaml import safe_load
 
 import measles
 
@@ -478,6 +481,39 @@ def test_autoformatting():
         temporary_path = Path(temporary_directory)
         for path in Path('before').iterdir():
             (temporary_path / path.name).write_bytes(path.read_bytes())
+        context = {
+            'allowedflare_message': 'Use your allowed account',
+            'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
+            'lead_line': lambda **chords: ' '.join(chords.values()),
+            'node_dependencies': {'jinja2': '*'},
+            'node_dev_dependencies': {'pytest': '*'},
+            'python_dependencies': ['django', 'jinja2'],
+        }
+        django_engine = Engine(
+            loaders=[
+                (
+                    'django.template.loaders.locmem.Loader',
+                    {'admin/login.html': '<main>{% block content %}Log in{% endblock %}</main>'},
+                )
+            ]
+        )
+        jinja_environment = Environment(autoescape=False, keep_trailing_newline=True)  # noqa: S701
+
+        def render(path: Path) -> Any:
+            rendered = (
+                django_engine.from_string(path.read_text()).render(Context(context))
+                if path.name.endswith('.dj.html')
+                else jinja_environment.from_string(path.read_text()).render(context)
+            )
+            if path.name.endswith('.html'):
+                return sub(r'>\s+|\s+<', lambda found: found[0].strip(), rendered).strip()
+            if path.name.endswith('.json'):
+                return loads(rendered)
+            if path.name.endswith('.toml'):
+                return load_toml(rendered)
+            return safe_load(rendered)
+
+        renderings = {path.name: render(path) for path in sorted(temporary_path.iterdir())}
         django_sources = quote(str(temporary_path / 'allowedflare-login.dj.html'))
         jinja_sources = ' '.join(
             quote(str(path)) for path in sorted(temporary_path.glob('*.j2.html'))
@@ -514,6 +550,7 @@ def test_autoformatting():
         assert {path.name for path in temporary_path.iterdir()} == {
             path.name for path in Path('after').iterdir()
         }
+        assert {path.name: render(path) for path in sorted(temporary_path.iterdir())} == renderings
         for path in Path('after').iterdir():
             if (temporary_path / path.name).read_text() != path.read_text():
                 warn(f'Autoformatting does not yet produce after/{path.name}', stacklevel=2)
