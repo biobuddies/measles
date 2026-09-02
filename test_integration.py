@@ -11,11 +11,40 @@ from subprocess import CalledProcessError, check_call, check_output
 from typing import Any
 
 from pytest import fixture, mark, raises
+from ruamel.yaml import YAML
 from yaml import safe_dump
 
 
+def load_toml(file_path: Path) -> Callable[..., Any]:
+    document = tomllib.loads(file_path.read_text())
+
+    def inner(path: str, expected: object = Any) -> Any:
+        value = document
+        for key in path.split('.'):
+            value = value[key]
+        if expected is not Any:
+            assert value == expected
+        return value
+
+    return inner
+
+
+def load_yaml(file_path: Path) -> Callable[..., Any]:
+    document = YAML(typ='safe').load(file_path)
+
+    def inner(path: str, expected: object = Any) -> Any:
+        value = document
+        for key in path.split('.'):
+            value = value[key]
+        if expected is not Any:
+            assert value == expected
+        return value
+
+    return inner
+
+
 @fixture
-def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]]]:
+def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., Any]]]:
     home = Path.home()
     cache_home = Path(getenv('XDG_CACHE_HOME', str(home / '.cache')))
     repository = Path(__file__).parent
@@ -50,7 +79,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
 
     def bootstrap(
         cookiecutter: dict[str, object], *, has_django: bool, **overrides: str
-    ) -> tuple[Path, dict[str, Any]]:
+    ) -> tuple[Path, Callable[..., Any]]:
         (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
         env = {
@@ -83,18 +112,17 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
             cwd=tmp_path,
             env=env,
         )
-        pyproject = tomllib.loads((tmp_path / 'pyproject.toml').read_text())
+        assert_pyproject = load_toml(tmp_path / 'pyproject.toml')
         assert (
             check_output(['mise', 'cona'], cwd=tmp_path, env=env)
             == (overrides['CONA'] + '\n').encode()
         )
-        assert pyproject['tool']['pytest']['ini_options']['norecursedirs'] == [
-            '.venv',
-            'node_modules',
-            '{{cookiecutter.dot}}',
-        ]
+        assert_pyproject(
+            'tool.pytest.ini_options.norecursedirs',
+            ['.venv', 'node_modules', '{{cookiecutter.dot}}'],
+        )
         assert (
-            'DJANGO_SETTINGS_MODULE' in pyproject['tool']['pytest']['ini_options']
+            'DJANGO_SETTINGS_MODULE' in assert_pyproject('tool.pytest.ini_options')
         ) == has_django
         assert (tmp_path / '.git' / 'hooks' / 'pre-commit').stat().st_mode & stat.S_IXUSR
         for link, target in (
@@ -104,18 +132,22 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, dict[str, Any]
         ):
             assert (tmp_path / link).is_symlink()
             assert (tmp_path / link).readlink() == Path(target)
-        return tmp_path, pyproject
+        return tmp_path, assert_pyproject
 
     return bootstrap
 
 
-def test_missing_cookiecutter_yaml(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
+def test_missing_cookiecutter_yaml(
+    readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
+):
     with raises(CalledProcessError):
         readme_bootstrap({}, has_django=False, CONA='speedrun')
 
 
-def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
-    tmp_path, pyproject = readme_bootstrap(
+def test_new_repository_not_django(
+    readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
+):
+    tmp_path, assert_pyproject = readme_bootstrap(
         {
             'default_context': {
                 'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
@@ -131,31 +163,38 @@ def test_new_repository_not_django(readme_bootstrap: Callable[..., tuple[Path, d
     )
 
     package = loads((tmp_path / 'package.json').read_text())
-    mise = tomllib.loads((tmp_path / '.config' / 'mise.toml').read_text())
-    assert pyproject['project']['description'] == (
-        'Enforce append-only Write Once, Read Many (WORM) data flows'
+    assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
+    assert_pyproject(
+        'project.description', 'Enforce append-only Write Once, Read Many (WORM) data flows'
     )
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
-    assert mise['tools']['rust'] == 'stable'
-    assert pyproject['project']['optional-dependencies']['test'] == [
-        'pytest',
-        'pytest-cov',
-        'pytest-httpserver',
-    ]
-    assert 'build' not in pyproject['project']['optional-dependencies']
-    assert 'setuptools' not in pyproject['project']['optional-dependencies']['pre-commit']
+    assert_mise('tools.rust', 'stable')
+    assert_pyproject(
+        'project.optional-dependencies.test', ['pytest', 'pytest-cov', 'pytest-httpserver']
+    )
+    assert 'build' not in assert_pyproject('project.optional-dependencies')
+    assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
-    workflow = (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
-    assert '    build-deploy:\n        needs: test' in workflow
-    assert '            - run: mise deploy' in workflow
-    assert 'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod' in workflow
-    assert '    release:' in workflow
+    assert_yaml = load_yaml(tmp_path / '.github' / 'workflows' / 'act.yaml')
+    steps = assert_yaml('jobs.build-deploy.steps')
+    assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
+    assert steps[4]['run'] == (
+        "mise deploy \"${{ github.event_name == 'release' && 'prod' "
+        '|| github.head_ref || github.ref_name }}"'
+    )
+    assert (
+        'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
+        in steps[5]['run']
+    )
+    assert_yaml('on.release.types', ['published'])
 
 
-def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]]):
-    tmp_path, pyproject = readme_bootstrap(
+def test_new_repository_yes_django(
+    readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
+):
+    tmp_path, assert_pyproject = readme_bootstrap(
         {
             'default_context': {
                 'python_dependencies': ['djangorestframework', 'requests'],
@@ -166,51 +205,56 @@ def test_new_repository_yes_django(readme_bootstrap: Callable[..., tuple[Path, d
         CONA='speedrun',
     )
 
-    assert pyproject['project']['optional-dependencies']['test'] == [
-        'pytest',
-        'pytest-cov',
-        'pytest-django',
-        'pytest-httpserver',
-    ]
-    assert 'rust' not in tomllib.loads((tmp_path / '.config' / 'mise.toml').read_text())['tools']
+    assert_pyproject(
+        'project.optional-dependencies.test',
+        ['pytest', 'pytest-cov', 'pytest-django', 'pytest-httpserver'],
+    )
+    assert 'rust' not in load_toml(tmp_path / '.config' / 'mise.toml')('tools')
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert 'def test_manage_check(monkeypatch):' in (tmp_path / 'test_boilerplate.py').read_text()
 
 
 def test_new_repository_publishes_to_pypi(
-    readme_bootstrap: Callable[..., tuple[Path, dict[str, Any]]],
+    readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
 ):
-    tmp_path, pyproject = readme_bootstrap(
+    tmp_path, assert_pyproject = readme_bootstrap(
         {'default_context': {'domain_name': 'package.example', 'publish_to_pypi': True}},
         has_django=False,
         CONA='package',
     )
 
-    assert pyproject['build-system']['backend-path'] == ['']
-    assert pyproject['build-system']['build-backend'] == 'pypi_compatible_build'
-    assert pyproject['project']['optional-dependencies']['build'] == ['setuptools']
-    assert pyproject['project']['readme'] == 'README.md'
-    assert 'setuptools' not in pyproject['project']['optional-dependencies']['pre-commit']
-    assert pyproject['tool']['setuptools']['py-modules'] == ['package']
+    assert_pyproject('build-system.backend-path', [''])
+    assert_pyproject('build-system.build-backend', 'pypi_compatible_build')
+    assert_pyproject('project.optional-dependencies.build', ['setuptools'])
+    assert_pyproject('project.readme', 'README.md')
+    assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
+    assert_pyproject('tool.setuptools.py-modules', ['package'])
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
 
-    workflow = (tmp_path / '.github' / 'workflows' / 'act.yaml').read_text()
-    assert '    build-deploy:\n        needs: test' in workflow
-    assert "${{ github.event_name == 'release'\n                && 'prod'" in workflow
-    assert "&& 'package.example'" in workflow
-    assert "|| github.ref_name == 'main')" in workflow
-    assert "format('{0}.package.example'," in workflow
-    assert '            - run: mise build' in workflow
-    assert "            - if: github.event_name == 'release'" in workflow
-    assert '              uses: pypa/gh-action-pypi-publish@release/v1' in workflow
-    assert 'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod' in workflow
-    assert '    release:' in workflow
-    assert '            - run: mise deploy' not in workflow
+    assert_yaml = load_yaml(tmp_path / '.github' / 'workflows' / 'act.yaml')
+    environment = assert_yaml('jobs.build-deploy.environment')
+    steps = assert_yaml('jobs.build-deploy.steps')
+    assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
+    assert "github.event_name == 'release'" in environment['name']
+    assert "&& 'package.example'" in environment['url']
+    assert "|| github.ref_name == 'main')" in environment['url']
+    assert "format('{0}.package.example'," in environment['url']
+    assert steps[3]['run'] == 'mise build'
+    assert steps[4] == {
+        'if': "github.event_name == 'release'",
+        'uses': 'pypa/gh-action-pypi-publish@release/v1',
+    }
+    assert (
+        'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
+        in steps[5]['run']
+    )
+    assert_yaml('on.release.types', ['published'])
+    assert all(not step.get('run', '').startswith('mise deploy') for step in steps)
 
-    mise = (tmp_path / '.config' / 'mise.toml').read_text()
-    assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in mise
-    assert 'uvx twine check --strict dist/*' in mise
+    assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
+    assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in assert_mise('tasks.build.run')
+    assert 'uvx twine check --strict dist/*' in assert_mise('tasks.build.run')
 
 
 @mark.parametrize(
@@ -249,7 +293,8 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
             cwd=downstream,
             env=env,
         )
-    assert 'languages' in cookiecutter_yaml.read_text()
+    assert_yaml = load_yaml(cookiecutter_yaml)
+    assert_yaml('default_context.languages')
     assert check_output(['mise', 'cona'], cwd=downstream, env=env) == f'{codename}\n'.encode()
     assert (
         check_output(
@@ -269,12 +314,12 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     # In case mise cookiecutter updated the postinstall hook in .config/mise.toml
     check_call(['mise', 'install'], cwd=downstream, env=env)
 
-    pyproject = tomllib.loads((downstream / 'pyproject.toml').read_text())
-    pytest_options = pyproject['tool']['pytest']['ini_options']
+    assert_pyproject = load_toml(downstream / 'pyproject.toml')
+    pytest_options = assert_pyproject('tool.pytest.ini_options')
     assert (downstream / '.biobuddies' / 'ruff.toml').exists()
     assert (downstream / '.gitignore').exists()
-    assert dependency in pyproject['project']['dependencies']
-    assert pyproject['project']['optional-dependencies']['test'] == [
+    assert dependency in assert_pyproject('project.dependencies')
+    assert assert_pyproject('project.optional-dependencies.test') == [
         'pytest',
         'pytest-cov',
         *(['pytest-django'] if has_django else []),
