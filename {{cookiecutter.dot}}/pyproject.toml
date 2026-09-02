@@ -38,6 +38,9 @@ dependencies = [
     ],
     'test': python_test_dependencies,
 } -%}
+{% if has_django -%}
+{% set _ = base['pre-commit'].append('gunicorn') -%}
+{% endif -%}
 {% if cookiecutter.publish_to_pypi -%}
 {% set _ = base.update({'build': ['setuptools']}) -%}
 {% endif -%}

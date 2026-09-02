@@ -174,6 +174,8 @@ def test_new_repository_not_django(
         'project.optional-dependencies.test', ['pytest', 'pytest-cov', 'pytest-httpserver']
     )
     assert 'build' not in assert_pyproject('project.optional-dependencies')
+    assert 'check-django' not in assert_mise('tasks')
+    assert 'gunicorn' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
@@ -209,7 +211,15 @@ def test_new_repository_yes_django(
         'project.optional-dependencies.test',
         ['pytest', 'pytest-cov', 'pytest-django', 'pytest-httpserver'],
     )
-    assert 'rust' not in load_toml(tmp_path / '.config' / 'mise.toml')('tools')
+    assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
+    assert assert_mise('tasks.check-django.run').splitlines() == [
+        'python -m manage check',
+        'python -m manage makemigrations --check',
+        'python -m gunicorn config.wsgi --check-config',
+    ]
+    assert 'check-django' in assert_mise('tasks.parallel-pre-commit.depends')
+    assert 'rust' not in assert_mise('tools')
+    assert 'gunicorn' in assert_pyproject('project.optional-dependencies.pre-commit')
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert 'def test_manage_check(monkeypatch):' in (tmp_path / 'test_boilerplate.py').read_text()
 

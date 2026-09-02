@@ -216,6 +216,15 @@ echo 'Branch names must use lowercase letters and digits separated by single hyp
 exit 1
 """
 
+{% if has_django -%}
+[tasks.check-django]
+run = '''
+python -m manage check
+python -m manage makemigrations --check
+python -m gunicorn config.wsgi --check-config
+'''
+
+{% endif -%}
 [tasks.no-field-separators]
 run = """
 #!/usr/bin/env bash
@@ -410,6 +419,9 @@ depends = [
     # line keepers
     'actionlint',
     'check-branch',
+{% if has_django -%}
+    'check-django',
+{% endif -%}
     'hadolint',
     'mailmap',
     'no-field-separators',
