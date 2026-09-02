@@ -167,6 +167,7 @@ def test_new_repository_not_django(
     assert_pyproject(
         'project.description', 'Enforce append-only Write Once, Read Many (WORM) data flows'
     )
+    assert_pyproject('project.version', '0')
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
     assert_mise('tools.rust', 'stable')
@@ -218,17 +219,30 @@ def test_new_repository_publishes_to_pypi(
     readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
 ):
     tmp_path, assert_pyproject = readme_bootstrap(
-        {'default_context': {'domain_name': 'package.example', 'publish_to_pypi': True}},
+        {
+            'default_context': {
+                'classifiers': ['Topic :: System :: Systems Administration'],
+                'domain_name': 'package.example',
+                'license': 'MPL-2.0',
+                'publish_to_pypi': True,
+            }
+        },
         has_django=False,
         CONA='package',
     )
 
     assert_pyproject('build-system.backend-path', [''])
     assert_pyproject('build-system.build-backend', 'pypi_compatible_build')
+    assert_pyproject('build-system.requires', ['setuptools', 'setuptools_scm'])
+    assert_pyproject('project.classifiers', ['Topic :: System :: Systems Administration'])
+    assert_pyproject('project.dynamic', ['version'])
+    assert_pyproject('project.license', 'MPL-2.0')
     assert_pyproject('project.optional-dependencies.build', ['setuptools'])
     assert_pyproject('project.readme', 'README.md')
+    assert_pyproject('project.urls.source', 'https://github.com/biobuddies/package')
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert_pyproject('tool.setuptools.py-modules', ['package'])
+    assert_pyproject('tool.setuptools_scm', {})
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
 
