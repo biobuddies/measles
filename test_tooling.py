@@ -583,15 +583,29 @@ def test_post_gen_project_bash(tmp_path: Path):
     )
     fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IEXEC)
     (tmp_path / 'run-post-gen.bash').write_text(hook)
-    assert check_output(
-        ['/usr/bin/env', 'bash', 'run-post-gen.bash'],
-        cwd=tmp_path,
-        env={'PATH': f'{tmp_path}:{environ["PATH"]}'},
-        stderr=STDOUT,
-    ).decode().splitlines()[0] == (
-        '+ : CONA=speedrun ORGN=biobuddies '
-        'template=hooks/post_gen_project.bash via=run-post-gen.bash'
+    log_lines = (
+        check_output(
+            ['/usr/bin/env', 'bash', 'run-post-gen.bash'],
+            cwd=tmp_path,
+            env={'PATH': f'{tmp_path}:{environ["PATH"]}'},
+            stderr=STDOUT,
+        )
+        .decode()
+        .splitlines()
     )
+    assert log_lines == [
+        '+ : CONA=speedrun ORGN=biobuddies '
+        'template=hooks/post_gen_project.bash via=run-post-gen.bash',
+        '+ [[ -f manage.py ]]',
+        '+ uv run --with django python -m django startproject config .',
+        "+ sed -i.bak '/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }' "
+        'config/settings.py',
+        '+ rm config/settings.py.bak',
+        '+ ln -sf CONTRIBUTING.md AGENTS.md',
+        '+ ln -sf CONTRIBUTING.md CLAUDE.md',
+        '+ rm -f .github/workflows/pyproject.toml',
+        '+ ln -sf ../CONTRIBUTING.md .github/copilot-instructions.md',
+    ]
     assert (tmp_path / 'manage.py').exists()
     assert (tmp_path / 'config' / 'settings.py').read_text() == (
         "SECRET_KEY = 'django-insecure-test-key'  # noqa: typos\n"
