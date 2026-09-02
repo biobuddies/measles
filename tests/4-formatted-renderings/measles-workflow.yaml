@@ -1,0 +1,6 @@
+steps:
+    
+    - run: >-
+          git clone --branch main https://github.com/biobuddies/mublog.git
+          $HOME/code/mublog
+    

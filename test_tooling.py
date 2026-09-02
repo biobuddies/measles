@@ -8,15 +8,13 @@ from json import dumps, loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from shlex import quote
-from subprocess import DEVNULL, STDOUT, CalledProcessError, call, check_call, check_output
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request
-from warnings import warn
 
 from jinja2 import Environment
 from pytest import CaptureFixture, MonkeyPatch, fail, fixture, mark, raises
@@ -471,52 +469,6 @@ def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, capsys: Captu
         'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
         'HTTP 429 Too Many Requests\n'
     )
-
-
-def test_autoformatting():
-    with TemporaryDirectory(dir='.') as temporary_directory, TemporaryDirectory() as mock_directory:
-        temporary_path = Path(temporary_directory)
-        for path in Path('before').iterdir():
-            (temporary_path / path.name).write_bytes(path.read_bytes())
-        django_sources = quote(str(temporary_path / 'allowedflare-login.dj.html'))
-        jinja_sources = ' '.join(
-            quote(str(path)) for path in sorted(temporary_path.glob('*.j2.html'))
-        )
-        jinja_yaml_sources = quote(str(temporary_path / 'measles-workflow.j2.yaml'))
-        prettier_sources = ' '.join(
-            quote(str(path))
-            for path in sorted(temporary_path.iterdir())
-            if not path.name.endswith('.j2.yaml')
-        )
-        template_sources = ' '.join(quote(str(path)) for path in sorted(temporary_path.iterdir()))
-        write_mock_executable(
-            Path(mock_directory) / 'git',
-            f"""
-            case " $* " in
-            *' *.css '*) printf '%s\\n' {prettier_sources} ;;
-            *' *.dj.html '*) printf '%s\\n' {django_sources} ;;
-            *' *.j2.html '*) printf '%s\\n' {jinja_sources} ;;
-            *' *.j2.yaml '*) printf '%s\\n' {jinja_yaml_sources} ;;
-            *' -- . '*) printf '%s\\n' {template_sources} ;;
-            *' diff --color=always --exit-code '*) exit ;;
-            *' grep '*) exit 1 ;;
-            *) exec /usr/bin/git "$@" ;;
-            esac
-            """,
-        )
-        environment = {
-            **environ,
-            'ENVI': 'test',
-            'GITHUB_HEAD_REF': 'formatter-fixtures',
-            'PATH': f'{mock_directory}:{environ["PATH"]}',
-        }
-        call(['mise', 'pre-commit'], cwd=temporary_path, env=environment)
-        assert {path.name for path in temporary_path.iterdir()} == {
-            path.name for path in Path('after').iterdir()
-        }
-        for path in Path('after').iterdir():
-            if (temporary_path / path.name).read_text() != path.read_text():
-                warn(f'Autoformatting does not yet produce after/{path.name}', stacklevel=2)
 
 
 def test_typos():

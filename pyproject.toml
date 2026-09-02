@@ -35,6 +35,7 @@ pre-commit = [
     'yamllint',
 ]
 test = [
+    'django',
     'pytest',
     'pytest-cov',
     'pytest-httpserver',
