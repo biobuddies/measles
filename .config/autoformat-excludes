@@ -1,1 +1,3 @@
-^tests/[1-4]-[^/]*/
+^tests/1-unformatted-templates/
+^tests/2-formatted-templates/
+^tests/3-unformatted-renderings/

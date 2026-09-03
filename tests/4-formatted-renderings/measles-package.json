@@ -1,7 +1,7 @@
 {
     "dependencies": {
         "jinja2": "*"
-        },
+    },
     "// prettier": ">=3.8.2; 3.8.1 crashes with `TypeError: Cannot read properties of undefined (reading 'findPair')`",
     "devDependencies": {
         "prettier": ">=3.8.2",

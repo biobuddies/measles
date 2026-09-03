@@ -1,26 +1,23 @@
 """Formatting and rendering fixture tests."""
 
 import stat
+from collections.abc import Iterable
 from os import environ
 from pathlib import Path
 from shlex import quote
-from subprocess import call
+from subprocess import call, check_call
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from warnings import warn
 
 from django.template import Context, Engine
 from jinja2 import Environment, FileSystemLoader
-from pytest import mark
 
 FIXTURES = Path(__file__).parent
-TEMPLATE_NAMES = (
-    'allowedflare-login.dj.html',
-    'measles-package.j2.json',
-    'measles-pyproject.j2.toml',
-    'measles-workflow.j2.yaml',
-    'mublog-lead-line.j2.html',
+TEMPLATE_NAMES = tuple(
+    path.name for path in sorted((FIXTURES / '1-unformatted-templates').iterdir())
 )
+RENDERING_NAMES = tuple(name.replace('.dj.', '.').replace('.j2.', '.') for name in TEMPLATE_NAMES)
 CONTEXT = {
     'allowedflare_message': 'Use your allowed account',
     'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
@@ -38,67 +35,83 @@ def write_mock_executable(path: Path, body: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
 
 
+def quote_paths(directory: Path, names: Iterable[str]) -> str:
+    return ' '.join(quote(str(directory / name)) for name in names)
+
+
 def render(template_directory: Path, name: str) -> str:
     if name.endswith('.dj.html'):
-        engine = Engine(
-            dirs=[template_directory, FIXTURES],
-            loaders=['django.template.loaders.filesystem.Loader'],
+        return (
+            Engine(dirs=[template_directory], loaders=['django.template.loaders.filesystem.Loader'])
+            .get_template(name)
+            .render(Context(CONTEXT))
         )
-        return engine.get_template(name).render(Context(CONTEXT))
-    environment = Environment(
-        autoescape=False,  # noqa: S701
-        keep_trailing_newline=True,
-        loader=FileSystemLoader(template_directory),
+    return (
+        Environment(
+            autoescape=False,  # noqa: S701
+            keep_trailing_newline=True,
+            loader=FileSystemLoader(template_directory),
+        )
+        .get_template(name)
+        .render(CONTEXT)
     )
-    return environment.get_template(name).render(CONTEXT)
 
 
-@mark.parametrize(
-    ('template_directory_name', 'rendering_directory_name'),
-    (
-        ('1-unformatted-templates', '3-unformatted-renderings'),
-        ('2-formatted-templates', '4-formatted-renderings'),
-    ),
-)
-def test_rendering(template_directory_name: str, rendering_directory_name: str):
-    template_directory = FIXTURES / template_directory_name
-    rendering_directory = FIXTURES / rendering_directory_name
-    for name in TEMPLATE_NAMES:
-        rendering_name = name.replace('.j2.', '.', 1)
+def test_rendering():
+    for template_name, rendering_name in zip(TEMPLATE_NAMES, RENDERING_NAMES, strict=True):
         assert (
-            render(template_directory, name) == (rendering_directory / rendering_name).read_text()
+            render(FIXTURES / '2-formatted-templates', template_name)
+            == (FIXTURES / '3-unformatted-renderings' / rendering_name).read_text()
         )
 
 
-def test_formatting():
-    source_directory = FIXTURES / '1-unformatted-templates'
+def test_formatting_renderings():
+    with TemporaryDirectory(dir='.') as temporary_directory:
+        temporary_path = Path(temporary_directory)
+        rendering_paths = [temporary_path / name for name in RENDERING_NAMES]
+        for rendering_path in rendering_paths:
+            rendering_path.write_bytes(
+                (FIXTURES / '3-unformatted-renderings' / rendering_path.name).read_bytes()
+            )
+        check_call(['prettier', *rendering_paths, '--log-level=silent', '--write'])
+        for rendering_path in rendering_paths:
+            assert (
+                rendering_path.read_text()
+                == (FIXTURES / '4-formatted-renderings' / rendering_path.name).read_text()
+            )
+
+
+def test_formatting_templates():
     expected_directory = FIXTURES / '2-formatted-templates'
     with TemporaryDirectory(dir='.') as temporary_directory, TemporaryDirectory() as mock_directory:
         temporary_path = Path(temporary_directory)
         for name in TEMPLATE_NAMES:
-            (temporary_path / name).write_bytes((source_directory / name).read_bytes())
-        django_sources = quote(str(temporary_path / 'allowedflare-login.dj.html'))
-        jinja_sources = ' '.join(
-            quote(str(temporary_path / name))
-            for name in TEMPLATE_NAMES
-            if name.endswith('.j2.html')
-        )
-        prettier_sources = ' '.join(
-            quote(str(temporary_path / name))
-            for name in TEMPLATE_NAMES
-            if not name.endswith('.j2.yaml')
-        )
-        template_sources = ' '.join(quote(str(temporary_path / name)) for name in TEMPLATE_NAMES)
+            (temporary_path / name).write_bytes(
+                (FIXTURES / '1-unformatted-templates' / name).read_bytes()
+            )
         write_mock_executable(
             Path(mock_directory) / 'git',
             f"""
             case " $* " in
-            *' *.css '*) printf '%s\\n' {prettier_sources} ;;
-            *' *.dj.html '*) printf '%s\\n' {django_sources} ;;
-            *' *.j2.html '*) printf '%s\\n' {jinja_sources} ;;
+            *' *.css '*) printf '%s\\n' \
+                {
+                quote_paths(
+                    temporary_path,
+                    (name for name in TEMPLATE_NAMES if not name.endswith('.j2.yaml')),
+                )
+            } ;;
+            *' *.dj.html '*) printf '%s\\n' \
+                {quote(str(temporary_path / 'allowedflare-login.dj.html'))} ;;
+            *' *.j2.html '*) printf '%s\\n' \
+                {
+                quote_paths(
+                    temporary_path, (name for name in TEMPLATE_NAMES if name.endswith('.j2.html'))
+                )
+            } ;;
             *' *.j2.yaml '*) printf '%s\\n' \
                 {quote(str(temporary_path / 'measles-workflow.j2.yaml'))} ;;
-            *' -- . '*) printf '%s\\n' {template_sources} ;;
+            *' -- . '*) printf '%s\\n' \
+                {quote_paths(temporary_path, TEMPLATE_NAMES)} ;;
             *' diff --color=always --exit-code '*) exit ;;
             *' grep '*) exit 1 ;;
             *) exec /usr/bin/git "$@" ;;
