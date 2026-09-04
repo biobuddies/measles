@@ -1,1 +1,1 @@
-^(after|before)/
+^tests/[a-z-]+/[13]-unformatted-[.a-z0-9-]+$

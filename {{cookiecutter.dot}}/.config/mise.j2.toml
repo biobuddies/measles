@@ -232,9 +232,10 @@ exit 1
 """
 
 [tasks.prettier-write]
-# Markdown skipped to conserve vertical space; .j2.yaml routed to djlint-jinja-yaml
+# Skip Markdown to conserve vertical space.
+# The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
 run = '''
-mise run-on-sources prettier "*.{css,html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.yaml" \
+mise run-on-sources prettier "*.{css,html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.json :!*.j2.yaml" \
     --write "$@"
 '''
 
@@ -390,7 +391,8 @@ run = 'validate-pyproject pyproject.toml "$@"'
 run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json databaseId --jq ".[0].databaseId" | xargs -I {} mise x -- gh run watch {}'
 
 [tasks.yamllint]
-run = 'mise run-on-sources yamllint \*.yaml "$@"'
+# Jinja tags are invalid YAML; djlint handles Jinja YAML.
+run = 'mise run-on-sources yamllint "*.yaml :!*.j2.yaml" "$@"'
 
 # Task collections
 [tasks.parallel-pre-commit]

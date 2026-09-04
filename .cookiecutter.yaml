@@ -7,4 +7,5 @@ default_context:
     publish_to_pypi: true
     python_optional_dependencies:
         test:
+            - django
             - pytest-httpserver
