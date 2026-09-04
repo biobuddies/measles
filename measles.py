@@ -8,12 +8,16 @@ from pathlib import Path
 from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
+from typing import TYPE_CHECKING, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from jinja2 import Environment
+from jinja2 import Environment, Template
 from jinja2.ext import Extension
 from yaml import safe_load
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def cona() -> str:
@@ -110,6 +114,15 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        # Cookiecutter renders output paths through from_string (generate.py) but also multi-line
+        # hook bodies (hooks.py); strip the .j2 marker from single-line paths only, so
+        # pyproject.j2.toml renders to pyproject.toml while linters treat sources as Jinja
+        render = environment.from_string
+
+        def strip_j2(source: str) -> Template:
+            return render(source.replace('.j2', '') if '\n' not in source else source)
+
+        environment.from_string = cast('Callable[..., Template]', strip_j2)
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'

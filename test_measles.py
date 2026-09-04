@@ -4,6 +4,7 @@ from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
+from jinja2 import Environment
 from pytest import MonkeyPatch, fixture, raises
 
 import measles
@@ -169,3 +170,16 @@ def test_orgn_rejects_bad_characters(
 
     with raises(ValueError, match=r"^Unexpected ORGN characters: 'bad name'$"):
         measles.orgn()
+
+
+def test_from_string_strips_j2_from_paths(
+    monkeypatch: MonkeyPatch, tmp_path: Path, precise_environment: Callable[..., None]
+):
+    (tmp_path / '.cookiecutter.yaml').write_text('default_context: {}\n')
+    monkeypatch.chdir(tmp_path)
+    precise_environment(CONA='wriggle', ORGN='biobuddies', PWD=str(tmp_path))
+    environment = Environment(autoescape=True, extensions=[measles.Measles])
+
+    assert environment.from_string('sub/pyproject.j2.toml').render() == 'sub/pyproject.toml'
+    # Multi-line hook bodies keep any .j2 they mention
+    assert environment.from_string('name: {{ x }}\n.j2 stays').render(x='v') == 'name: v\n.j2 stays'
