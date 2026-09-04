@@ -1,2 +1,1 @@
-^tests/1-unformatted-templates/
-^tests/3-unformatted-renderings/
+^tests/[a-z-]+/[13]-unformatted-[.a-z0-9-]+$
