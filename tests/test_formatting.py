@@ -97,7 +97,11 @@ def test_formatting_templates():
                 {
                 quote_paths(
                     temporary_path,
-                    (name for name in TEMPLATE_NAMES if not name.endswith('.j2.yaml')),
+                    (
+                        name
+                        for name in TEMPLATE_NAMES
+                        if not name.endswith(('.j2.json', '.j2.yaml'))
+                    ),
                 )
             } ;;
             *' *.dj.html '*) printf '%s\\n' \

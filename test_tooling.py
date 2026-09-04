@@ -175,7 +175,7 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, event: str, fqdn: str):
         },
     )
     template = (
-        (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
+        (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.j2.toml')
         .read_text()
         .split('[tasks.fqdn]\n', 1)[1]
         .split('[tasks.giha]')[0]
@@ -488,13 +488,13 @@ def test_python_version():
     context = {'CONA': 'speedrun', 'cookiecutter': SimpleNamespace(python_version='3.13')}
     environment = Environment(autoescape=False)  # noqa: S701
     assert "requires-python = '>=3.13'" in environment.from_string(
-        (template / 'pyproject.toml').read_text().split('dependencies = [', 1)[0]
+        (template / 'pyproject.j2.toml').read_text().split('dependencies = [', 1)[0]
     ).render(context)
     assert "target-version = 'py313'" in environment.from_string(
-        (template / '.biobuddies' / 'ruff.toml').read_text()
+        (template / '.biobuddies' / 'ruff.j2.toml').read_text()
     ).render(context)
     assert '--python-version 3.13' in environment.from_string(
-        (template / '.config' / 'mise.toml').read_text()
+        (template / '.config' / 'mise.j2.toml').read_text()
     ).render({**context, 'cookiecutter': SimpleNamespace(languages='', python_version='3.13')})
 
 
@@ -507,7 +507,7 @@ def test_rust_tool(languages: str, has_rust: bool):
         "rust = 'stable'"
         in Environment(autoescape=False)  # noqa: S701
         .from_string(
-            (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.toml')
+            (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.j2.toml')
             .read_text()
             .split('[tools]\n', 1)[1]
         )

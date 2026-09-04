@@ -110,6 +110,16 @@ class Measles(Extension):
 
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
+        # Cookiecutter renders output paths through from_string (generate.py) but also multi-line
+        # hook bodies (hooks.py); strip the .j2 marker from single-line paths only, so
+        # pyproject.j2.toml renders to pyproject.toml while linters treat sources as Jinja
+        render = environment.from_string
+        environment.from_string = lambda source, *arguments, **keywords: render(
+            # pyrefly: ignore[missing-attribute,not-iterable]
+            source.replace('.j2', '') if '\n' not in source else source,
+            *arguments,
+            **keywords,
+        )
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'

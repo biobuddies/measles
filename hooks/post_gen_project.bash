@@ -13,8 +13,6 @@ rm config/settings.py.bak
 ln -sf CONTRIBUTING.md AGENTS.md
 # https://code.claude.com/docs/en/best-practices#write-an-effective-claude-md
 ln -sf CONTRIBUTING.md CLAUDE.md
-# TODO test removal
-rm -f .github/workflows/pyproject.toml
 ln -sf ../CONTRIBUTING.md .github/copilot-instructions.md
 # Supporting multiple files:
 # https://code.visualstudio.com/docs/copilot/customization/custom-instructions
