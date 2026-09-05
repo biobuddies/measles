@@ -1,14 +1,14 @@
 [build-system]
 backend-path = ['']
 build-backend = 'pypi_compatible_build'
-requires = ['setuptools']
+requires = ['setuptools', 'setuptools_scm']
 
 [project]
-name = 'measles'
 description = 'Continuous cookiecutter featuring mise'
+name = 'measles'
 readme = 'README.md'
 requires-python = '>=3.12'
-version = '0'
+dynamic = ['version']
 
 dependencies = [
     
@@ -41,11 +41,16 @@ test = [
     'pytest-httpserver',
 ]
 
+[project.urls]
+source = 'https://github.com/biobuddies/measles'
+
 [tool.pytest.ini_options]
 norecursedirs = ['.venv', 'node_modules', '{{cookiecutter.dot}}']
 
 [tool.setuptools]
 py-modules = ['measles']
+
+[tool.setuptools_scm]
 
 [tool.basedpyright]
 extends = '.biobuddies/basedpyright.toml'

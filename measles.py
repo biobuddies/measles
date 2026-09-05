@@ -129,6 +129,7 @@ class Measles(Extension):
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
+            'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
             'python_dependencies': default_context.get('python_dependencies', []),
             'node_dependencies': default_context['node_dependencies'],

@@ -2,15 +2,25 @@
 [build-system]
 backend-path = ['']
 build-backend = 'pypi_compatible_build'
-requires = ['setuptools']
+requires = ['setuptools', 'setuptools_scm']
 
 {% endif -%}
 [project]
-name = '{{ CONA }}'
+{% if classifiers -%}
+classifiers = [
+    {% for classifier in classifiers|sort %}
+    '{{ classifier }}',
+    {% endfor %}
+]
+{% endif -%}
 description = '{{ cookiecutter.description }}'
+{% if cookiecutter.license -%}
+license = '{{ cookiecutter.license }}'
+{% endif -%}
+name = '{{ CONA }}'
 readme = 'README.md'
 requires-python = '>={{ cookiecutter.python_version }}'
-version = '0'
+{{ "dynamic = ['version']" if cookiecutter.publish_to_pypi else "version = '0'" }}
 
 dependencies = [
     {% for dependency in python_dependencies|sort %}
@@ -50,6 +60,9 @@ dependencies = [
 {{ "    '" ~ (dependencies|join("',\n    '")) ~ "'," if dependencies else '' }}
 ]
 {% endfor %}
+[project.urls]
+source = 'https://github.com/{{ ORGN }}/{{ CONA }}'
+
 [tool.pytest.ini_options]
 {{ "DJANGO_SETTINGS_MODULE = 'config.settings'\n" if has_django else '' -}}
 norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
@@ -57,6 +70,8 @@ norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
 {% if cookiecutter.publish_to_pypi -%}
 [tool.setuptools]
 py-modules = ['{{ CONA|replace('-', '_') }}']
+
+[tool.setuptools_scm]
 
 {% endif -%}
 [tool.basedpyright]
