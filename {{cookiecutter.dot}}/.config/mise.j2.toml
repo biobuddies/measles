@@ -100,14 +100,13 @@ tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
     status=$?
     [[ $status == 128 || $status == 129 ]]
 }
-if [[ $tag ]]; then tabr="$tag"
-elif [[ ${GITHUB_HEAD_REF-} ]]; then tabr="$GITHUB_HEAD_REF"
-elif [[ ${GITHUB_REF_NAME-} ]]; then tabr="$GITHUB_REF_NAME"
+if [[ $tag ]]; then echo "$tag"
+elif [[ ${GITHUB_HEAD_REF-} ]]; then echo "$GITHUB_HEAD_REF"
+elif [[ ${GITHUB_REF_NAME-} ]]; then echo "$GITHUB_REF_NAME"
 else
-    tabr=$(git describe --all --dirty --exact-match 2>/dev/null \
-        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p') || [[ $? -eq 128 ]]
+    git describe --all --dirty --exact-match 2>/dev/null \
+        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p' || [[ $? -eq 128 ]]
 fi
-if [[ $tabr ]]; then echo "$tabr"; fi
 '''
 
 [tasks.tinit]
