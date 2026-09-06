@@ -84,6 +84,32 @@ def test_tabr(git_describe: str, tabr: str):
     assert output == tabr
 
 
+def test_tabr_prefers_latest_tag(tmp_path: Path):
+    check_call(['git', 'init'], cwd=tmp_path)
+    check_call(
+        [
+            'git',
+            '-c',
+            'user.email=test@example.com',
+            '-c',
+            'user.name=Test',
+            'commit',
+            '--allow-empty',
+            '--message=Test',
+        ],
+        cwd=tmp_path,
+    )
+    for tag in ('v2026.34.99', 'v2026.35.01', 'v2026.35.10', 'v2026.35.02'):
+        check_call(['git', 'tag', tag], cwd=tmp_path)
+    task = verbatim_mise_task('tabr')
+    output = check_output(
+        ['/usr/bin/env', 'bash', '-c', task],
+        cwd=tmp_path,
+        env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
+    )
+    assert output == b'v2026.35.10\n'
+
+
 @mark.parametrize(
     'case',
     (

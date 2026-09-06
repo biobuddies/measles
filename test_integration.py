@@ -151,6 +151,7 @@ def test_new_repository_not_django(
         {
             'default_context': {
                 'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
+                'github_actions_env': {'EXAMPLE_CONFIGURATION': 'customized'},
                 'languages': 'Node,Python,Rust',
                 'node_dependencies': {'react': '^19.0.0'},
                 'node_dev_dependencies': {'vite': '^7.0.0'},
@@ -178,6 +179,7 @@ def test_new_repository_not_django(
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
     assert_yaml = load_yaml(tmp_path / '.github' / 'workflows' / 'act.yaml')
+    assert_yaml('env.EXAMPLE_CONFIGURATION', 'customized')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
     assert steps[4]['run'] == (
@@ -232,7 +234,9 @@ def test_new_repository_publishes_to_pypi(
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
 
-    assert_yaml = load_yaml(tmp_path / '.github' / 'workflows' / 'act.yaml')
+    workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
+    assert_yaml = load_yaml(workflow_path)
+    assert 'env' not in YAML(typ='safe').load(workflow_path)
     environment = assert_yaml('jobs.build-deploy.environment')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
