@@ -4,6 +4,7 @@
     "description": "",
     "domain_name": "",
     "dot": ".",
+    "github_actions_env": {},
     "languages": "Node,Python",
     "peer_checkouts": {},
     "publish_to_pypi": false,

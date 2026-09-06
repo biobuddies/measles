@@ -1,5 +1,15 @@
 default_context:
     description: Continuous cookiecutter featuring mise
+    github_actions_env:
+        ALLOWEDFLARE_EMAIL: person@emailprovider.example
+        ALLOWEDFLARE_PRIVATE_DOMAIN: organization.example
+        CLOUDFLARE_ACCOUNT_ID: 0123456789abcdef0123456789abcdef00
+        CLOUDFLARE_ZONE_ID: 0123456789abcdef0123456789abcdef01
+        # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        GITHUB_TOKEN: ${{ github.token }}
+        INSH_TF: tofu
+        PATH: .venv/bin:/home/runner/.local/bin:/home/runner/.local/share/mise/shims:/usr/bin:/bin
     languages: Node,Python
     peer_checkouts:
         biobuddies/speedrun: main
