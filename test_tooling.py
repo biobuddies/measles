@@ -101,9 +101,7 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
     )
     for tag in ('v2026.34.99', 'v2026.35.01', 'v2026.35.10', 'v2026.35.02'):
         check_call(['git', 'tag', tag], cwd=tmp_path)
-    task = loads(check_output(['mise', 'tasks', 'info', 'tabr', '--json']))['run'][0].replace(
-        '\\n', '\n'
-    )
+    task = verbatim_mise_task('tabr')
     output = check_output(
         ['/usr/bin/env', 'bash', '-c', task],
         cwd=tmp_path,
