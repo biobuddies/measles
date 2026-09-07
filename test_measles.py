@@ -4,28 +4,11 @@ from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
-from pytest import MonkeyPatch, fixture, mark, raises
+from pytest import MonkeyPatch, fixture, raises
 
 import measles
 
 MISSING = object()
-
-
-@mark.parametrize(
-    ('value', 'comments', 'rendered'),
-    (
-        ('customized', None, 'customized'),
-        ('true', None, "'true'"),
-        (True, None, 'true'),
-        (
-            {'FIRST': 'one', 'SECOND': 'two'},
-            {'SECOND': ('# Explain two',)},
-            'FIRST: one\n# Explain two\nSECOND: two',
-        ),
-    ),
-)
-def test_to_yaml(value: object, comments: dict[str, tuple[str, ...]] | None, rendered: str):
-    assert measles.to_yaml(value, comments) == rendered
 
 
 @fixture

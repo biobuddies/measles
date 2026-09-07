@@ -106,40 +106,6 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
-def to_yaml(value: object, comments: dict[str, tuple[str, ...]] | None = None) -> str:
-    """Render a value as YAML."""
-    rendered = safe_dump(value, default_flow_style=False).removesuffix('...\n').strip()
-    return '\n'.join(
-        output
-        for line in rendered.splitlines()
-        for output in (*(comments or {}).get(line.partition(':')[0], ()), line)
-    )
-
-
-class GitHubActionsEnv:
-    """Render the GitHub Actions environment after Jinja initializes."""
-
-    def __init__(
-        self,
-        environment: Environment,
-        values: dict[str, object],
-        comments: dict[str, tuple[str, ...]],
-    ) -> None:
-        self.comments = comments
-        self.environment = environment
-        self.values = values
-
-    def __str__(self) -> str:
-        """Render the environment."""
-        values = {
-            name: self.environment.from_string(value).render(cookiecutter=self.values)
-            if isinstance(value, str)
-            else value
-            for name, value in self.values.items()
-        }
-        return f'env:\n{indent(to_yaml(values, self.comments), "    ")}\n' if values else ''
-
-
 class Measles(Extension):
     """Set globals."""
 
@@ -160,7 +126,7 @@ class Measles(Extension):
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
         yaml_source = yaml_path.read_text()
         default_context = defaultdict(dict, safe_load(yaml_source)['default_context'])
-        github_actions_env_comments = {
+        comments = {
             name: tuple(line.lstrip() for line in match.group('comments').splitlines())
             for name in default_context['github_actions_env']
             if (
@@ -169,15 +135,33 @@ class Measles(Extension):
                 )
             )
         }
+
+        def github_actions_env() -> str:
+            """Render the GitHub Actions environment after Jinja initializes."""
+            raw_values = default_context['github_actions_env']
+            if not raw_values:
+                return ''
+            values = {
+                name: environment.from_string(value).render(cookiecutter=default_context)
+                if isinstance(value, str)
+                else value
+                for name, value in raw_values.items()
+            }
+            rendered = safe_dump(values, default_flow_style=False).strip()
+            rendered = '\n'.join(
+                output
+                for line in rendered.splitlines()
+                for output in (*comments.get(line.partition(':')[0], ()), line)
+            )
+            return f'env:\n{indent(rendered, "    ")}\n'
+
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
-            'github_actions_env': GitHubActionsEnv(
-                environment, default_context['github_actions_env'], github_actions_env_comments
-            ),
+            'github_actions_env': github_actions_env,
             'python_dependencies': default_context.get('python_dependencies', []),
             'node_dependencies': default_context['node_dependencies'],
             'node_dev_dependencies': default_context['node_dev_dependencies'],
