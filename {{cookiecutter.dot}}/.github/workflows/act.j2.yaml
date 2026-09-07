@@ -7,7 +7,7 @@ defaults:
 {% if cookiecutter.github_actions_env %}
 env:
     {%- for name, value in cookiecutter.github_actions_env.items()|sort %}
-    {{ name }}: {{ value | yaml_scalar }}
+    {{ name }}: {{ value | to_yaml }}
     {%- endfor %}
 {% endif %}
 {% raw -%}

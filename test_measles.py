@@ -14,8 +14,8 @@ MISSING = object()
 @mark.parametrize(
     ('value', 'rendered'), (('customized', 'customized'), ('true', "'true'"), (True, 'true'))
 )
-def test_yaml_scalar(value: object, rendered: str):
-    assert measles.yaml_scalar(value) == rendered
+def test_to_yaml(value: object, rendered: str):
+    assert measles.to_yaml(value) == rendered
 
 
 @fixture

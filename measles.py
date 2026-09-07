@@ -105,9 +105,9 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
-def yaml_scalar(value: object) -> str:
-    """Render a value as one YAML scalar."""
-    return safe_dump(value, default_flow_style=True).removesuffix('...\n').strip()
+def to_yaml(value: object) -> str:
+    """Render a value as YAML."""
+    return safe_dump(value, default_flow_style=False).removesuffix('...\n').strip()
 
 
 class Measles(Extension):
@@ -129,7 +129,7 @@ class Measles(Extension):
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
         default_context = defaultdict(dict, safe_load(yaml_path.read_text())['default_context'])
-        environment.filters['yaml_scalar'] = yaml_scalar
+        environment.filters['to_yaml'] = to_yaml
 
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
