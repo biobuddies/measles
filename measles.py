@@ -13,7 +13,7 @@ from urllib.request import Request, urlopen
 
 from jinja2 import Environment
 from jinja2.ext import Extension
-from yaml import safe_load
+from yaml import safe_dump, safe_load
 
 
 def cona() -> str:
@@ -105,6 +105,11 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
+def yaml_scalar(value: object) -> str:
+    """Render a value as one YAML scalar."""
+    return safe_dump(value, default_flow_style=True).removesuffix('...\n').strip()
+
+
 class Measles(Extension):
     """Set globals."""
 
@@ -124,6 +129,7 @@ class Measles(Extension):
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
         default_context = defaultdict(dict, safe_load(yaml_path.read_text())['default_context'])
+        environment.filters['yaml_scalar'] = yaml_scalar
 
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({

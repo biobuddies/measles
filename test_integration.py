@@ -151,7 +151,10 @@ def test_new_repository_not_django(
         {
             'default_context': {
                 'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
-                'github_actions_env': {'EXAMPLE_CONFIGURATION': 'customized'},
+                'github_actions_env': {
+                    'AMBIGUOUS_CONFIGURATION': 'true',
+                    'EXAMPLE_CONFIGURATION': 'customized',
+                },
                 'languages': 'Node,Python,Rust',
                 'node_dependencies': {'react': '^19.0.0'},
                 'node_dev_dependencies': {'vite': '^7.0.0'},
@@ -179,7 +182,12 @@ def test_new_repository_not_django(
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
-    assert_yaml = load_yaml(tmp_path / '.github' / 'workflows' / 'act.yaml')
+    workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
+    assert_yaml = load_yaml(workflow_path)
+    workflow = workflow_path.read_text()
+    assert "    AMBIGUOUS_CONFIGURATION: 'true'\n" in workflow
+    assert '    EXAMPLE_CONFIGURATION: customized\n' in workflow
+    assert_yaml('env.AMBIGUOUS_CONFIGURATION', 'true')
     assert_yaml('env.EXAMPLE_CONFIGURATION', 'customized')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])

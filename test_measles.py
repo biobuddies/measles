@@ -4,11 +4,18 @@ from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
-from pytest import MonkeyPatch, fixture, raises
+from pytest import MonkeyPatch, fixture, mark, raises
 
 import measles
 
 MISSING = object()
+
+
+@mark.parametrize(
+    ('value', 'rendered'), (('customized', 'customized'), ('true', "'true'"), (True, 'true'))
+)
+def test_yaml_scalar(value: object, rendered: str):
+    assert measles.yaml_scalar(value) == rendered
 
 
 @fixture
