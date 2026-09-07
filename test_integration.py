@@ -242,6 +242,7 @@ def test_new_repository_publishes_to_pypi(
             'default_context': {
                 'classifiers': ['Topic :: System :: Systems Administration'],
                 'domain_name': 'biobuddi.es',
+                'github_actions_env': {},
                 'license': 'MPL-2.0',
                 'publish_to_pypi': True,
             }
@@ -267,7 +268,7 @@ def test_new_repository_publishes_to_pypi(
 
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
     assert_yaml = load_yaml(workflow_path)
-    assert 'env' not in YAML(typ='safe').load(workflow_path)
+    assert '\nenv:\n' not in workflow_path.read_text()
     environment = assert_yaml('jobs.build-deploy.environment')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
