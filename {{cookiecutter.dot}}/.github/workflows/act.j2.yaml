@@ -6,12 +6,7 @@ defaults:
 {% endraw -%}
 {% if cookiecutter.github_actions_env -%}
 env:
-    {%- for name, value in cookiecutter.github_actions_env.items()|sort %}
-    {%- for comment in github_actions_env_comments.get(name, ()) %}
-    # {{ comment }}
-    {%- endfor %}
-    {{ name }}: {{ value | to_yaml }}
-    {%- endfor %}
+{{ cookiecutter.github_actions_env | to_yaml | indent(4, first=True) }}
 {% endif -%}
 {% raw -%}
 jobs:

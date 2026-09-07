@@ -12,6 +12,7 @@ from typing import Any
 
 from pytest import fixture, mark, raises
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 from yaml import safe_dump
 
 
@@ -80,7 +81,10 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
     def bootstrap(
         cookiecutter: dict[str, object], *, has_django: bool, **overrides: str
     ) -> tuple[Path, Callable[..., Any]]:
-        (tmp_path / '.cookiecutter.yaml').write_text(safe_dump(cookiecutter, sort_keys=False))
+        with (tmp_path / '.cookiecutter.yaml').open('w') as cookiecutter_file:
+            yaml = YAML()
+            yaml.indent(mapping=4, sequence=4)
+            yaml.dump(cookiecutter, cookiecutter_file)
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
         env = {
             'ENVI': 'local',  # don't fail on changes
@@ -147,14 +151,18 @@ def test_missing_cookiecutter_yaml(
 def test_new_repository_not_django(
     readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
 ):
+    github_actions_env = CommentedMap({
+        'AMBIGUOUS_CONFIGURATION': 'true',
+        'EXAMPLE_CONFIGURATION': 'customized',
+    })
+    github_actions_env.yaml_set_comment_before_after_key(
+        'EXAMPLE_CONFIGURATION', before='Explain customization', indent=8
+    )
     tmp_path, assert_pyproject = readme_bootstrap(
         {
             'default_context': {
                 'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
-                'github_actions_env': {
-                    'AMBIGUOUS_CONFIGURATION': 'true',
-                    'EXAMPLE_CONFIGURATION': 'customized',
-                },
+                'github_actions_env': github_actions_env,
                 'languages': 'Node,Python,Rust',
                 'node_dependencies': {'react': '^19.0.0'},
                 'node_dev_dependencies': {'vite': '^7.0.0'},
@@ -186,6 +194,7 @@ def test_new_repository_not_django(
     assert_yaml = load_yaml(workflow_path)
     workflow = workflow_path.read_text()
     assert "    AMBIGUOUS_CONFIGURATION: 'true'\n" in workflow
+    assert '    # Explain customization\n' in workflow
     assert '    EXAMPLE_CONFIGURATION: customized\n' in workflow
     assert_yaml('env.AMBIGUOUS_CONFIGURATION', 'true')
     assert_yaml('env.EXAMPLE_CONFIGURATION', 'customized')

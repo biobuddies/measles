@@ -105,9 +105,14 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
-def to_yaml(value: object) -> str:
+def to_yaml(value: object, comments: dict[str, tuple[str, ...]] | None = None) -> str:
     """Render a value as YAML."""
-    return safe_dump(value, default_flow_style=False).removesuffix('...\n').strip()
+    rendered = safe_dump(value, default_flow_style=False).removesuffix('...\n').strip()
+    return '\n'.join(
+        output
+        for line in rendered.splitlines()
+        for output in (*(comments or {}).get(line.partition(':')[0], ()), line)
+    )
 
 
 class Measles(Extension):
@@ -130,12 +135,8 @@ class Measles(Extension):
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
         yaml_source = yaml_path.read_text()
         default_context = defaultdict(dict, safe_load(yaml_source)['default_context'])
-        environment.filters['to_yaml'] = to_yaml
         github_actions_env_comments = {
-            name: tuple(
-                line.removeprefix('        #').lstrip()
-                for line in match.group('comments').splitlines()
-            )
+            name: tuple(line.lstrip() for line in match.group('comments').splitlines())
             for name in default_context['github_actions_env']
             if (
                 match := search(
@@ -143,6 +144,7 @@ class Measles(Extension):
                 )
             )
         }
+        environment.filters['to_yaml'] = lambda value: to_yaml(value, github_actions_env_comments)
 
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
