@@ -5,7 +5,7 @@ from collections import defaultdict
 from json import load
 from os import environ, getenv
 from pathlib import Path
-from re import fullmatch, search
+from re import escape, fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
 from urllib.error import HTTPError, URLError
@@ -128,8 +128,21 @@ class Measles(Extension):
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
-        default_context = defaultdict(dict, safe_load(yaml_path.read_text())['default_context'])
+        yaml_source = yaml_path.read_text()
+        default_context = defaultdict(dict, safe_load(yaml_source)['default_context'])
         environment.filters['to_yaml'] = to_yaml
+        github_actions_env_comments = {
+            name: tuple(
+                line.removeprefix('        #').lstrip()
+                for line in match.group('comments').splitlines()
+            )
+            for name in default_context['github_actions_env']
+            if (
+                match := search(
+                    rf'(?m)^(?P<comments>(?:        #.*\n)+)        {escape(name)}:', yaml_source
+                )
+            )
+        }
 
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
@@ -137,6 +150,7 @@ class Measles(Extension):
             'ORGN': orgn(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
+            'github_actions_env_comments': github_actions_env_comments,
             'python_dependencies': default_context.get('python_dependencies', []),
             'node_dependencies': default_context['node_dependencies'],
             'node_dev_dependencies': default_context['node_dev_dependencies'],

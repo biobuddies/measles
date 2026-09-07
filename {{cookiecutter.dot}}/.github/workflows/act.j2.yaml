@@ -4,12 +4,15 @@ defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
 {% endraw -%}
-{% if cookiecutter.github_actions_env %}
+{% if cookiecutter.github_actions_env -%}
 env:
     {%- for name, value in cookiecutter.github_actions_env.items()|sort %}
+    {%- for comment in github_actions_env_comments.get(name, ()) %}
+    # {{ comment }}
+    {%- endfor %}
     {{ name }}: {{ value | to_yaml }}
     {%- endfor %}
-{% endif %}
+{% endif -%}
 {% raw -%}
 jobs:
     # Root jobs
