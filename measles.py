@@ -8,6 +8,7 @@ from pathlib import Path
 from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
+from textwrap import dedent
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -122,8 +123,13 @@ class Measles(Extension):
         )
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
-        yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
-        default_context = defaultdict(dict, safe_load(yaml_path.read_text())['default_context'])
+        default_context = defaultdict(
+            dict,
+            safe_load(yaml_source := (Path(environ['PWD']) / '.cookiecutter.yaml').read_text())[
+                'default_context'
+            ],
+        )
+        github_actions_env = default_context.pop('github_actions_env', {})
 
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
@@ -131,6 +137,14 @@ class Measles(Extension):
             'ORGN': orgn(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
+            'github_actions_env': (
+                dedent(match.group()).replace('github_actions_env:', 'env:', 1)
+                if github_actions_env
+                and (
+                    match := search(r'(?ms)^    github_actions_env:.*?(?=^    \S|\Z)', yaml_source)
+                )
+                else ''
+            ),
             'python_dependencies': default_context.get('python_dependencies', []),
             'node_dependencies': default_context['node_dependencies'],
             'node_dev_dependencies': default_context['node_dev_dependencies'],
