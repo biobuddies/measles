@@ -5,7 +5,7 @@
     "description": "",
     "domain_name": "",
     "dot": ".",
-    "github_actions_env": {},
+    "// github_actions_env": "Omitted here for less Jinja escaping",
     "languages": "Node,Python",
     "license": "",
     "peer_checkouts": {},

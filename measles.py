@@ -5,16 +5,16 @@ from collections import defaultdict
 from json import load
 from os import environ, getenv
 from pathlib import Path
-from re import escape, fullmatch, search
+from re import fullmatch, search
 from subprocess import CalledProcessError, check_output
 from sys import stderr
-from textwrap import indent
+from textwrap import dedent
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from jinja2 import Environment
 from jinja2.ext import Extension
-from yaml import safe_dump, safe_load
+from yaml import safe_load
 
 
 def cona() -> str:
@@ -123,37 +123,13 @@ class Measles(Extension):
         )
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
-        yaml_path = Path(environ['PWD']) / '.cookiecutter.yaml'
-        yaml_source = yaml_path.read_text()
-        default_context = defaultdict(dict, safe_load(yaml_source)['default_context'])
-        comments = {
-            name: tuple(line.lstrip() for line in match.group('comments').splitlines())
-            for name in default_context['github_actions_env']
-            if (
-                match := search(
-                    rf'(?m)^(?P<comments>(?:        #.*\n)+)        {escape(name)}:', yaml_source
-                )
-            )
-        }
-
-        def github_actions_env() -> str:
-            """Render the GitHub Actions environment after Jinja initializes."""
-            raw_values = default_context['github_actions_env']
-            if not raw_values:
-                return ''
-            values = {
-                name: environment.from_string(value).render(cookiecutter=default_context)
-                if isinstance(value, str)
-                else value
-                for name, value in raw_values.items()
-            }
-            rendered = safe_dump(values, default_flow_style=False).strip()
-            rendered = '\n'.join(
-                output
-                for line in rendered.splitlines()
-                for output in (*comments.get(line.partition(':')[0], ()), line)
-            )
-            return f'env:\n{indent(rendered, "    ")}\n'
+        default_context = defaultdict(
+            dict,
+            safe_load(yaml_source := (Path(environ['PWD']) / '.cookiecutter.yaml').read_text())[
+                'default_context'
+            ],
+        )
+        github_actions_env = default_context.pop('github_actions_env', {})
 
         # pyrefly: ignore[no-matching-overload,unsupported-operation]
         environment.globals.update({
@@ -161,7 +137,14 @@ class Measles(Extension):
             'ORGN': orgn(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
-            'github_actions_env': github_actions_env,
+            'github_actions_env': (
+                dedent(match.group()).replace('github_actions_env:', 'env:', 1)
+                if github_actions_env
+                and (
+                    match := search(r'(?ms)^    github_actions_env:.*?(?=^    \S|\Z)', yaml_source)
+                )
+                else ''
+            ),
             'python_dependencies': default_context.get('python_dependencies', []),
             'node_dependencies': default_context['node_dependencies'],
             'node_dev_dependencies': default_context['node_dev_dependencies'],
