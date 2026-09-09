@@ -77,9 +77,11 @@ simplest:
           `git branch --set-upstream-to=origin/main`)
         * `git pull` discovers new commits and rebases because `pull.rebase=true`
         * `git push` publishes to the current branch name because `push.default=current`
-    - Slashless branches explicitly permitted. Characters like slash break reuse in contexts like
-      subdomains. Omit any `$BRAND/` prefix from branch names. Branding wastes space that should
-      describe the changes.
+    - Remote branch names must use only lowercase letters and digits separated by hyphens. Slashes
+      break reuse in contexts like subdomains; a `$BRAND/` prefix wastes space that should
+      describe the changes. Rename any slashed or prefixed branch handed to you before the first
+      push. You are granted explicit, standing permission to use slashless branches and need not
+      ask.
     - Expect concurrent edits to Pull Request title and description (top comment); always read
       before revising
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits: updating
