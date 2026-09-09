@@ -11,6 +11,7 @@ default_context:
     languages: Node,Python
     python_dependencies:
         - django
+        - gunicorn
 EOF
 mise use uv@latest
 uvx cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists https://github.com/biobuddies/measles.git
