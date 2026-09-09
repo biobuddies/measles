@@ -302,11 +302,11 @@ def test_new_repository_publishes_to_pypi(
 
 
 @mark.parametrize(
-    ('codename', 'dependency', 'has_django'),
-    (('speedrun', 'django', True), ('wriggle', 'sqlglot', False)),
+    ('codename', 'dependencies', 'has_django'),
+    (('speedrun', ['django', 'gunicorn'], True), ('wriggle', ['sqlglot'], False)),
     ids=('yes-django', 'not-django'),
 )
-def test_existing_repository(codename: str, dependency: str, has_django: bool):
+def test_existing_repository(codename: str, dependencies: list[str], has_django: bool):
     downstream = Path.home() / 'code' / codename
     cookiecutter_yaml = downstream / '.cookiecutter.yaml'
     env = {
@@ -321,7 +321,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     if not cookiecutter_yaml.exists():
         cookiecutter_yaml.write_text(
             safe_dump({
-                'default_context': {'languages': 'Python', 'python_dependencies': [dependency]}
+                'default_context': {'languages': 'Python', 'python_dependencies': dependencies}
             })
         )
         check_call(
@@ -362,7 +362,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     pytest_options = assert_pyproject('tool.pytest.ini_options')
     assert (downstream / '.biobuddies' / 'ruff.toml').exists()
     assert (downstream / '.gitignore').exists()
-    assert dependency in assert_pyproject('project.dependencies')
+    assert set(dependencies) <= set(assert_pyproject('project.dependencies'))
     assert assert_pyproject('project.optional-dependencies.test') == [
         'pytest',
         'pytest-cov',
