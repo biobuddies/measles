@@ -13,7 +13,7 @@ from typing import Any
 from pytest import fixture, mark, raises
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
-from yaml import safe_dump
+from yaml import safe_dump, safe_load
 
 
 def load_toml(file_path: Path) -> Callable[..., Any]:
@@ -301,12 +301,22 @@ def test_new_repository_publishes_to_pypi(
     assert 'uvx twine check --strict dist/*' in assert_mise('tasks.build.run')
 
 
+def readme_python_dependencies() -> list[str]:
+    return safe_load(
+        (Path(__file__).parent / 'README.md')
+        .read_text()
+        .split('```bash\n')[1]
+        .split('\nEOF\n', 1)[0]
+        .split('> .cookiecutter.yaml\n', 1)[1]
+    )['default_context']['python_dependencies']
+
+
 @mark.parametrize(
-    ('codename', 'dependency', 'has_django'),
-    (('speedrun', 'django', True), ('wriggle', 'sqlglot', False)),
+    ('codename', 'dependencies', 'has_django'),
+    (('speedrun', readme_python_dependencies(), True), ('wriggle', ['sqlglot'], False)),
     ids=('yes-django', 'not-django'),
 )
-def test_existing_repository(codename: str, dependency: str, has_django: bool):
+def test_existing_repository(codename: str, dependencies: list[str], has_django: bool):
     downstream = Path.home() / 'code' / codename
     cookiecutter_yaml = downstream / '.cookiecutter.yaml'
     env = {
@@ -321,7 +331,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     if not cookiecutter_yaml.exists():
         cookiecutter_yaml.write_text(
             safe_dump({
-                'default_context': {'languages': 'Python', 'python_dependencies': [dependency]}
+                'default_context': {'languages': 'Python', 'python_dependencies': dependencies}
             })
         )
         check_call(
@@ -362,7 +372,7 @@ def test_existing_repository(codename: str, dependency: str, has_django: bool):
     pytest_options = assert_pyproject('tool.pytest.ini_options')
     assert (downstream / '.biobuddies' / 'ruff.toml').exists()
     assert (downstream / '.gitignore').exists()
-    assert dependency in assert_pyproject('project.dependencies')
+    assert set(dependencies) <= set(assert_pyproject('project.dependencies'))
     assert assert_pyproject('project.optional-dependencies.test') == [
         'pytest',
         'pytest-cov',
