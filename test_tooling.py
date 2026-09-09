@@ -502,7 +502,10 @@ def test_typos():
     output_path = Path('experiment-\u03bc.yaml')
     try:
         input_path.write_text('wxperiment:\n  - \xb5\n  yml\n')  # noqa: RUF100  # noqa: typos
-        check_output(['mise', 'typos', str(input_path)])
+        check_output(
+            ['mise', 'typos', str(input_path)],
+            env={'AUTOFORMAT_EXCLUDES': '', 'HOME': environ['HOME'], 'PATH': environ['PATH']},
+        )
         assert output_path.read_text() == 'experiment:\n  - \u03bc\n  yaml\n'
     finally:
         input_path.unlink(missing_ok=True)
@@ -593,11 +596,15 @@ def test_end_of_file_fixer():
             mock_git = Path(tmpdir) / 'git'
             mock_git.write_text(f'#!/usr/bin/env bash\necho {test_path}\n')
             mock_git.chmod(mock_git.stat().st_mode | stat.S_IEXEC)
-            env = environ.copy()
-            env['AUTOFORMAT_EXCLUDES'] = ''
-            env['PATH'] = f'{tmpdir}:{env["PATH"]}'
             with raises(CalledProcessError):
-                check_output(['mise', 'end-of-file-fixer'], env=env)
+                check_output(
+                    ['mise', 'end-of-file-fixer'],
+                    env={
+                        'AUTOFORMAT_EXCLUDES': '',
+                        'HOME': environ['HOME'],
+                        'PATH': f'{tmpdir}:{environ["PATH"]}',
+                    },
+                )
         assert test_path.read_text() == 's/old/new/\n'
     finally:
         test_path.unlink(missing_ok=True)
