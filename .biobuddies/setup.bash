@@ -9,6 +9,9 @@ trap 'echo "ERROR $(datetimez) $PWD"' ERR
 toplevel=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 cd "$toplevel"
 echo "Start $(datetimez) $PWD"
+# See also mise check-branch and CONTRIBUTING.md
+branch=$(git branch --show-current)
+[[ "$branch" = "${branch##*/}" ]] || git branch --move "${branch##*/}"
 export PATH="$HOME/.local/bin:$PATH"
 command -v mise >/dev/null || curl https://mise.run | sh
 # Trust the parent so sibling checkouts of a multi-repository session need no second visit.
