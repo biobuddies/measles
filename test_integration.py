@@ -188,6 +188,7 @@ def test_new_repository_not_django(
     )
     assert 'build' not in assert_pyproject('project.optional-dependencies')
     assert 'check-django' not in assert_mise('tasks')
+    assert assert_mise('tasks.lychee.run') == 'lychee --no-progress "$@" .'
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
@@ -297,6 +298,9 @@ def test_new_repository_publishes_to_pypi(
     assert all(not step.get('run', '').startswith('mise deploy') for step in steps)
 
     assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
+    assert assert_mise('tasks.lychee.run') == (
+        'lychee --base-url=https://biobuddi.es --no-progress "$@" .'
+    )
     assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in assert_mise('tasks.build.run')
     assert 'uvx twine check --strict dist/*' in assert_mise('tasks.build.run')
 

@@ -193,7 +193,11 @@ run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
 run = 'python -m helicopyter --format_with=${INSH_TF:-terraform} all "$@"'
 
 [tasks.lychee]
+{% if cookiecutter.domain_name -%}
+run = 'lychee --base-url=https://{{ cookiecutter.domain_name }} --no-progress "$@" .'
+{% else -%}
 run = 'lychee --no-progress "$@" .'
+{% endif %}
 
 [tasks.mailmap]
 run = """
