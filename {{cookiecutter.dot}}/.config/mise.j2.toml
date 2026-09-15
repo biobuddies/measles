@@ -24,8 +24,8 @@ npm_pid=$!
 # dup :359 tasks.uv-pip-compile
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform linux --python-version {{ cookiecutter.python_version }} pyproject.toml
-uv venv --allow-existing --no-progress
-uv pip sync requirements.txt
+uv venv --allow-existing --quiet
+uv pip sync requirements.txt --allow-empty-requirements --quiet
 wait "$npm_pid"
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
