@@ -374,14 +374,21 @@ def test_run_on_sources(tmp_path: Path):
     ) == {'speedrun/__init__.py'}
 
 
-def test_release(tmp_path: Path):
+@mark.parametrize('week', (0, 9, 10, 34))
+@mark.parametrize(('latest', 'release'), (('', 1), ('8', 9), ('9', 10)))
+def test_release(tmp_path: Path, week: int, latest: str, release: int):
     calls = tmp_path / 'calls'
-    environment = {'CALLS': str(calls), 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    environment = {
+        'CALLS': str(calls),
+        'LATEST': f'v2026.{week}.{latest}' if latest else '',
+        'PATH': f'{tmp_path}:{environ["PATH"]}',
+        'WEEK': str(week),
+    }
     write_mock_executable(
         tmp_path / 'date',
         """
-        [[ $* == '-u +v%Y.%U.' ]]
-        echo v2026.34. # Sunday, August 23, 2026
+        [[ $* == '-u +v%Y.%-U.' ]]
+        echo "v2026.$WEEK." # Sunday-based week number
         """,
     )
     write_mock_executable(tmp_path / 'gh', '''printf 'gh %s\n' "$*" >> "$CALLS"''')
@@ -392,7 +399,7 @@ def test_release(tmp_path: Path):
             printf 'git %s\n' "$*" >> "$CALLS"
         elif [[ $1 == tag ]]; then
             printf 'git %s\n' "$*" >> "$CALLS"
-            echo v2026.34.08
+            echo "$LATEST"
         fi
         """,
     )
@@ -403,8 +410,8 @@ def test_release(tmp_path: Path):
 
     assert calls.read_text().splitlines() == [
         'git fetch --tags',
-        'git tag --list v2026.34.* --sort=-version:refname',
-        'gh release create v2026.34.09 --generate-notes',
+        f'git tag --list v2026.{week}.* --sort=-version:refname',
+        f'gh release create v2026.{week}.{release} --generate-notes',
         'git fetch --tags',
     ]
 
