@@ -50,6 +50,7 @@ parametrize-values-type = 'tuple'
 split-on-trailing-comma = false
 
 [lint.per-file-ignores]
+'**/conftest.py' = ['PT013']
 '**/test*.py' = [
     'ANN201',  # -> None doesn't improve pytest functions
     'N802',    # Test functions can match class names
