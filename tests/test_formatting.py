@@ -86,17 +86,25 @@ def render(template_path: Path) -> str:
     )
 
 
-def test_formatter_settings():
+def test_configuration_files_agree():
     root = Path(__file__).parents[1]
-    editor = ConfigParser()
-    editor.read_string('[DEFAULT]\n' + (root / '.editorconfig').read_text())
+    editorconfig = ConfigParser()
+    editorconfig.read_string('[DEFAULT]\n' + (root / '.editorconfig').read_text())
     djlint = loads((root / 'pyproject.toml').read_text())['tool']['djlint']
     prettier = loads((root / '.prettierrc.toml').read_text())
     ruff = loads((root / '.biobuddies/ruff.toml').read_text())
-    assert djlint['indent'] == int(editor['*']['indent_size'])
-    assert djlint['max_line_length'] == ruff['line-length'] == int(editor['*']['max_line_length'])
-    assert djlint['quote_style'] == ruff['format']['quote-style'] == editor['*']['quote_type']
-    assert prettier['singleQuote']
+    assert djlint['indent'] == int(editorconfig['*']['indent_size'])
+    assert (
+        djlint['max_line_length']
+        == ruff['line-length']
+        == int(editorconfig['*']['max_line_length'])
+    )
+    assert (
+        djlint['quote_style']
+        == ruff['format']['quote-style']
+        == editorconfig['*']['quote_type']
+        == ('single' if prettier['singleQuote'] else 'double')
+    )
 
 
 def test_rendering():
