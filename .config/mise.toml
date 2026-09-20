@@ -81,7 +81,6 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${TABR-} ]]; then echo "$TABR"; exit; fi
 tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
     status=$?
     [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
