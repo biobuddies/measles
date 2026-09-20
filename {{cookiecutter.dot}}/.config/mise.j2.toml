@@ -22,8 +22,10 @@ set -o errexit -o nounset
 npm install --no-audit --no-fund &
 npm_pid=$!
 # dup :359 tasks.uv-pip-compile
+# Styleforce wheels require manylinux 2.28; uv's generic linux target assumes manylinux 2.17.
 uv pip compile --all-extras --output-file requirements.txt --quiet \
-    --python-platform linux --python-version {{ cookiecutter.python_version }} pyproject.toml
+    --python-platform x86_64-manylinux_2_28 \
+    --python-version {{ cookiecutter.python_version }} pyproject.toml
 uv venv --allow-existing --quiet
 uv pip sync requirements.txt --allow-empty-requirements --quiet
 wait "$npm_pid"
@@ -305,6 +307,9 @@ mise run-on-sources shfmt "*.{bash,sh}" \
     --indent 4 --language-dialect bash "$@"
 '''
 
+[tasks.styleforce]
+run = 'AUTOFORMAT_EXCLUDES=${AUTOFORMAT_EXCLUDES-} mise run-on-sources styleforce "*.py{,i}" "$@"'
+
 [tasks.tabularize]
 run = """
 #!/usr/bin/env bash
@@ -393,8 +398,10 @@ run = 'uv pip check "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+# Styleforce wheels require manylinux 2.28; uv's generic linux target assumes manylinux 2.17.
 uv pip compile --all-extras --output-file requirements.txt --quiet \
-    --python-platform linux --python-version {{ cookiecutter.python_version }} pyproject.toml "$@"
+    --python-platform x86_64-manylinux_2_28 \
+    --python-version {{ cookiecutter.python_version }} pyproject.toml "$@"
 [[ $(mise envi) != local ]] || git add requirements.txt
 '''
 
