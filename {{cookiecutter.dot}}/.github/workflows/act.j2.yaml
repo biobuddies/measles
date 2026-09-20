@@ -4,6 +4,8 @@ defaults:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
 {{ github_actions_env -}}
 {% raw -%}
+permissions:
+    contents: read
 concurrency:
     group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
     cancel-in-progress: ${{ github.event_name != 'push' }}
@@ -13,11 +15,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             # Real hash is head_ref on pull_request, ref on push
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ github.head_ref || github.ref }}
-            - uses: jdx/mise-action@v3
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
             - run: mise set-environment
@@ -26,11 +28,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             # Real hash is head_ref on pull_request, ref on push
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ github.head_ref || github.ref }}
-            - uses: jdx/mise-action@v3
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
                   install: false
@@ -39,11 +41,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             # Real hash is head_ref on pull_request, ref on push
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ github.head_ref || github.ref }}
-            - uses: jdx/mise-action@v3
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
             {%- endraw %}
@@ -90,8 +92,8 @@ jobs:
         {%- endif -%}
         {% raw %}
         steps:
-            - uses: actions/checkout@v6
-            - uses: jdx/mise-action@v3
+            - uses: actions/checkout@v7
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
             - run: mise set-environment
