@@ -1,1 +1,1 @@
-exclude_path = ['tests/upstream/.*\.html$']
+exclude_path = ['tests/django-admin/.*\.html$']

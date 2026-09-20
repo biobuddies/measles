@@ -2,14 +2,18 @@
 
 import stat
 from collections.abc import Iterable
+from configparser import ConfigParser
 from os import environ
 from pathlib import Path
 from shlex import quote
 from subprocess import call, check_call
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from tomllib import loads
 from warnings import warn
 
+import django
+from django.conf import settings
 from django.template import Context, Engine
 from jinja2 import Environment, FileSystemLoader
 
@@ -17,11 +21,26 @@ FIXTURES = Path(__file__).parent
 TEMPLATE_PATHS = tuple(sorted(FIXTURES.glob('*/1-unformatted-template.*')))
 CONTEXT = {
     'allowedflare_message': 'Use your allowed account',
+    'cl': {
+        'add_facets': True,
+        'full_result_count': 12,
+        'is_popup': False,
+        'params': {'page': 2},
+        'query': 'four-file fixtures',
+        'result_count': 2,
+        'search_fields': ('title',),
+        'search_help_text': 'Search titles',
+        'show_full_result_count': True,
+    },
     'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
+    'is_facets_var': '_facets',
+    'is_popup_var': '_popup',
     'lead_line': lambda **chords: ' '.join(chords.values()),
     'node_dependencies': {'jinja2': '*'},
     'node_dev_dependencies': {'pytest': '*'},
     'python_dependencies': ['django', 'jinja2'],
+    'search_var': 'q',
+    'show_result_count': True,
 }
 
 
@@ -51,9 +70,17 @@ def stage_path(unformatted_template_path: Path, stage_name: str) -> Path:
 
 def render(template_path: Path) -> str:
     if template_path.name.endswith('.dj.html'):
+        if not settings.configured:
+            settings.configure(STATIC_URL='/static/', USE_I18N=False)
+        django.setup()
         return (
             Engine(
-                dirs=[template_path.parent], loaders=['django.template.loaders.filesystem.Loader']
+                dirs=[template_path.parent],
+                libraries={
+                    'i18n': 'django.templatetags.i18n',
+                    'static': 'django.templatetags.static',
+                },
+                loaders=['django.template.loaders.filesystem.Loader'],
             )
             .get_template(template_path.name)
             .render(Context(CONTEXT))
@@ -67,6 +94,19 @@ def render(template_path: Path) -> str:
         .get_template(template_path.name)
         .render(CONTEXT)
     )
+
+
+def test_formatter_settings():
+    root = Path(__file__).parents[1]
+    editor = ConfigParser()
+    editor.read_string('[DEFAULT]\n' + (root / '.editorconfig').read_text())
+    djlint = loads((root / 'pyproject.toml').read_text())['tool']['djlint']
+    prettier = loads((root / '.prettierrc.toml').read_text())
+    ruff = loads((root / '.biobuddies/ruff.toml').read_text())
+    assert djlint['indent'] == int(editor['*']['indent_size'])
+    assert djlint['max_line_length'] == ruff['line-length'] == int(editor['*']['max_line_length'])
+    assert djlint['quote_style'] == ruff['format']['quote-style'] == editor['*']['quote_type']
+    assert prettier['singleQuote']
 
 
 def test_rendering():
