@@ -110,38 +110,6 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
     assert output == b'v2026.35.10\n'
 
 
-def test_tabr_prefers_environment(tmp_path: Path):
-    """
-    Check already-set TABR dominates.
-
-    A downstream GitHub Action might want to set $TABR in one job then read it back later, like
-    https://github.com/biobuddies/styleforce/pull/19 before and during parallel platform-specific
-    builds.
-    """
-    check_call(['git', 'init'], cwd=tmp_path)
-    check_call(
-        [
-            'git',
-            '-c',
-            'user.email=test@example.com',
-            '-c',
-            'user.name=Test',
-            'commit',
-            '--allow-empty',
-            '--message=Test',
-        ],
-        cwd=tmp_path,
-    )
-    check_call(['git', 'tag', 'v2026.35.10'], cwd=tmp_path)
-    task = verbatim_mise_task('tabr')
-    output = check_output(
-        ['/usr/bin/env', 'bash', '-c', task],
-        cwd=tmp_path,
-        env={'TABR': 'v2026.99.99', 'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
-    )
-    assert output == b'v2026.99.99\n'
-
-
 @mark.parametrize(
     'case',
     (

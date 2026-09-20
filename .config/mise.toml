@@ -81,10 +81,10 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${TABR-} ]]; then echo "$TABR"; exit; fi
+# 128 if no commits yet; 129 unsupported tag options
 tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
     status=$?
-    [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
+    [[ $status == 128 || $status == 129 ]]
 }
 if [[ $tag ]]; then echo "$tag"
 elif [[ ${GITHUB_HEAD_REF-} ]]; then echo "$GITHUB_HEAD_REF"
