@@ -1,0 +1,22 @@
+<!--
+  https://github.com/django/django/blob/5.2.6/django/contrib/admin/templates/admin/search_form.html
+-->
+{% load i18n %}
+{% if cl.search_fields %}
+    <div id="toolbar">
+        <form id="changelist-search" method="get" role="search">
+            <div>
+                <!-- DIV needed for valid HTML -->
+                <input type="text" name="{{ search_var }}" value="{{ cl.query }}" id="searchbar" />
+                <input type="submit" value="{% translate 'Search' %}" />
+                {% if show_result_count %}
+                    <span class="small quiet">{{ cl.result_count }} {% translate 'results' %}</span>
+                {% endif %}
+            </div>
+            {% if cl.search_help_text %}
+                <br class="clear" />
+                <div class="help" id="searchbar_helptext">{{ cl.search_help_text }}</div>
+            {% endif %}
+        </form>
+    </div>
+{% endif %}

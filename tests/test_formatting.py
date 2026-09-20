@@ -2,14 +2,18 @@
 
 import stat
 from collections.abc import Iterable
+from configparser import ConfigParser
 from os import environ
 from pathlib import Path
 from shlex import quote
 from subprocess import call, check_call
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from tomllib import loads
 from warnings import warn
 
+import django
+from django.conf import settings
 from django.template import Context, Engine
 from jinja2 import Environment, FileSystemLoader
 
@@ -17,11 +21,19 @@ FIXTURES = Path(__file__).parent
 TEMPLATE_PATHS = tuple(sorted(FIXTURES.glob('*/1-unformatted-template.*')))
 CONTEXT = {
     'allowedflare_message': 'Use your allowed account',
+    'cl': {
+        'query': 'four-file fixtures',
+        'result_count': 2,
+        'search_fields': ('title',),
+        'search_help_text': 'Search titles',
+    },
     'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
     'lead_line': lambda **chords: ' '.join(chords.values()),
     'node_dependencies': {'jinja2': '*'},
     'node_dev_dependencies': {'pytest': '*'},
     'python_dependencies': ['django', 'jinja2'],
+    'search_var': 'q',
+    'show_result_count': True,
 }
 
 
@@ -51,9 +63,14 @@ def stage_path(unformatted_template_path: Path, stage_name: str) -> Path:
 
 def render(template_path: Path) -> str:
     if template_path.name.endswith('.dj.html'):
+        if not settings.configured:
+            settings.configure(USE_I18N=False)
+        django.setup()
         return (
             Engine(
-                dirs=[template_path.parent], loaders=['django.template.loaders.filesystem.Loader']
+                dirs=[template_path.parent],
+                libraries={'i18n': 'django.templatetags.i18n'},
+                loaders=['django.template.loaders.filesystem.Loader'],
             )
             .get_template(template_path.name)
             .render(Context(CONTEXT))
@@ -66,6 +83,27 @@ def render(template_path: Path) -> str:
         )
         .get_template(template_path.name)
         .render(CONTEXT)
+    )
+
+
+def test_configuration_files_agree():
+    root = Path(__file__).parents[1]
+    editorconfig = ConfigParser()
+    editorconfig.read_string('[DEFAULT]\n' + (root / '.editorconfig').read_text())
+    djlint = loads((root / 'pyproject.toml').read_text())['tool']['djlint']
+    prettier = loads((root / '.prettierrc.toml').read_text())
+    ruff = loads((root / '.biobuddies/ruff.toml').read_text())
+    assert djlint['indent'] == int(editorconfig['*']['indent_size'])
+    assert (
+        djlint['max_line_length']
+        == ruff['line-length']
+        == int(editorconfig['*']['max_line_length'])
+    )
+    assert (
+        djlint['quote_style']
+        == ruff['format']['quote-style']
+        == editorconfig['*']['quote_type']
+        == ('single' if prettier['singleQuote'] else 'double')
     )
 
 
