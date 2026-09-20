@@ -22,19 +22,12 @@ TEMPLATE_PATHS = tuple(sorted(FIXTURES.glob('*/1-unformatted-template.*')))
 CONTEXT = {
     'allowedflare_message': 'Use your allowed account',
     'cl': {
-        'add_facets': True,
-        'full_result_count': 12,
-        'is_popup': False,
-        'params': {'page': 2},
         'query': 'four-file fixtures',
         'result_count': 2,
         'search_fields': ('title',),
         'search_help_text': 'Search titles',
-        'show_full_result_count': True,
     },
     'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
-    'is_facets_var': '_facets',
-    'is_popup_var': '_popup',
     'lead_line': lambda **chords: ' '.join(chords.values()),
     'node_dependencies': {'jinja2': '*'},
     'node_dev_dependencies': {'pytest': '*'},
@@ -71,15 +64,12 @@ def stage_path(unformatted_template_path: Path, stage_name: str) -> Path:
 def render(template_path: Path) -> str:
     if template_path.name.endswith('.dj.html'):
         if not settings.configured:
-            settings.configure(STATIC_URL='/static/', USE_I18N=False)
+            settings.configure(USE_I18N=False)
         django.setup()
         return (
             Engine(
                 dirs=[template_path.parent],
-                libraries={
-                    'i18n': 'django.templatetags.i18n',
-                    'static': 'django.templatetags.static',
-                },
+                libraries={'i18n': 'django.templatetags.i18n'},
                 loaders=['django.template.loaders.filesystem.Loader'],
             )
             .get_template(template_path.name)

@@ -2,22 +2,10 @@
     <form id="changelist-search" method="get" role="search">
         <div>
             <!-- DIV needed for valid HTML -->
-            <label for="searchbar">
-                <img src="/static/admin/img/search.svg" alt="Search" />
-            </label>
-            <input
-                id="searchbar"
-                type="text"
-                size="40"
-                name="q"
-                value="four-file fixtures"
-                aria-describedby="searchbar_helptext"
-            />
+            <input id="searchbar" type="text" name="q" value="four-file fixtures" />
             <input type="submit" value="Search" />
 
-            <span class="small quiet">2 results (<a href="?_facets">12 total</a>)</span>
-
-            <input type="hidden" name="page" value="2" />
+            <span class="small quiet">2 results</span>
         </div>
 
         <br class="clear" />
