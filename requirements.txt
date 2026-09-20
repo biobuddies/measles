@@ -18,8 +18,6 @@ click==8.3.2
     # via
     #   cookiecutter
     #   djlint
-colorama==0.4.6
-    # via djlint
 cookiecutter==2.7.1
     # via measles (pyproject.toml)
 coverage==7.13.5
@@ -30,7 +28,7 @@ django==6.1
     # via measles (pyproject.toml)
 django-upgrade==1.30.0
     # via measles (pyproject.toml)
-djlint==1.36.4
+djlint==1.46.1
     # via measles (pyproject.toml)
 editorconfig==0.17.1
     # via
@@ -126,10 +124,10 @@ text-unidecode==1.3
     # via python-slugify
 tokenize-rt==6.2.0
     # via django-upgrade
-tqdm==4.67.3
-    # via djlint
 trove-classifiers==2026.1.14.14
     # via validate-pyproject
+typing-extensions==4.16.0
+    # via djlint
 typos==1.45.0
     # via measles (pyproject.toml)
 tzdata==2026.1
