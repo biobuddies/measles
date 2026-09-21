@@ -42,6 +42,7 @@ dependencies = [
         'ruff',
         'shellcheck-py',
         'shfmt-py',
+        'styleforce',
         'typos',
         'validate-pyproject[all]',
         'yamllint',
