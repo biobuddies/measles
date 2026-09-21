@@ -183,12 +183,6 @@ def test_new_repository_not_django(
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
     assert_mise('tools.rust', 'stable')
-    assert_mise(
-        'tasks.styleforce.run',
-        'AUTOFORMAT_EXCLUDES=${AUTOFORMAT_EXCLUDES-} '
-        'mise run-on-sources styleforce "*.py{,i}" "$@"',
-    )
-    assert 'styleforce' not in assert_mise('tasks.parallel-pre-commit.depends')
     assert_pyproject(
         'project.optional-dependencies.test', ['pytest', 'pytest-cov', 'pytest-httpserver']
     )
@@ -196,7 +190,6 @@ def test_new_repository_not_django(
     assert 'check-django' not in assert_mise('tasks')
     assert assert_mise('tasks.lychee.run') == 'lychee --no-progress "$@" .'
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
-    assert 'styleforce' in assert_pyproject('project.optional-dependencies.pre-commit')
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
