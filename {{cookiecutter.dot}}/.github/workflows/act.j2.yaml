@@ -1,14 +1,20 @@
-name: act
-defaults:
-    run:
-        shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
-{{ github_actions_env -}}
 {% raw -%}
-permissions:
-    contents: read
 concurrency:
     group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
     cancel-in-progress: ${{ github.event_name != 'push' }}
+
+{% endraw -%}
+defaults:
+    run:
+        shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
+
+{{ github_actions_env }}
+name: act
+
+{% raw -%}
+permissions:
+    contents: read
+
 jobs:
     # Root jobs
     check:
@@ -126,5 +132,6 @@ on: # yamllint disable-line rule:truthy
             - published
     {%- raw %}
     workflow_dispatch:
+
 run-name: Acting on behalf of ${{ github.actor }}
 {% endraw -%}

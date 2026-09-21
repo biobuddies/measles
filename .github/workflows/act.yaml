@@ -1,7 +1,11 @@
-name: act
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
+    cancel-in-progress: ${{ github.event_name != 'push' }}
+
 defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
+
 env:
     ALLOWEDFLARE_EMAIL: person@emailprovider.example
     ALLOWEDFLARE_PRIVATE_DOMAIN: organization.example
@@ -10,11 +14,12 @@ env:
     GITHUB_TOKEN: ${{ github.token }}
     INSH_TF: tofu
     PATH: .venv/bin:/home/runner/.local/bin:/home/runner/.local/share/mise/shims:/usr/bin:/bin
+
+name: act
+
 permissions:
     contents: read
-concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
-    cancel-in-progress: ${{ github.event_name != 'push' }}
+
 jobs:
     # Root jobs
     check:
@@ -106,4 +111,5 @@ on: # yamllint disable-line rule:truthy
         types:
             - published
     workflow_dispatch:
+
 run-name: Acting on behalf of ${{ github.actor }}
