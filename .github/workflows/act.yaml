@@ -1,31 +1,36 @@
-name: act
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
+    cancel-in-progress: ${{ github.event_name != 'push' }}
+
 defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
+
 env:
     ALLOWEDFLARE_EMAIL: person@emailprovider.example
     ALLOWEDFLARE_PRIVATE_DOMAIN: organization.example
     CLOUDFLARE_ACCOUNT_ID: 0123456789abcdef0123456789abcdef00
     CLOUDFLARE_ZONE_ID: 0123456789abcdef0123456789abcdef01
-    # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
-    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     GITHUB_TOKEN: ${{ github.token }}
     INSH_TF: tofu
     PATH: .venv/bin:/home/runner/.local/bin:/home/runner/.local/share/mise/shims:/usr/bin:/bin
-concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
-    cancel-in-progress: ${{ github.event_name != 'push' }}
+
+name: act
+
+permissions:
+    contents: read
+
 jobs:
     # Root jobs
     check:
         runs-on: ubuntu-latest
         steps:
             # Real hash is head_ref on pull_request, ref on push
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ github.head_ref || github.ref }}
-            - uses: jdx/mise-action@v3
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
             - run: mise set-environment
@@ -34,11 +39,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             # Real hash is head_ref on pull_request, ref on push
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ github.head_ref || github.ref }}
-            - uses: jdx/mise-action@v3
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
                   install: false
@@ -47,11 +52,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             # Real hash is head_ref on pull_request, ref on push
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ github.head_ref || github.ref }}
-            - uses: jdx/mise-action@v3
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
             - run: |
@@ -84,8 +89,8 @@ jobs:
                 || github.head_ref
                 || github.ref_name }}
         steps:
-            - uses: actions/checkout@v6
-            - uses: jdx/mise-action@v3
+            - uses: actions/checkout@v7
+            - uses: jdx/mise-action@v4
               with:
                   experimental: true
             - run: mise set-environment
@@ -106,4 +111,5 @@ on: # yamllint disable-line rule:truthy
         types:
             - published
     workflow_dispatch:
+
 run-name: Acting on behalf of ${{ github.actor }}
