@@ -2,9 +2,8 @@
 
 import stat
 import sys
-from base64 import b64encode
 from io import BytesIO
-from json import dumps, loads
+from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
@@ -14,7 +13,6 @@ from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any
 from urllib.error import HTTPError
-from urllib.request import Request
 
 from jinja2 import Environment
 from pytest import CaptureFixture, MonkeyPatch, fail, fixture, mark, raises
@@ -211,11 +209,11 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, event: str, fqdn: str):
             template
             .strip()
             .replace('{%- if cookiecutter.domain_name %}\n', '')
-            .replace("\n{%- else %}\nrun = ''\n{%- endif %}", '')
+            .replace("\n{%- else %}\nrun = ':'\n{%- endif %}", '')
             .replace('{{ cookiecutter.domain_name }}', domain)
         )
     else:
-        fqdn_task = "run = ''\n"
+        fqdn_task = "run = ':'\n"
     (tmp_path / '.config').mkdir()
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
@@ -423,58 +421,37 @@ def test_release(tmp_path: Path, week: int, latest: str, release: int):
 def gitignore_request(monkeypatch: MonkeyPatch) -> SimpleNamespace:
     captured_request = SimpleNamespace(request=None)
 
-    def fake_urlopen(request: Request) -> BytesIO:
+    def fake_urlopen(url: str) -> BytesIO:
         if captured_request.request is not None:
             fail('urlopen called twice')
-        captured_request.request = request
-        return BytesIO(
-            dumps({'content': b64encode(b'/site\n').decode(), 'sha': 'c0def00d'}).encode()
-        )
+        captured_request.request = url
+        return BytesIO(b'/site\n')
 
     monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
     return captured_request
 
 
-def test_gitignore_no_token_or_sed_substitution(
-    monkeypatch: MonkeyPatch, gitignore_request: SimpleNamespace
-):
-    monkeypatch.delenv('GITHUB_TOKEN', raising=False)
-
-    result = measles.gitignore('Python')
-    request = gitignore_request.request
-
-    assert result == '# Python=c0def00d\n/site\n'
-    assert request is not None
+def test_gitignore_no_sed_substitution(gitignore_request: SimpleNamespace):
     assert (
-        request.full_url
-        == 'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
+        measles.gitignore('Python') == '# Python=c9490a532095e6a3836919652bd5b05851b9df60\n/site\n'
     )
-    assert request.get_header('Authorization') is None
+    assert (
+        gitignore_request.request
+        == 'https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore'
+    )
 
 
-def test_gitignore_with_token_and_sed_substitution(
-    monkeypatch: MonkeyPatch, tmp_path: Path, gitignore_request: SimpleNamespace
-):
+@mark.usefixtures('gitignore_request')
+def test_gitignore_sed_substitution(monkeypatch: MonkeyPatch, tmp_path: Path):
     (tmp_path / '.gitignore.sed').write_text('s,^/site$,/site/ton/,\n')
-    (tmp_path / '.gitignore').write_text('#\n#\n#\n')
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('GITHUB_TOKEN', 'test-token')
 
-    result = measles.gitignore('Python')
-    request = gitignore_request.request
-
-    assert result == '# Python=c0def00d\n/site/ton/\n'
-    assert request is not None
-    assert (
-        request.full_url
-        == 'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main'
-    )
-    assert request.get_header('Authorization') == 'Bearer test-token'
+    assert measles.gitignore('Python').endswith('\n/site/ton/\n')
 
 
 def raise_http_error(_: Any) -> Any:
     raise HTTPError(
-        'https://api.github.com/repos/github/gitignore/contents/Python.gitignore?ref=main',
+        'https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore',
         429,
         'Too Many Requests',
         None,  # pyrefly: ignore[bad-argument-type]
@@ -482,24 +459,24 @@ def raise_http_error(_: Any) -> Any:
     )
 
 
-def test_gitignore_fallback_on_api_error(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]):
-    vendored_gitignore = '# header\n# hashes\n# Python=oldf00d\nlogs\nnode_modules/\n'
+def test_gitignore_fallback_on_http_error(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]):
+    existing_gitignore = '# header\n# hashes\n# Node=01d\n# Python=f00d\n# Logs\nlogs\n'
 
     def fake_read_text(path: Path) -> str:
         if path.name == '.gitignore':
-            return vendored_gitignore
+            return existing_gitignore
         raise AssertionError(path)
 
     monkeypatch.setattr(measles.Path, 'read_text', fake_read_text)
     monkeypatch.setattr(measles, 'stderr', sys.stderr)
     monkeypatch.setattr(measles, 'urlopen', raise_http_error)
 
-    result = measles.gitignore('Python')
+    result = measles.gitignore('Node,Python')
     captured = capsys.readouterr()
 
-    assert result == 'logs\nnode_modules/\n'
+    assert result == '# Node=01d\n# Python=f00d\n# Logs\nlogs\n'
     assert captured.err == (
-        'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
+        'Warning: skipping .gitignore update after GitHub fetch failed: '
         'HTTP 429 Too Many Requests\n'
     )
 
@@ -555,10 +532,16 @@ def test_post_gen_project_bash(tmp_path: Path):
     hook = (
         Environment(autoescape=False)  # noqa: S701
         .from_string((Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text())
-        .render(CONA='speedrun', ORGN='biobuddies', has_django=True)
+        .render(
+            CONA='speedrun',
+            ORGN='biobuddies',
+            cookiecutter=SimpleNamespace(publish_to_pypi=False),
+            has_django=True,
+        )
     )
     (tmp_path / '.github').mkdir()
     (tmp_path / 'CONTRIBUTING.md').write_text('')
+    (tmp_path / 'pypi_compatible_build.py').write_text('')
     fake_uv = tmp_path / 'uv'
     fake_uv.write_text(
         dedent("""
@@ -585,6 +568,7 @@ def test_post_gen_project_bash(tmp_path: Path):
         "SECRET_KEY = 'django-insecure-test-key'  # noqa: typos\n"
     )
     assert not (tmp_path / 'config' / 'settings.py.bak').exists()
+    assert not (tmp_path / 'pypi_compatible_build.py').exists()
 
     for link, target in (
         ('AGENTS.md', 'CONTRIBUTING.md'),
