@@ -33,6 +33,10 @@ mise install
 # mise install exits 0 when postinstall fails
 mise exec -- uv pip sync requirements.txt
 mise exec -- npm clean-install --no-audit --no-fund
+if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
+    mkdir --parents ~/.claude
+    ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json
+fi
 # Multi-repository sessions start in the parent directory, so activate per directory instead of
 # exporting one repository's paths.
 # shellcheck disable=SC2016
