@@ -6,7 +6,7 @@ log=/tmp/setup.log
 exec > >(tee -a "$log") 2>&1
 datetimez() { date -u '+%F %TZ'; }
 trap 'echo "ERROR $(datetimez) $PWD"' ERR
-toplevel=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+toplevel=$(git -C "$(dirname "${BASH_SOURCE[0]:?requires BASH}")" rev-parse --show-toplevel)
 cd "$toplevel"
 echo "Start $(datetimez) $PWD"
 # See also mise check-branch and CONTRIBUTING.md
@@ -31,7 +31,12 @@ if [ -n "$version" ] && [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
 fi
 mise install
 # mise install exits 0 when postinstall fails
-mise exec -- uv pip sync requirements.txt
+if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
+    # Proxy CA breaks their sdist builds; see measles README.md Known issue
+    grep -vE '^(actionlint|hadolint)-py' requirements.txt | mise exec -- uv pip sync -
+else
+    mise exec -- uv pip sync requirements.txt
+fi
 mise exec -- npm clean-install --no-audit --no-fund
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude

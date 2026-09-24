@@ -163,7 +163,7 @@ def test_new_repository_not_django(
             'default_context': {
                 'description': 'Enforce append-only Write Once, Read Many (WORM) data flows',
                 'github_actions_env': github_actions_env,
-                'languages': 'Node,Python,Rust',
+                'languages': 'Node,Python,Rust,Terraform',
                 'node_dependencies': {'react': '^19.0.0'},
                 'node_dev_dependencies': {'vite': '^7.0.0'},
                 'python_dependencies': ['click'],
@@ -201,6 +201,7 @@ def test_new_repository_not_django(
     assert '    EXAMPLE_CONFIGURATION: customized\n' in workflow
     assert_yaml('env.AMBIGUOUS_CONFIGURATION', 'true')
     assert_yaml('env.EXAMPLE_CONFIGURATION', 'customized')
+    assert_yaml('env.TENV_GITHUB_TOKEN', '${{ github.token }}')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
     assert steps[4]['run'] == (

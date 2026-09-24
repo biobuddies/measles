@@ -33,16 +33,16 @@ for relative paths from the repository root to `.config/autoformat-excludes` lik
 
 ## Agent sandboxes
 
-`.config/setup.bash` installs mise and the tools of the repository containing it, appending to
-`/tmp/setup.log`. Codex Cloud runs it through `.codex/setup.sh`; Claude Code on the web runs it
-through the `.claude/hooks/session-start.sh` SessionStart hook, once per source repository, but
-only while snapshotting the environment. Repositories added later, or lacking `.claude`, need the
-environment setup script to source it.
+Set environment setup script to
 
-Trusting the parent directory lets `mise activate` supply each sibling's environment on `cd`, so
-one run covers a multi-repository session. Installing tools stays explicit, because entering a
-directory installs nothing: run `mise install` in whichever sibling gets a feature branch.
+```bash
+grep -qs 'setup\.bash' .claude/hooks/session-start.sh || measles/.config/setup.bash
+```
+
+This accommodates Claude Code on the web's different single and multiple repository startups.
+
+TODO re-test on Codex Cloud, probably leveraging `.codex/setup.sh`
 
 Known issue: Claude Code on the web's proxy CA lacks the key usage extension Python 3.13 requires,
-so sdists downloading binaries while building, like actionlint-py and hadolint-py, fail to install.
-https://gist.github.com/mdehling/350fc63d286a31b2653aef1362c6b0f5
+so sdists downloading binaries while building, like actionlint-py and hadolint-py, fail to install;
+`.config/setup.bash` skips them. https://gist.github.com/mdehling/350fc63d286a31b2653aef1362c6b0f5
