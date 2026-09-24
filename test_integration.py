@@ -76,7 +76,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
             .split('\nEOF\n', 1)[1],
         ),
         flags=MULTILINE,
-    ).replace('mise use uv@latest', f'mise use uv@{uv_version}')
+    ).replace('mise use --global uv@latest', f'mise use --global uv@{uv_version}')
 
     def bootstrap(
         cookiecutter: dict[str, object], *, has_django: bool, **overrides: str
@@ -192,6 +192,7 @@ def test_new_repository_not_django(
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
+    assert not (tmp_path / 'pypi_compatible_build.py').exists()
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
     assert_yaml = load_yaml(workflow_path)
     workflow = workflow_path.read_text()

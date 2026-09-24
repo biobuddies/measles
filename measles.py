@@ -1,8 +1,8 @@
 """Continuous cookiecutter featuring mise."""
 
-from base64 import b64decode
 from collections import defaultdict
-from json import load
+from hashlib import sha1
+from itertools import takewhile
 from os import environ, getenv
 from pathlib import Path
 from re import fullmatch, search
@@ -10,7 +10,7 @@ from subprocess import CalledProcessError, check_output
 from sys import stderr
 from textwrap import dedent
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import urlopen
 
 from jinja2 import Environment
 from jinja2.ext import Extension
@@ -62,44 +62,32 @@ def orgn() -> str:
 def gitignore(languages: str) -> str:
     names = languages.split(',')
     gitignore_path = Path(environ['PWD']) / '.gitignore'
-    existing = gitignore_path.read_text().splitlines() if gitignore_path.exists() else []
-    body_index = 3
-    hashes = []
-    while body_index < len(existing) and existing[body_index].startswith('# '):
-        hashes.append(existing[body_index])
-        body_index += 1
+    existing = gitignore_path.read_text().splitlines()[2:] if gitignore_path.exists() else []
+    hashes = [*takewhile(lambda line: fullmatch(r'# [\w+-]+=[0-9a-f]+', line), existing)]
+    body = '\n'.join(existing[len(hashes) :]) + '\n'
     try:
         upstream = [
-            load(
-                urlopen(
-                    Request(
-                        (f'https://api.github.com/repos/github/gitignore/contents/{path}?ref=main'),
-                        headers=(
-                            {'Authorization': f'Bearer {token}'}
-                            if (token := getenv('GITHUB_TOKEN'))
-                            else {}
-                        ),
-                    )
-                )
-            )
-            for path in [f'{name}.gitignore' for name in names]
+            urlopen(
+                f'https://raw.githubusercontent.com/github/gitignore/main/{name}.gitignore'
+            ).read()
+            for name in names
         ]
     except HTTPError as error:
         if error.code not in {403, 429}:
             raise
         stderr.write(
-            'Warning: falling back to vendored .gitignore after GitHub fetch failed: '
+            'Warning: skipping .gitignore update after GitHub fetch failed: '
             f'HTTP {error.code} {error.reason}\n'
         )
-        body = '\n'.join(existing[body_index:]) + '\n'
     except URLError:
-        stderr.write(
-            'Warning: falling back to vendored .gitignore after GitHub fetch failed: URL error\n'
-        )
-        body = '\n'.join(existing[body_index:]) + '\n'
+        stderr.write('Warning: skipping .gitignore update after GitHub fetch failed: URL error\n')
     else:
-        body = ''.join(b64decode(item['content']).decode() for item in upstream)
-        hashes = [f'# {name}={item["sha"]}' for name, item in zip(names, upstream, strict=True)]
+        body = b''.join(upstream).decode()
+        hashes = [
+            f'# {name}='
+            + sha1(b'blob %d\0' % len(content) + content, usedforsecurity=False).hexdigest()
+            for name, content in zip(names, upstream, strict=True)
+        ]
     if Path('.gitignore.sed').exists():
         # short flags for Darwin compatibility
         body = check_output(['sed', '-E', '-f', '.gitignore.sed'], input=body.encode()).decode()

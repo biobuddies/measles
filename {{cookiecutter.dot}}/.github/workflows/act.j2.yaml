@@ -7,8 +7,7 @@ concurrency:
 defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
-
-{{ github_actions_env }}
+{{ github_actions_env and '\n' + github_actions_env }}
 name: act
 
 {% raw -%}

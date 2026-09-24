@@ -1,7 +1,7 @@
 #!/bin/bash
 # Bootstrap mise and this repository's tools in agent sandboxes lacking both. Hosts discard
 # session start hook output, so append everything to a log reviewable afterwards.
-set -o errexit -o nounset -o pipefail
+set -o errexit -o nounset -o pipefail -o xtrace
 log=/tmp/setup.log
 exec > >(tee -a "$log") 2>&1
 datetimez() { date -u '+%F %TZ'; }
@@ -11,7 +11,7 @@ cd "$toplevel"
 echo "Start $(datetimez) $PWD"
 # See also mise check-branch and CONTRIBUTING.md
 branch=$(git branch --show-current)
-[[ "$branch" = "${branch##*/}" ]] || git branch --move "${branch##*/}"
+[[ $branch == "${branch##*/}" ]] || git branch --move "${branch##*/}"
 export PATH="$HOME/.local/bin:$PATH"
 command -v mise >/dev/null || curl https://mise.run | sh
 # Trust the parent so sibling checkouts of a multi-repository session need no second visit.
@@ -30,7 +30,11 @@ if [ -n "$version" ] && [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mise use --global "go:github.com/tofuutils/tenv/v${version%%.*}/cmd/tenv@$version"
 fi
 mise install
+# mise install exits 0 when postinstall fails
+mise exec -- uv pip sync requirements.txt
+mise exec -- npm clean-install --no-audit --no-fund
 # Multi-repository sessions start in the parent directory, so activate per directory instead of
 # exporting one repository's paths.
+# shellcheck disable=SC2016
 grep -q 'mise activate' ~/.bashrc || echo 'eval "$(mise activate bash)"' >>~/.bashrc
 echo "Complete $(datetimez) $PWD"

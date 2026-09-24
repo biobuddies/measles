@@ -8,6 +8,9 @@ set -o errexit -o nounset -o pipefail -o xtrace
 sed -i.bak "/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }" config/settings.py
 rm config/settings.py.bak
 {% endif %}
+{% if not cookiecutter.publish_to_pypi %}
+rm -f MANIFEST.in pypi_compatible_build.py
+{% endif %}
 # https://developers.openai.com/codex/guides/agents-md
 # https://forgecode.dev/docs/custom-rules/
 ln -sf CONTRIBUTING.md AGENTS.md

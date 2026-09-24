@@ -21,14 +21,17 @@ set -o errexit -o nounset
 [ -d .git ] || git init --initial-branch=main
 npm install --no-audit --no-fund &
 npm_pid=$!
+uv_status=0
 # dup :359 tasks.uv-pip-compile
 # Styleforce wheels require manylinux 2.28; uv's generic linux target assumes manylinux 2.17.
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform x86_64-manylinux_2_28 \
-    --python-version {{ cookiecutter.python_version }} pyproject.toml
-uv venv --allow-existing --quiet
-uv pip sync requirements.txt --allow-empty-requirements --quiet
+    --python-version {{ cookiecutter.python_version }} pyproject.toml \
+    && uv venv --allow-existing --quiet \
+    && uv pip sync requirements.txt --allow-empty-requirements --quiet \
+    || uv_status=$?
 wait "$npm_pid"
+[ "$uv_status" -eq 0 ] || exit "$uv_status"
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 """
@@ -61,7 +64,7 @@ case ${GITHUB_EVENT_NAME-}:$tabr in
 esac
 '''
 {%- else %}
-run = ''
+run = ':'
 {%- endif %}
 
 [tasks.giha]
@@ -166,7 +169,7 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 run = 'mise run-on-sources django-upgrade \*.py "$@"'
 
 [tasks.deploy]
-run = ''
+run = ':'
 
 [tasks.djlint-django]
 run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@"'
@@ -196,9 +199,9 @@ run = 'python -m helicopyter --format_with=${INSH_TF:-terraform} all "$@"'
 [tasks.lychee]
 {% if cookiecutter.domain_name -%}
 run = 'lychee --base-url=https://{{ cookiecutter.domain_name }} --no-progress "$@" .'
-{% else -%}
+{%- else -%}
 run = 'lychee --no-progress "$@" .'
-{% endif %}
+{%- endif %}
 
 [tasks.mailmap]
 run = """
@@ -392,7 +395,7 @@ run = 'mise run-on-sources typos "*" --write-changes --config .biobuddies/typos.
 [tasks.uv-pip-check]
 run = 'uv pip check "$@"'
 
-# dup :24 hooks.postinstall
+# dup :25 hooks.postinstall
 [tasks.uv-pip-compile]
 run = '''
 #!/usr/bin/env bash
@@ -435,9 +438,9 @@ depends = [
     # line keepers
     'actionlint',
     'check-branch',
-{% if has_django -%}
+    {% if has_django -%}
     'check-django',
-{% endif -%}
+    {% endif -%}
     'hadolint',
     'mailmap',
     'no-field-separators',
