@@ -45,6 +45,9 @@ test = [
 [project.urls]
 source = 'https://github.com/biobuddies/measles'
 
+[tool.coverage.run]
+source_pkgs = ['measles']
+
 [tool.pytest.ini_options]
 norecursedirs = ['.venv', 'node_modules', '{{cookiecutter.dot}}']
 

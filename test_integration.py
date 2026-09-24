@@ -78,8 +78,8 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
         flags=MULTILINE,
     ).replace('mise use --global uv@latest', f'mise use --global uv@{uv_version}')
 
-    def bootstrap(
-        cookiecutter: dict[str, object], *, has_django: bool, **overrides: str
+    def inner(
+        cookiecutter: dict[str, object], *, has_django: bool, **kwargs: str
     ) -> tuple[Path, Callable[..., Any]]:
         with (tmp_path / '.cookiecutter.yaml').open('w') as cookiecutter_file:
             yaml = YAML()
@@ -109,7 +109,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
                 if tag_or_branch and environment == 'github'
                 else {}
             ),
-            **overrides,
+            **kwargs,
         }
         check_call(
             ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
@@ -119,7 +119,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
         assert_pyproject = load_toml(tmp_path / 'pyproject.toml')
         assert (
             check_output(['mise', 'cona'], cwd=tmp_path, env=env)
-            == (overrides['CONA'] + '\n').encode()
+            == (kwargs['CONA'] + '\n').encode()
         )
         assert_pyproject(
             'tool.pytest.ini_options.norecursedirs',
@@ -138,7 +138,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
             assert (tmp_path / link).readlink() == Path(target)
         return tmp_path, assert_pyproject
 
-    return bootstrap
+    return inner
 
 
 def test_missing_cookiecutter_yaml(
@@ -343,8 +343,7 @@ def test_existing_repository(codename: str, dependencies: list[str], has_django:
             cwd=downstream,
             env=env,
         )
-    assert_yaml = load_yaml(cookiecutter_yaml)
-    assert_yaml('default_context.languages')
+    load_yaml(cookiecutter_yaml)('default_context.languages')
     assert check_output(['mise', 'cona'], cwd=downstream, env=env) == f'{codename}\n'.encode()
     assert (
         check_output(

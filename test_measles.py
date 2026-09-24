@@ -13,7 +13,7 @@ MISSING = object()
 
 @fixture
 def precise_environment(monkeypatch: MonkeyPatch) -> Callable[..., None]:
-    def set_environment(**environment: str) -> None:
+    def inner(**kwargs: str) -> None:
         for key, value in (
             dict.fromkeys(
                 (
@@ -26,14 +26,14 @@ def precise_environment(monkeypatch: MonkeyPatch) -> Callable[..., None]:
                 ),
                 MISSING,
             )
-            | environment
+            | kwargs
         ).items():
             if value is MISSING:
                 monkeypatch.delitem(environ, key, raising=False)
             else:
                 monkeypatch.setenv(key, value)  # pyrefly: ignore[bad-argument-type]
 
-    return set_environment
+    return inner
 
 
 def test_cona_eponymous(

@@ -75,11 +75,22 @@ def replaced_mise_task(name: str, replacements: dict[str, str]) -> str:
     ),
 )
 def test_tabr(git_describe: str, tabr: str):
-    task = replaced_mise_task(
-        'tabr', {'git describe --all --dirty --exact-match': f'echo "{git_describe}"'}
+    assert (
+        check_output(
+            [
+                '/usr/bin/env',
+                'bash',
+                '-c',
+                replaced_mise_task(
+                    'tabr', {'git describe --all --dirty --exact-match': f'echo "{git_describe}"'}
+                ),
+            ],
+            env={},
+        )
+        .decode()
+        .strip()
+        == tabr
     )
-    output = check_output(['/usr/bin/env', 'bash', '-c', task], env={}).decode().strip()
-    assert output == tabr
 
 
 def test_tabr_prefers_latest_tag(tmp_path: Path):
@@ -99,13 +110,14 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
     )
     for tag in ('v2026.34.99', 'v2026.35.01', 'v2026.35.10', 'v2026.35.02'):
         check_call(['git', 'tag', tag], cwd=tmp_path)
-    task = verbatim_mise_task('tabr')
-    output = check_output(
-        ['/usr/bin/env', 'bash', '-c', task],
-        cwd=tmp_path,
-        env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
+    assert (
+        check_output(
+            ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('tabr')],
+            cwd=tmp_path,
+            env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
+        )
+        == b'v2026.35.10\n'
     )
-    assert output == b'v2026.35.10\n'
 
 
 @mark.parametrize(
@@ -146,17 +158,22 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
 )
 def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
     codename, environment, branch, arguments, expected = case
-    task = replaced_mise_task(
-        'cookiecutter',
-        {
-            'cookiecutter --config-file': 'echo cookiecutter --config-file',
-            'tabr=$(mise tabr)': f'tabr={branch}',
-        },
-    )
-
-    output = (
+    assert (
         check_output(
-            ['/usr/bin/env', 'bash', '-c', task, 'cookiecutter', *arguments],
+            [
+                '/usr/bin/env',
+                'bash',
+                '-c',
+                replaced_mise_task(
+                    'cookiecutter',
+                    {
+                        'cookiecutter --config-file': 'echo cookiecutter --config-file',
+                        'tabr=$(mise tabr)': f'tabr={branch}',
+                    },
+                ),
+                'cookiecutter',
+                *arguments,
+            ],
             env={
                 'CONA': codename,
                 'HOME': '/home/biobuddy',
@@ -167,15 +184,7 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
         )
         .decode()
         .split()[1:]
-    )
-
-    assert output == [
-        '--config-file',
-        '.cookiecutter.yaml',
-        '--no-input',
-        '--overwrite-if-exists',
-        expected,
-    ]
+    ) == ['--config-file', '.cookiecutter.yaml', '--no-input', '--overwrite-if-exists', expected]
 
 
 @mark.parametrize(
@@ -421,13 +430,13 @@ def test_release(tmp_path: Path, week: int, latest: str, release: int):
 def gitignore_request(monkeypatch: MonkeyPatch) -> SimpleNamespace:
     captured_request = SimpleNamespace(request=None)
 
-    def fake_urlopen(url: str) -> BytesIO:
+    def inner(url: str) -> BytesIO:
         if captured_request.request is not None:
             fail('urlopen called twice')
         captured_request.request = url
         return BytesIO(b'/site\n')
 
-    monkeypatch.setattr(measles, 'urlopen', fake_urlopen)
+    monkeypatch.setattr(measles, 'urlopen', inner)
     return captured_request
 
 
@@ -462,12 +471,12 @@ def raise_http_error(_: Any) -> Any:
 def test_gitignore_fallback_on_http_error(monkeypatch: MonkeyPatch, capsys: CaptureFixture[str]):
     existing_gitignore = '# header\n# hashes\n# Node=01d\n# Python=f00d\n# Logs\nlogs\n'
 
-    def fake_read_text(path: Path) -> str:
+    def inner(path: Path) -> str:
         if path.name == '.gitignore':
             return existing_gitignore
         raise AssertionError(path)
 
-    monkeypatch.setattr(measles.Path, 'read_text', fake_read_text)
+    monkeypatch.setattr(measles.Path, 'read_text', inner)
     monkeypatch.setattr(measles, 'stderr', sys.stderr)
     monkeypatch.setattr(measles, 'urlopen', raise_http_error)
 
