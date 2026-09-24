@@ -64,6 +64,11 @@ dependencies = [
 [project.urls]
 source = 'https://github.com/{{ ORGN }}/{{ CONA }}'
 
+{% if cookiecutter.publish_to_pypi -%}
+[tool.coverage.run]
+source_pkgs = ['{{ CONA|replace('-', '_') }}']
+
+{% endif -%}
 [tool.pytest.ini_options]
 {{ "DJANGO_SETTINGS_MODULE = 'config.settings'\n" if has_django else '' -}}
 norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
