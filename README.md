@@ -45,3 +45,4 @@ directory installs nothing: run `mise install` in whichever sibling gets a featu
 
 Known issue: Claude Code on the web's proxy CA lacks the key usage extension Python 3.13 requires,
 so sdists downloading binaries while building, like actionlint-py and hadolint-py, fail to install.
+https://gist.github.com/mdehling/350fc63d286a31b2653aef1362c6b0f5
