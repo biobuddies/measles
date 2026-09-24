@@ -17,8 +17,7 @@ from django.conf import settings
 from django.template import Context, Engine
 from jinja2 import Environment, FileSystemLoader
 
-FIXTURES = Path(__file__).parent
-TEMPLATE_PATHS = tuple(sorted(FIXTURES.glob('*/1-unformatted-template.*')))
+TEMPLATE_PATHS = tuple(sorted(Path(__file__).parent.glob('*/1-unformatted-template.*')))
 CONTEXT = {
     'allowedflare_message': 'Use your allowed account',
     'cl': {
