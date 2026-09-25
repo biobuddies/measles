@@ -282,50 +282,79 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
     ('conas', 'arguments', 'calls'),
     (
         (
-            ('alpha',),
-            (),
+            ('wriggle',),
+            ('init',),
             (
-                'tf  -chdir=deploys/alpha/terraform init',
-                'python -m helicopyter --format_with=tf alpha',
+                'python -m helicopyter --format_with=tofu wriggle',
+                'tofu  -chdir=deploys/wriggle/terraform init',
             ),
         ),
         (
-            ('alpha',),
-            ('main', '-upgrade'),
+            ('wriggle',),
+            ('init', 'main', '-upgrade'),
             (
-                'tf main -chdir=deploys/alpha/terraform init -upgrade',
-                'python -m helicopyter --format_with=tf alpha',
+                'python -m helicopyter --format_with=tofu wriggle',
+                'tofu main -chdir=deploys/wriggle/terraform init -upgrade',
             ),
         ),
         (
-            ('alpha', 'beta'),
-            ('beta', 'main'),
+            ('speedrun', 'wriggle'),
+            ('init', 'speedrun', 'main'),
             (
-                'tf main -chdir=deploys/beta/terraform init',
-                'python -m helicopyter --format_with=tf beta',
+                'python -m helicopyter --format_with=tofu speedrun',
+                'tofu main -chdir=deploys/speedrun/terraform init',
             ),
         ),
-        (('alpha', 'beta'), ('main',), None),
-        (('alpha',), ('default',), None),
+        (
+            ('wriggle',),
+            ('apply', 'main', '-auto-approve'),
+            (
+                'python -m helicopyter --format_with=tofu wriggle',
+                'tofu main -chdir=deploys/wriggle/terraform init',
+                'tofu main -chdir=deploys/wriggle/terraform apply -auto-approve',
+            ),
+        ),
+        (
+            ('speedrun', 'wriggle'),
+            ('plan', 'speedrun', 'some-cool-feature'),
+            (
+                'python -m helicopyter --format_with=tofu speedrun',
+                'tofu some-cool-feature -chdir=deploys/speedrun/terraform init',
+                'tofu some-cool-feature -chdir=deploys/speedrun/terraform plan',
+            ),
+        ),
+        (
+            ('wriggle',),
+            ('validate',),
+            (
+                'python -m helicopyter --format_with=tofu wriggle',
+                'tofu  -chdir=deploys/wriggle/terraform init',
+                'tofu  -chdir=deploys/wriggle/terraform validate',
+            ),
+        ),
+        (('speedrun', 'wriggle'), ('init', 'main'), None),
+        (('wriggle',), ('init', 'default'), None),
+        (('wriggle',), ('apply',), None),
     ),
 )
-def test_tinit(
+def test_tact(
     tmp_path: Path,
     conas: tuple[str, ...],
     arguments: tuple[str, ...],
     calls: tuple[str, ...] | None,
 ):
-    for executable in ('python', 'tf'):
+    for executable in ('python', 'tofu'):
         write_mock_executable(
             tmp_path / executable,
             f"""
             printf '{executable} %s%s\\n' "${{TF_WORKSPACE+$TF_WORKSPACE }}" "$*" >> calls
             """,
         )
+    write_mock_executable(tmp_path / 'mise', 'echo stub')
     for cona in conas:
         (tmp_path / 'deploys' / cona / 'terraform').mkdir(parents=True)
-    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('tinit'), 'tinit', *arguments]
-    environment = {'INSH_TF': 'tf', 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('tact'), 'tact', *arguments]
+    environment = {'INSH_TF': 'tofu', 'PATH': f'{tmp_path}:{environ["PATH"]}'}
 
     if calls is None:
         with raises(CalledProcessError):

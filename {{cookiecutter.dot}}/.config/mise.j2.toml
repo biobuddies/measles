@@ -8,6 +8,7 @@ lockfile = true
 uv_venv_auto = 'create|source'
 
 [env]
+INSH_TF = 'tofu'
 TENV_AUTO_INSTALL = 'true'
 _.path = ['./node_modules/.bin']
 _.python.venv = { path = '.venv' }
@@ -114,9 +115,15 @@ fi
 '''
 
 [tasks.tinit]
+run = 'mise tact init "$@"'
+
+[tasks.tact]
+# Usage: mise tact ACTION [CONA] [ENVI] [ARGUMENTS...]
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+action=${1:?missing action}
+shift
 conas=$(ls deploys 2>/dev/null || true)
 if [[ ${1-} && -d deploys/$1/terraform ]]; then
     cona=$1
@@ -133,9 +140,18 @@ if [[ $envi == default ]]; then
     echo 'If you only have one environment, please name it `main`.'
     exit 1
 fi
-tf=${INSH_TF:-terraform}
-TF_WORKSPACE=$envi "$tf" -chdir="deploys/$cona/terraform" init "$@"
-python -m helicopyter --format_with="$tf" "$cona"
+if [[ ! $envi && $action =~ ^(apply|plan)$ ]]; then
+    echo 'Missing envi' >&2
+    exit 1
+fi
+python -m helicopyter --format_with="$INSH_TF" "$cona"
+if [[ $action == init ]]; then
+    TF_WORKSPACE=$envi "$INSH_TF" -chdir="deploys/$cona/terraform" init "$@"
+else
+    TF_WORKSPACE=$envi "$INSH_TF" -chdir="deploys/$cona/terraform" init
+    TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE=$envi \
+        "$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
+fi
 """
 
 # Leaf tasks
@@ -195,7 +211,11 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 run = 'mise run-on-sources django-upgrade \*.py "$@"'
 
 [tasks.deploy]
+{% if 'terraform' in cookiecutter.languages.lower().split(',') -%}
+run = 'mise tapply "$@"'
+{%- else -%}
 run = ':'
+{%- endif %}
 
 [tasks.djlint-django]
 run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@"'
@@ -220,7 +240,7 @@ run = 'mise run-on-sources end-of-file-fixer . "$@"'
 run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
 
 [tasks.helicopyter]
-run = 'python -m helicopyter --format_with=${INSH_TF:-terraform} all "$@"'
+run = 'python -m helicopyter --format_with="$INSH_TF" all "$@"'
 
 [tasks.lychee]
 {% if cookiecutter.domain_name -%}
@@ -356,17 +376,7 @@ EOD
 """
 
 [tasks.tapply]
-run = """
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-cona=${1:?missing cona}
-envi=${2:?missing envi}
-shift 2
-mise tinit "$cona" "$envi"
-tf=${INSH_TF:-terraform}
-TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE="$envi" \
-    "$tf" -chdir="deploys/$cona/terraform" apply "$@"
-"""
+run = 'mise tact apply "$@"'
 
 [tasks.test]
 run = '''
@@ -377,30 +387,13 @@ python -m pytest --cov${PYTEST_COV-} \
 '''
 
 [tasks.tplan]
-run = """
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-cona=${1:?missing cona}
-envi=${2:?missing envi}
-shift 2
-mise tinit "$cona" "$envi"
-tf=${INSH_TF:-terraform}
-TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE="$envi" \
-    "$tf" -chdir="deploys/$cona/terraform" plan "$@"
-"""
+run = 'mise tact plan "$@"'
 
 [tasks.trailing-whitespace-fixer]
 run = 'mise run-on-sources trailing-whitespace-fixer . "$@"'
 
 [tasks.tvalid]
-run = """
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-cona=${1:?missing cona}
-shift
-mise tinit "$cona"
-${INSH_TF:-terraform} -chdir="deploys/$cona/terraform" validate "$@"
-"""
+run = 'mise tact validate "$@"'
 
 [tasks.npm-package-lock]
 run = 'npm install --package-lock-only "$@"'
