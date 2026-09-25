@@ -279,6 +279,64 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
 
 
 @mark.parametrize(
+    ('conas', 'arguments', 'calls'),
+    (
+        (
+            ('alpha',),
+            (),
+            (
+                'tf  -chdir=deploys/alpha/terraform init',
+                'python -m helicopyter --format_with=tf alpha',
+            ),
+        ),
+        (
+            ('alpha',),
+            ('main', '-upgrade'),
+            (
+                'tf main -chdir=deploys/alpha/terraform init -upgrade',
+                'python -m helicopyter --format_with=tf alpha',
+            ),
+        ),
+        (
+            ('alpha', 'beta'),
+            ('beta', 'main'),
+            (
+                'tf main -chdir=deploys/beta/terraform init',
+                'python -m helicopyter --format_with=tf beta',
+            ),
+        ),
+        (('alpha', 'beta'), ('main',), None),
+        (('alpha',), ('default',), None),
+    ),
+)
+def test_tinit(
+    tmp_path: Path,
+    conas: tuple[str, ...],
+    arguments: tuple[str, ...],
+    calls: tuple[str, ...] | None,
+):
+    for executable in ('python', 'tf'):
+        write_mock_executable(
+            tmp_path / executable,
+            f"""
+            printf '{executable} %s%s\\n' "${{TF_WORKSPACE+$TF_WORKSPACE }}" "$*" >> calls
+            """,
+        )
+    for cona in conas:
+        (tmp_path / 'deploys' / cona / 'terraform').mkdir(parents=True)
+    command = ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('tinit'), 'tinit', *arguments]
+    environment = {'INSH_TF': 'tf', 'PATH': f'{tmp_path}:{environ["PATH"]}'}
+
+    if calls is None:
+        with raises(CalledProcessError):
+            check_call(command, cwd=tmp_path, env=environment)
+        assert not (tmp_path / 'calls').exists()
+    else:
+        check_call(command, cwd=tmp_path, env=environment)
+        assert tuple((tmp_path / 'calls').read_text().splitlines()) == calls
+
+
+@mark.parametrize(
     ('git_output', 'output'),
     (
         ('bad path.py\\0', 'bad path.py\n'),

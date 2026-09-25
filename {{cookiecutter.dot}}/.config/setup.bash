@@ -31,7 +31,10 @@ if [ -n "$version" ] && [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
 fi
 mise install
 # mise install exits 0 when postinstall fails
-if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
+# dup .config/mise.toml tasks.actionlint
+proxy_ca=/root/.ccr/agent-proxy-ca.crt
+if [[ -f $proxy_ca ]] \
+    && ! openssl x509 -in $proxy_ca -noout -ext keyUsage 2>/dev/null | grep -q 'Key Usage'; then
     # Proxy CA breaks their sdist builds; see measles README.md Known issue
     grep -vE '^(actionlint|hadolint)-py' requirements.txt | mise exec -- uv pip sync -
 else
