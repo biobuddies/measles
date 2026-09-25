@@ -183,6 +183,7 @@ def test_new_repository_not_django(
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
     assert_mise('tools.rust', 'stable')
+    assert_mise('tasks.deploy.run', 'mise tapply "$@"')
     assert_pyproject(
         'project.optional-dependencies.test', ['pytest', 'pytest-cov', 'pytest-httpserver']
     )
@@ -259,7 +260,7 @@ def test_new_repository_publishes_to_pypi(
             }
         },
         has_django=False,
-        CONA='package',
+        CONA='peppier',
     )
 
     assert_pyproject('build-system.backend-path', [''])
@@ -270,9 +271,9 @@ def test_new_repository_publishes_to_pypi(
     assert_pyproject('project.license', 'MPL-2.0')
     assert_pyproject('project.optional-dependencies.build', ['setuptools'])
     assert_pyproject('project.readme', 'README.md')
-    assert_pyproject('project.urls.source', 'https://github.com/biobuddies/package')
+    assert_pyproject('project.urls.source', 'https://github.com/biobuddies/peppier')
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
-    assert_pyproject('tool.setuptools.py-modules', ['package'])
+    assert_pyproject('tool.setuptools.py-modules', ['peppier'])
     assert_pyproject('tool.setuptools_scm', {})
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
@@ -300,6 +301,7 @@ def test_new_repository_publishes_to_pypi(
     assert all(not step.get('run', '').startswith('mise deploy') for step in steps)
 
     assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
+    assert_mise('tasks.deploy.run', ':')
     assert assert_mise('tasks.lychee.run') == (
         'lychee --base-url=https://biobuddi.es --no-progress "$@" .'
     )
