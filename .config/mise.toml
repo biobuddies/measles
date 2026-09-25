@@ -105,8 +105,14 @@ run = """
 set -o errexit -o nounset -o pipefail
 cona=${1:?missing cona}
 shift
+[[ ${1-} && $1 != -* ]] && envi=$1 && shift || envi=''
+if [[ $envi == default ]]; then
+    echo 'The default workspace behaves inconsistently.'
+    echo 'If you only have one environment, please name it `main`.'
+    exit 1
+fi
 tf=${INSH_TF:-terraform}
-"$tf" -chdir="deploys/$cona/terraform" init "$@"
+TF_WORKSPACE=$envi "$tf" -chdir="deploys/$cona/terraform" init "$@"
 python -m helicopyter --format_with="$tf" "$cona"
 """
 
@@ -307,12 +313,7 @@ set -o errexit -o nounset -o pipefail
 cona=${1:?missing cona}
 envi=${2:?missing envi}
 shift 2
-if [[ "$envi" == "default" ]]; then
-    echo 'The default workspace behaves inconsistently.'
-    echo 'If you only have one environment, please name it `prod`.'
-    exit 1
-fi
-mise tinit "$cona"
+mise tinit "$cona" "$envi"
 tf=${INSH_TF:-terraform}
 TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE="$envi" \
     "$tf" -chdir="deploys/$cona/terraform" apply "$@"
@@ -333,12 +334,7 @@ set -o errexit -o nounset -o pipefail
 cona=${1:?missing cona}
 envi=${2:?missing envi}
 shift 2
-if [[ "$envi" == "default" ]]; then
-    echo 'The default workspace behaves inconsistently.'
-    echo 'If you only have one environment, please name it `prod`.'
-    exit 1
-fi
-mise tinit "$cona"
+mise tinit "$cona" "$envi"
 tf=${INSH_TF:-terraform}
 TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE="$envi" \
     "$tf" -chdir="deploys/$cona/terraform" plan "$@"
