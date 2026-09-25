@@ -132,7 +132,19 @@ python -m helicopyter --format_with="$tf" "$cona"
 
 # Leaf tasks
 [tasks.actionlint]
-run = 'actionlint "$@"'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+# dup .config/setup.bash proxy_ca
+proxy_ca=/root/.ccr/agent-proxy-ca.crt
+if [[ -f $proxy_ca ]] \
+    && ! openssl x509 -in $proxy_ca -noout -ext keyUsage 2>/dev/null | grep -q "Key Usage"
+then
+    echo 'Skipping actionlint because broken certificate' >&2
+    exit 0
+fi
+actionlint "$@"
+'''
 
 [tasks.bash]
 run = 'env bash --login -o errexit -o pipefail'
