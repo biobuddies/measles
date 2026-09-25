@@ -286,7 +286,7 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
             ('init',),
             (
                 'python -m helicopyter --format_with=tofu wriggle',
-                'tofu  -chdir=deploys/wriggle/terraform init',
+                'tofu -chdir=deploys/wriggle/terraform init',
             ),
         ),
         (
@@ -294,7 +294,8 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
             ('init', 'main', '-upgrade'),
             (
                 'python -m helicopyter --format_with=tofu wriggle',
-                'tofu main -chdir=deploys/wriggle/terraform init -upgrade',
+                'tofu -chdir=deploys/wriggle/terraform init -upgrade',
+                'tofu -chdir=deploys/wriggle/terraform workspace select -or-create main',
             ),
         ),
         (
@@ -302,7 +303,8 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
             ('init', 'speedrun', 'main'),
             (
                 'python -m helicopyter --format_with=tofu speedrun',
-                'tofu main -chdir=deploys/speedrun/terraform init',
+                'tofu -chdir=deploys/speedrun/terraform init',
+                'tofu -chdir=deploys/speedrun/terraform workspace select -or-create main',
             ),
         ),
         (
@@ -310,7 +312,8 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
             ('apply', 'main', '-auto-approve'),
             (
                 'python -m helicopyter --format_with=tofu wriggle',
-                'tofu main -chdir=deploys/wriggle/terraform init',
+                'tofu -chdir=deploys/wriggle/terraform init',
+                'tofu -chdir=deploys/wriggle/terraform workspace select -or-create main',
                 'tofu main -chdir=deploys/wriggle/terraform apply -auto-approve',
             ),
         ),
@@ -319,7 +322,9 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
             ('plan', 'speedrun', 'some-cool-feature'),
             (
                 'python -m helicopyter --format_with=tofu speedrun',
-                'tofu some-cool-feature -chdir=deploys/speedrun/terraform init',
+                'tofu -chdir=deploys/speedrun/terraform init',
+                'tofu -chdir=deploys/speedrun/terraform workspace select -or-create'
+                ' some-cool-feature',
                 'tofu some-cool-feature -chdir=deploys/speedrun/terraform plan',
             ),
         ),
@@ -328,7 +333,7 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
             ('validate',),
             (
                 'python -m helicopyter --format_with=tofu wriggle',
-                'tofu  -chdir=deploys/wriggle/terraform init',
+                'tofu -chdir=deploys/wriggle/terraform init',
                 'tofu  -chdir=deploys/wriggle/terraform validate',
             ),
         ),

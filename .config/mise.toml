@@ -132,12 +132,16 @@ if [[ ! $envi && $action =~ ^(apply|plan)$ ]]; then
 fi
 python -m helicopyter --format_with="$INSH_TF" "$cona"
 if [[ $action == init ]]; then
-    TF_WORKSPACE=$envi "$INSH_TF" -chdir="deploys/$cona/terraform" init "$@"
+    "$INSH_TF" -chdir="deploys/$cona/terraform" init "$@"
 else
-    TF_WORKSPACE=$envi "$INSH_TF" -chdir="deploys/$cona/terraform" init
-    TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE=$envi \
-        "$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
+    "$INSH_TF" -chdir="deploys/$cona/terraform" init
 fi
+# Just trying to create the workspace as needed
+[[ ! $envi ]] || "$INSH_TF" -chdir="deploys/$cona/terraform" workspace select -or-create "$envi"
+[[ $action != init ]] || exit 0
+# Always set TF_WORKSPACE explicitly; don't rely on this side effect
+TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE=$envi \
+    "$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
 """
 
 # Leaf tasks
