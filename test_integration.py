@@ -243,7 +243,10 @@ def test_new_repository_yes_django(
     assert 'check-django' in assert_mise('tasks.parallel-pre-commit.depends')
     assert 'rust' not in assert_mise('tools')
     assert (tmp_path / 'config' / 'settings.py').exists()
-    assert 'def test_manage_check(monkeypatch):' in (tmp_path / 'test_boilerplate.py').read_text()
+    assert (
+        'def test_manage_check(monkeypatch: MonkeyPatch) -> None:'
+        in (tmp_path / 'test_boilerplate.py').read_text()
+    )
 
 
 def test_new_repository_publishes_to_pypi(

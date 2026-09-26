@@ -4,8 +4,8 @@ set -o errexit -o nounset -o pipefail -o xtrace
 : CONA={{ CONA }} ORGN={{ ORGN }} template=hooks/post_gen_project.bash via="$0"
 # shellcheck disable=SC1009
 {% if has_django %}
-[[ -f manage.py ]] || uv run --with django python -m django startproject config .
-sed -i.bak "/^SECRET_KEY = /{ /# noqa: typos$/! s/$/  # noqa: typos/; }" config/settings.py
+[[ -f manage.py ]] || uvx --from django django-admin startproject config .
+sed -i.bak "/^SECRET_KEY = /{ /# noqa/! s/$/  # noqa: S105, typos/; }" config/settings.py
 rm config/settings.py.bak
 {% endif %}
 {% if not cookiecutter.publish_to_pypi %}

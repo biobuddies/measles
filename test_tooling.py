@@ -638,17 +638,14 @@ def test_post_gen_project_bash(tmp_path: Path):
     (tmp_path / '.github').mkdir()
     (tmp_path / 'CONTRIBUTING.md').write_text('')
     (tmp_path / 'pypi_compatible_build.py').write_text('')
-    fake_uv = tmp_path / 'uv'
-    fake_uv.write_text(
-        dedent("""
-            #!/usr/bin/env bash
-            set -o errexit -o nounset -o pipefail
+    write_mock_executable(
+        tmp_path / 'uvx',
+        """
             mkdir -p config
             touch manage.py
             echo "SECRET_KEY = 'django-insecure-test-key'" > config/settings.py
-        """).lstrip()
+        """,
     )
-    fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IEXEC)
     (tmp_path / 'run-post-gen.bash').write_text(hook)
     assert check_output(
         ['/usr/bin/env', 'bash', 'run-post-gen.bash'],
@@ -661,7 +658,7 @@ def test_post_gen_project_bash(tmp_path: Path):
     )
     assert (tmp_path / 'manage.py').exists()
     assert (tmp_path / 'config' / 'settings.py').read_text() == (
-        "SECRET_KEY = 'django-insecure-test-key'  # noqa: typos\n"
+        "SECRET_KEY = 'django-insecure-test-key'  # noqa: S105, typos\n"
     )
     assert not (tmp_path / 'config' / 'settings.py.bak').exists()
     assert not (tmp_path / 'pypi_compatible_build.py').exists()
