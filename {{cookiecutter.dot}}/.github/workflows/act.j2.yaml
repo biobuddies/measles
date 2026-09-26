@@ -8,8 +8,13 @@ defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
 {%- set env = github_actions_env or 'env:\n' %}
-{%- if 'terraform' in cookiecutter.languages.lower().split(',') and 'TENV_GITHUB_TOKEN' not in env %}
-    {%- set env = env.rstrip('\n') + '\n    TENV_GITHUB_TOKEN: ${{ github.token }}\n' %}
+{%- if 'terraform' in cookiecutter.languages.lower().split(',') %}
+    {%- if 'TENV_GITHUB_TOKEN' not in env %}
+        {%- set env = env.rstrip('\n') + '\n    TENV_GITHUB_TOKEN: ${{ github.token }}\n' %}
+    {%- endif %}
+    {%- if 'TF_INPUT' not in env %}
+        {%- set env = env.rstrip('\n') + "\n    TF_INPUT: 'false'\n" %}
+    {%- endif %}
 {%- endif %}
 {{ '\n' + env if env != 'env:\n' else '' }}
 name: act

@@ -203,6 +203,7 @@ def test_new_repository_not_django(
     assert_yaml('env.AMBIGUOUS_CONFIGURATION', 'true')
     assert_yaml('env.EXAMPLE_CONFIGURATION', 'customized')
     assert_yaml('env.TENV_GITHUB_TOKEN', '${{ github.token }}')
+    assert_yaml('env.TF_INPUT', 'false')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
     assert steps[4]['run'] == (
