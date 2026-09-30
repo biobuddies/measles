@@ -58,10 +58,15 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 tabr=$(mise tabr)
+domain='{{ cookiecutter.domain_name }}'
+first=${domain%%.*}
+rest=${domain#*.}
+# dup helicopyter/cloudflare.py jam() previews: subdomains prefix the label, apexes prepend one
+if [[ ${rest%%/*} == *.* ]]; then preview=$first-$tabr.$rest; else preview=$tabr.$domain; fi
 case ${GITHUB_EVENT_NAME-}:$tabr in
-    release:*|*:main) echo '{{ cookiecutter.domain_name }}' ;;
+    release:*|*:main) echo "$domain" ;;
     :) ;;
-    *) echo "$tabr.{{ cookiecutter.domain_name }}" ;;
+    *) echo "$preview" ;;
 esac
 '''
 {%- else %}

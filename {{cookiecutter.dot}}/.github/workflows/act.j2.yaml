@@ -96,13 +96,19 @@ jobs:
                 || github.ref_name }}
         {%- endraw -%}
         {%- if cookiecutter.domain_name %}
+        {%- set parts = cookiecutter.domain_name.split('.', 1) %}
             # Synchronize with .config/mise.toml:50 tasks.fqdn.
             url: >-
                 https://{{ '${{' }} (github.event_name == 'release'
                 || github.ref_name == 'main')
                 && '{{ cookiecutter.domain_name }}'
+        {%- if parts | length > 1 and '.' in parts[1].split('/')[0] %}
+                || format('{0}-{1}.{{ parts[1] }}', '{{ parts[0] }}',
+                github.head_ref || github.ref_name) {{ '}}' }}
+        {%- else %}
                 || format('{0}.{{ cookiecutter.domain_name }}',
                 github.head_ref || github.ref_name) {{ '}}' }}
+        {%- endif %}
         {%- endif -%}
         {% raw %}
         steps:
