@@ -31,6 +31,11 @@ fi
 mise exec -- npm clean-install --no-audit --no-fund
 # Claude Code sources this file before each Bash tool command, activating mise for that directory
 [ -z "${CLAUDE_ENV_FILE-}" ] || mise activate bash >>"$CLAUDE_ENV_FILE"
+# Environment setup scripts, which have no CLAUDE_ENV_FILE, run before Claude Code snapshots a login
+# shell; shims choose tools by directory when run
+# shellcheck disable=SC2016
+mise_shims='export PATH="$HOME/.local/share/mise/shims:$PATH"'
+grep -qsxF "$mise_shims" ~/.profile || echo "$mise_shims" >>~/.profile
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude
     ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json

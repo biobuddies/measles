@@ -40,6 +40,8 @@ grep -qs 'setup\.bash' .claude/hooks/session-start.sh || measles/.config/setup.b
 ```
 
 This accommodates Claude Code on the web's different single and multiple repository startups.
+Always include measles in multiple repository sessions: they start in the parent directory,
+where only this script can run setup.
 
 Claude Code on the web blocks `api.github.com`, so querying for the latest release fails, but
 allows `github.com` release downloads. Pin versions (mise lock files do) and let tenv install
