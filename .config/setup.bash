@@ -35,9 +35,4 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude
     ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json
 fi
-# Multi-repository sessions start in the parent directory, so activate per directory instead of
-# exporting one repository's paths.
-# Useless to Claude Code: its shell snapshot captured nothing from this line; see above.
-# shellcheck disable=SC2016
-grep -q 'mise activate' ~/.bashrc || echo 'eval "$(mise activate bash)"' >>~/.bashrc
 echo "Complete $(datetimez) $PWD"
