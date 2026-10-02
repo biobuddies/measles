@@ -23,7 +23,9 @@ mise install
 proxy_ca=/root/.ccr/agent-proxy-ca.crt
 if [[ -f $proxy_ca ]] \
     && ! openssl x509 -in $proxy_ca -noout -ext keyUsage 2>/dev/null | grep -q 'Key Usage'; then
-    # Proxy CA breaks their sdist builds; see measles README.md Known issue
+    # Claude Code on the web's proxy CA lacks the key usage extension Python 3.13 requires, so
+    # sdists downloading binaries while building fail:
+    # https://gist.github.com/mdehling/350fc63d286a31b2653aef1362c6b0f5
     grep -vE '^(actionlint|hadolint)-py' requirements.txt | mise exec -- uv pip sync -
 else
     mise exec -- uv pip sync requirements.txt
