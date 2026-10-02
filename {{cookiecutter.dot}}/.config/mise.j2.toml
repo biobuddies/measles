@@ -61,12 +61,8 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 tabr=$(mise tabr)
-case ${GITHUB_EVENT_NAME-}:$tabr in
-    release:*|*:main) envi=main ;;
-    :) exit 0 ;;
-    *) envi=$tabr ;;
-esac
-python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' "$envi"
+[[ $tabr ]] || exit 0
+python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' "$tabr"
 '''
 {%- else %}
 run = ':'
