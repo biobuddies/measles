@@ -15,4 +15,5 @@ default_context:
     python_optional_dependencies:
         test:
             - django
+            - helicopyter
             - pytest-httpserver
