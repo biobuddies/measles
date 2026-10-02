@@ -41,6 +41,10 @@ else
     mise exec -- uv pip sync requirements.txt
 fi
 mise exec -- npm clean-install --no-audit --no-fund
+# Claude Code's Bash tool runs non-interactive shells, which ignore the mise activation below
+if [ -n "${CLAUDE_ENV_FILE-}" ]; then
+    echo "export PATH=\"${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims:\$PATH\"" >>"$CLAUDE_ENV_FILE"
+fi
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude
     ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json
