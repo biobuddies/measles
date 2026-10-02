@@ -37,6 +37,7 @@ pre-commit = [
 ]
 test = [
     'django',
+    'helicopyter',
     'pytest',
     'pytest-cov',
     'pytest-httpserver',
