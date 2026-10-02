@@ -29,16 +29,15 @@ else
     mise exec -- uv pip sync requirements.txt
 fi
 mise exec -- npm clean-install --no-audit --no-fund
-# Claude Code's Bash tool runs non-interactive shells, which ignore the mise activation below
-if [ -n "${CLAUDE_ENV_FILE-}" ]; then
-    echo "export PATH=\"${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims:\$PATH\"" >>"$CLAUDE_ENV_FILE"
-fi
+# Claude Code sources this file before each Bash tool command, activating mise for that directory
+[ -z "${CLAUDE_ENV_FILE-}" ] || mise activate bash >>"$CLAUDE_ENV_FILE"
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude
     ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json
 fi
 # Multi-repository sessions start in the parent directory, so activate per directory instead of
 # exporting one repository's paths.
+# Useless to Claude Code's non-interactive Bash tool, which never reads ~/.bashrc; see above.
 # shellcheck disable=SC2016
 grep -q 'mise activate' ~/.bashrc || echo 'eval "$(mise activate bash)"' >>~/.bashrc
 echo "Complete $(datetimez) $PWD"
