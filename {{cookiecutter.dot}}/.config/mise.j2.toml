@@ -61,15 +61,17 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 tabr=$(mise tabr)
-domain='{{ cookiecutter.domain_name }}'
 case ${GITHUB_EVENT_NAME-}:$tabr in
-    release:*|*:main) echo "$domain" ;;
+    release:*|*:main) echo '{{ cookiecutter.domain_name }}' ;;
     :) ;;
     *)
-        first=${domain%%.*}
-        rest=${domain#*.}
+        IFS=. read -r first rest <<<'{{ cookiecutter.domain_name }}'
         # Synchronize with helicopyter/cloudflare.py jam() preview: subdomains prefix the label
-        if [[ ${rest%%/*} == *.* ]]; then echo "$first-$tabr.$rest"; else echo "$tabr.$domain"; fi
+        if [[ ${rest%%/*} == *.* ]]; then
+            echo "$first-$tabr.$rest"
+        else
+            echo "$tabr.$first${rest:+.$rest}"
+        fi
         ;;
 esac
 '''
