@@ -196,9 +196,9 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
         ('my-feature', '', '', ''),
         ('my-feature', 'cov.ing', '', 'my-feature.cov.ing'),
         ('my-feature', 'cov.ing/covey/', '', 'my-feature.cov.ing/covey/'),
-        ('my-feature', 'logoff.cov.ing/', '', 'logoff-my-feature.cov.ing/'),
+        ('my-feature', 'rt.biobuddi.es/', '', 'rt-my-feature.biobuddi.es/'),
         ('my-feature', 'localhost', '', 'my-feature.localhost'),
-        ('main', 'logoff.cov.ing/', '', 'logoff.cov.ing/'),
+        ('main', 'rt.biobuddi.es/', '', 'rt.biobuddi.es/'),
         ('v2026.34.01', 'cov.ing', 'release', 'cov.ing'),
     ),
 )
