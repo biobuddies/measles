@@ -206,15 +206,11 @@ def test_new_repository_not_django(
     assert_yaml('env.TF_INPUT', 'false')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
-    assert steps[4]['run'] == (
-        "mise deploy \"${{ github.event_name == 'release' && 'prod' "
-        '|| github.head_ref || github.ref_name }}"'
-    )
+    assert steps[4]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
         in steps[5]['run']
     )
-    assert_yaml('on.release.types', ['published'])
 
 
 def test_new_repository_yes_django(
@@ -289,20 +285,19 @@ def test_new_repository_publishes_to_pypi(
     environment = assert_yaml('jobs.build-deploy.environment')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
-    assert "github.event_name == 'release'" in environment['name']
-    assert "&& 'biobuddi.es'" in environment['url']
-    assert "|| github.ref_name == 'main')" in environment['url']
+    assert environment['name'] == '${{ github.head_ref || github.ref_name }}'
+    assert "github.ref_name == 'main' && 'biobuddi.es'" in environment['url']
     assert "format('{0}.biobuddi.es'," in environment['url']
-    assert steps[3]['run'] == 'mise build'
-    assert steps[4] == {
-        'if': "github.event_name == 'release'",
+    assert steps[3] == {'if': "github.event_name == 'push'", 'run': 'mise release'}
+    assert steps[4]['run'] == 'mise build'
+    assert steps[5] == {
+        'if': "github.event_name == 'push'",
         'uses': 'pypa/gh-action-pypi-publish@release/v1',
     }
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
-        in steps[5]['run']
+        in steps[6]['run']
     )
-    assert_yaml('on.release.types', ['published'])
     assert all(not step.get('run', '').startswith('mise deploy') for step in steps)
 
     assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
