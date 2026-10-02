@@ -65,12 +65,12 @@ case ${GITHUB_EVENT_NAME-}:$tabr in
     release:*|*:main) echo '{{ cookiecutter.domain_name }}' ;;
     :) ;;
     *)
-        IFS=. read -r first rest <<<'{{ cookiecutter.domain_name }}'
+        preview='{{ cookiecutter.domain_name }}'
         # Synchronize with helicopyter/cloudflare.py jam() preview: subdomains prefix the label
-        if [[ ${rest%%/*} == *.* ]]; then
-            echo "$first-$tabr.$rest"
+        if [[ ${preview%%/*} == *.*.* ]]; then
+            echo "${preview/./-$tabr.}"
         else
-            echo "$tabr.$first${rest:+.$rest}"
+            echo "$tabr.$preview"
         fi
         ;;
 esac
