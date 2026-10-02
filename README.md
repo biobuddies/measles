@@ -41,8 +41,9 @@ grep -qs 'setup\.bash' .claude/hooks/session-start.sh || measles/.config/setup.b
 
 This accommodates Claude Code on the web's different single and multiple repository startups.
 
-Claude Code on the web restricts `api.github.com` but allows `github.com` release downloads, so
-tenv installs OpenTofu in mirror mode (see `TOFUENV_*` in `.config/mise.toml`).
+Claude Code on the web blocks `api.github.com`, so querying for the latest release fails, but
+allows `github.com` release downloads. Pin versions (mise lock files do) and let tenv install
+OpenTofu in mirror mode (see `TOFUENV_*` in `.config/mise.toml`).
 
 TODO re-test on Codex Cloud, probably leveraging `.codex/setup.sh`
 
