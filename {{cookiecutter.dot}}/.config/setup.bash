@@ -17,18 +17,6 @@ command -v mise >/dev/null || curl https://mise.run | sh
 # Trust the parent so sibling checkouts of a multi-repository session need no second visit.
 mise settings add trusted_config_paths "$(dirname "$toplevel")"
 mise trust --yes
-version=''
-for config in .config/mise.toml mise.toml; do
-    [ -f "$config" ] || continue
-    version=$(sed -nE "s|^'aqua:tofuutils/tenv' = '([^']+)'.*|\1|p" "$config")
-    [ -n "$version" ] && break
-done
-# GitHub release downloads are firewalled in Claude Code on the web, blocking mise's aqua
-# backend from fetching tenv. Build tenv from source via mise's go backend instead.
-if [ -n "$version" ] && [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
-    mise settings add disable_tools aqua:tofuutils/tenv
-    mise use --global "go:github.com/tofuutils/tenv/v${version%%.*}/cmd/tenv@$version"
-fi
 mise install
 # mise install exits 0 when postinstall fails
 # dup .config/mise.toml tasks.actionlint
