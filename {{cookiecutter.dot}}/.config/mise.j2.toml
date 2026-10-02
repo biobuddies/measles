@@ -62,18 +62,11 @@ run = '''
 set -o errexit -o nounset -o pipefail
 tabr=$(mise tabr)
 case ${GITHUB_EVENT_NAME-}:$tabr in
-    release:*|*:main) echo '{{ cookiecutter.domain_name }}' ;;
-    :) ;;
-    *)
-        preview='{{ cookiecutter.domain_name }}'
-        # Synchronize with helicopyter/cloudflare.py jam() preview: subdomains prefix the label
-        if [[ ${preview%%/*} == *.*.* ]]; then
-            echo "${preview/./-$tabr.}"
-        else
-            echo "$tabr.$preview"
-        fi
-        ;;
+    release:*|*:main) envi=main ;;
+    :) exit 0 ;;
+    *) envi=$tabr ;;
 esac
+python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' "$envi"
 '''
 {%- else %}
 run = ':'

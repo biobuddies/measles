@@ -271,6 +271,7 @@ def test_new_repository_publishes_to_pypi(
     assert_pyproject('build-system.build-backend', 'pypi_compatible_build')
     assert_pyproject('build-system.requires', ['setuptools>=77', 'setuptools_scm'])
     assert_pyproject('project.classifiers', ['Topic :: System :: Systems Administration'])
+    assert_pyproject('project.dependencies', ['helicopyter'])
     assert_pyproject('project.dynamic', ['version'])
     assert_pyproject('project.license', 'MPL-2.0')
     assert_pyproject('project.optional-dependencies.build', ['setuptools'])
