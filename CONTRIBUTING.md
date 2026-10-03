@@ -63,9 +63,13 @@ simplest:
         * Save or move files generated during the current session to `/tmp`
         * Move leftovers from concurrent or historical sessions to `untracked/`
         * Do not use `.claude/` for scratch files; edits there are often gated
-    - Generally include autoformatting, autogeneration, and cleanup from `mise pre-commit-all`
-      with contemporary features and fixes. Large changes may warrant a separate preparatory
-      commit and Pull Request.
+    - Include autoformatting, autogeneration, and cleanup from `mise pre-commit-all` with
+      contemporary features and fixes; CI fails on any diff, even from upstream drift in
+      generated files like `.gitignore`:
+        * Never discard generated changes as unrelated
+        * Large changes may warrant a separate preparatory commit and Pull Request
+        * When a change makes no sense, ignore its source instead: `.config/autoformat-excludes`,
+          `.gitignore.sed`, or `.gitignore`
     - If asked to clobber uncommitted changes, copy to /tmp/ first
     - Avoid train-of-thought and bisect-breaking commits
     - Be ready to read the (appropriately filtered) git log:
