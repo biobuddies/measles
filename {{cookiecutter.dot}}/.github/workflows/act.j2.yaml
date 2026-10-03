@@ -89,20 +89,21 @@ jobs:
         {% raw %}
         runs-on: ubuntu-latest
         environment:
-            name: >-
-                ${{ github.event_name == 'release'
-                && 'prod'
-                || github.head_ref
-                || github.ref_name }}
+            name: ${{ github.head_ref || github.ref_name }}
         {%- endraw -%}
         {%- if cookiecutter.domain_name %}
+        {%- set parts = cookiecutter.domain_name.split('.', 1) %}
             # Synchronize with .config/mise.toml:50 tasks.fqdn.
             url: >-
-                https://{{ '${{' }} (github.event_name == 'release'
-                || github.ref_name == 'main')
+                https://{{ '${{' }} github.ref_name == 'main'
                 && '{{ cookiecutter.domain_name }}'
+        {%- if parts | length > 1 and '.' in parts[1].split('/')[0] %}
+                || format('{0}-{1}.{{ parts[1] }}', '{{ parts[0] }}',
+                github.head_ref || github.ref_name) {{ '}}' }}
+        {%- else %}
                 || format('{0}.{{ cookiecutter.domain_name }}',
                 github.head_ref || github.ref_name) {{ '}}' }}
+        {%- endif %}
         {%- endif -%}
         {% raw %}
         steps:
@@ -110,21 +111,22 @@ jobs:
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
+            # TABR is the branch, so FQDN is the preview or production domain
             - run: mise set-environment
-            - run: mise build
             {%- endraw -%}
             {%- if cookiecutter.publish_to_pypi %}
-            - if: github.event_name == 'release'
+            - if: github.event_name == 'push'
+              run: mise release
+            # HEAD is tagged: TABR is now the tag
+            - run: mise build
+            - if: github.event_name == 'push'
               uses: pypa/gh-action-pypi-publish@release/v1
             {%- else %}
-            - run: >-
-                  mise deploy "{{ '${{' }} github.event_name == 'release'
-                  && 'prod'
-                  || github.head_ref
-                  || github.ref_name {{ '}}' }}"
+            - run: mise build
+            - run: mise deploy "{{ '${{' }} github.head_ref || github.ref_name {{ '}}' }}"
             {%- endif %}
             {%- raw %}
-            - if: github.event_name == 'release'
+            - if: github.event_name == 'push'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
                   git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod
@@ -134,11 +136,6 @@ on: # yamllint disable-line rule:truthy
     push:
         branches:
             - main
-    {%- endraw %}
-    release:
-        types:
-            - published
-    {%- raw %}
     workflow_dispatch:
 
 run-name: Acting on behalf of ${{ github.actor }}

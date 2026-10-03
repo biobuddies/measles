@@ -17,36 +17,32 @@ command -v mise >/dev/null || curl https://mise.run | sh
 # Trust the parent so sibling checkouts of a multi-repository session need no second visit.
 mise settings add trusted_config_paths "$(dirname "$toplevel")"
 mise trust --yes
-version=''
-for config in .config/mise.toml mise.toml; do
-    [ -f "$config" ] || continue
-    version=$(sed -nE "s|^'aqua:tofuutils/tenv' = '([^']+)'.*|\1|p" "$config")
-    [ -n "$version" ] && break
-done
-# GitHub release downloads are firewalled in Claude Code on the web, blocking mise's aqua
-# backend from fetching tenv. Build tenv from source via mise's go backend instead.
-if [ -n "$version" ] && [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
-    mise settings add disable_tools aqua:tofuutils/tenv
-    mise use --global "go:github.com/tofuutils/tenv/v${version%%.*}/cmd/tenv@$version"
-fi
 mise install
 # mise install exits 0 when postinstall fails
 # dup .config/mise.toml tasks.actionlint
 proxy_ca=/root/.ccr/agent-proxy-ca.crt
 if [[ -f $proxy_ca ]] \
     && ! openssl x509 -in $proxy_ca -noout -ext keyUsage 2>/dev/null | grep -q 'Key Usage'; then
-    # Proxy CA breaks their sdist builds; see measles README.md Known issue
+    # Claude Code on the web's proxy CA lacks the key usage extension Python 3.13 requires, so
+    # sdists downloading binaries while building fail:
+    # https://gist.github.com/mdehling/350fc63d286a31b2653aef1362c6b0f5
     grep -vE '^(actionlint|hadolint)-py' requirements.txt | mise exec -- uv pip sync -
 else
     mise exec -- uv pip sync requirements.txt
 fi
 mise exec -- npm clean-install --no-audit --no-fund
+if [ -n "${CLAUDE_ENV_FILE-}" ]; then
+    # Claude Code sources this file before each Bash command, activating mise for its directory
+    mise activate bash >>"$CLAUDE_ENV_FILE"
+else
+    # Environment setup scripts run before Claude Code snapshots a login shell; shims choose tools
+    # by directory when run
+    # shellcheck disable=SC2016
+    mise_shims='export PATH="$HOME/.local/share/mise/shims:$PATH"'
+    grep -qsxF "$mise_shims" ~/.profile || echo "$mise_shims" >>~/.profile
+fi
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude
     ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json
 fi
-# Multi-repository sessions start in the parent directory, so activate per directory instead of
-# exporting one repository's paths.
-# shellcheck disable=SC2016
-grep -q 'mise activate' ~/.bashrc || echo 'eval "$(mise activate bash)"' >>~/.bashrc
 echo "Complete $(datetimez) $PWD"

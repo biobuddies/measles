@@ -133,7 +133,10 @@ class Measles(Extension):
                 )
                 else ''
             ),
-            'python_dependencies': default_context.get('python_dependencies', []),
+            'python_dependencies': sorted({
+                *default_context.get('python_dependencies', []),
+                *(['helicopyter'] if default_context.get('domain_name') else []),
+            }),
             'node_dependencies': default_context['node_dependencies'],
             'node_dev_dependencies': default_context['node_dev_dependencies'],
             'python_optional_dependencies': default_context['python_optional_dependencies'],

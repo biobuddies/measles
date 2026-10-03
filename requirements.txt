@@ -30,6 +30,8 @@ django-upgrade==1.30.0
     # via measles (pyproject.toml)
 djlint==1.46.1
     # via measles (pyproject.toml)
+docstring-parser==0.18.0
+    # via typed-argument-parser
 editorconfig==0.17.1
     # via
     #   cssbeautifier
@@ -37,6 +39,8 @@ editorconfig==0.17.1
 fastjsonschema==2.21.2
     # via validate-pyproject
 hadolint-py @ git+https://github.com/AleksaC/hadolint-py.git@6e7504451511eaeb62a3e7f14d63b0296cbf86eb
+    # via measles (pyproject.toml)
+helicopyter==2026.39.3
     # via measles (pyproject.toml)
 idna==3.11
     # via requests
@@ -128,6 +132,8 @@ tokenize-rt==6.2.0
     # via django-upgrade
 trove-classifiers==2026.1.14.14
     # via validate-pyproject
+typed-argument-parser==1.12.0
+    # via helicopyter
 typing-extensions==4.16.0
     # via djlint
 typos==1.45.0

@@ -63,9 +63,13 @@ simplest:
         * Save or move files generated during the current session to `/tmp`
         * Move leftovers from concurrent or historical sessions to `untracked/`
         * Do not use `.claude/` for scratch files; edits there are often gated
-    - Generally include autoformatting, autogeneration, and cleanup from `mise pre-commit-all`
-      with contemporary features and fixes. Large changes may warrant a separate preparatory
-      commit and Pull Request.
+    - Review autogeneration, autoformatting, and linting from `mise pre-commit-all`:
+        * GitHub Actions will bubble up failures including diffs
+        * Fold reasonable updates into current work; large changes may warrant a separate
+          preparatory commit and Pull Request
+        * Respond proportionally to any nonsense from autoformatters, autogenerators, linters, and
+          type checkers such as by adding `default.extend-identifiers` entry for typos or
+          `# noqa: N123 terse reason`
     - If asked to clobber uncommitted changes, copy to /tmp/ first
     - Avoid train-of-thought and bisect-breaking commits
     - Be ready to read the (appropriately filtered) git log:

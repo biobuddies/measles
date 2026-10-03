@@ -188,17 +188,20 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
 
 
 @mark.parametrize(
-    ('tabr', 'domain', 'event', 'fqdn'),
+    ('tabr', 'domain', 'fqdn'),
     (
-        ('main', '', '', ''),
-        ('', 'cov.ing', '', ''),
-        ('main', 'cov.ing', '', 'cov.ing'),
-        ('my-feature', '', '', ''),
-        ('my-feature', 'cov.ing', '', 'my-feature.cov.ing'),
-        ('v2026.34.01', 'cov.ing', 'release', 'cov.ing'),
+        ('main', '', ''),
+        ('', 'cov.ing', ''),
+        ('main', 'cov.ing', 'cov.ing'),
+        ('my-feature', '', ''),
+        ('my-feature', 'cov.ing', 'my-feature.cov.ing'),
+        ('my-feature', 'cov.ing/covey/', 'my-feature.cov.ing/covey/'),
+        ('my-feature', 'rt.biobuddi.es/', 'rt-my-feature.biobuddi.es/'),
+        ('my-feature', 'localhost', 'my-feature.localhost'),
+        ('main', 'rt.biobuddi.es/', 'rt.biobuddi.es/'),
     ),
 )
-def test_fqdn(tmp_path: Path, tabr: str, domain: str, event: str, fqdn: str):
+def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
     tabr_task = replaced_mise_task(
         'tabr',
         {
@@ -227,11 +230,7 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, event: str, fqdn: str):
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
     )
-    env = {
-        'GITHUB_EVENT_NAME': event,
-        'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path),
-        'PATH': environ['PATH'],
-    }
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH']}
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
     assert output == fqdn
 

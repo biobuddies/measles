@@ -40,9 +40,7 @@ grep -qs 'setup\.bash' .claude/hooks/session-start.sh || measles/.config/setup.b
 ```
 
 This accommodates Claude Code on the web's different single and multiple repository startups.
+Always include measles in multiple repository sessions: they start in the parent directory,
+where only this script can run setup.
 
 TODO re-test on Codex Cloud, probably leveraging `.codex/setup.sh`
-
-Known issue: Claude Code on the web's proxy CA lacks the key usage extension Python 3.13 requires,
-so sdists downloading binaries while building, like actionlint-py and hadolint-py, fail to install;
-`.config/setup.bash` skips them. https://gist.github.com/mdehling/350fc63d286a31b2653aef1362c6b0f5
