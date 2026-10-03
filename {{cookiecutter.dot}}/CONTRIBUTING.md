@@ -68,7 +68,7 @@ simplest:
         * Fold reasonable updates into current work; large changes may warrant a separate
           preparatory commit and Pull Request
         * Respond to nonsense with proportionate ignore statements and a terse rationale, e.g.
-          in `.config/autoformat-excludes`, `.gitignore.sed`, or `.gitignore`
+          in `.config/autoformat-excludes` or `.gitignore.sed`
     - If asked to clobber uncommitted changes, copy to /tmp/ first
     - Avoid train-of-thought and bisect-breaking commits
     - Be ready to read the (appropriately filtered) git log:
