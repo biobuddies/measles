@@ -1,4 +1,1 @@
 ^tests/[a-z-]+/[13]-unformatted-[.a-z0-9-]+$
-
-# djlint and Prettier disagree; the fixture records Prettier's form
-^tests/long-anchor-attribute/2-formatted-template\.j2\.html$

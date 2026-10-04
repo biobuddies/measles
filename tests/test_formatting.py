@@ -6,11 +6,10 @@ from configparser import ConfigParser
 from os import environ
 from pathlib import Path
 from shlex import quote
-from subprocess import call, check_call
+from subprocess import check_call
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from tomllib import loads
-from warnings import warn
 
 import django
 from django.conf import settings
@@ -164,17 +163,18 @@ def test_formatting_templates():
             esac
             """,
         )
-        call(
-            ['mise', 'pre-commit'],
-            cwd=Path(temporary_directory),
-            env={
-                **environ,
-                'ENVI': 'test',
-                'GITHUB_HEAD_REF': 'formatter-fixtures',
-                'PATH': f'{mock_directory}:{environ["PATH"]}',
-            },
-        )
-        for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
-            expected_path = stage_path(source_path, '2-formatted-template')
-            if template_path.read_text() != expected_path.read_text():
-                warn(f'Autoformatting does not yet produce {expected_path}', stacklevel=2)
+        for _ in range(2):
+            check_call(
+                ['mise', 'format-templates'],
+                cwd=Path(temporary_directory),
+                env={
+                    **environ,
+                    'AUTOFORMAT_EXCLUDES': '',
+                    'PATH': f'{mock_directory}:{environ["PATH"]}',
+                },
+            )
+            for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
+                assert (
+                    template_path.read_text()
+                    == stage_path(source_path, '2-formatted-template').read_text()
+                )

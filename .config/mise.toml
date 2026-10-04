@@ -223,6 +223,14 @@ mise run-on-sources djlint \*.j2.yaml \
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
 
+[tasks.format-templates]
+run = '''
+mise djlint-django "$@" || test $? -eq 1
+mise djlint-jinja-html "$@" || test $? -eq 1
+mise djlint-jinja-yaml "$@" || test $? -eq 1
+mise prettier-write "$@"
+'''
+
 [tasks.hadolint]
 run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
 
@@ -408,11 +416,8 @@ run = 'mise run-on-sources yamllint "*.yaml :!*.j2.yaml" "$@"'
 depends = [
     # line changers
     'django-upgrade',
-    'djlint-django',
-    'djlint-jinja-html',
-    'djlint-jinja-yaml',
     'end-of-file-fixer',
-    'prettier-write',
+    'format-templates',
     'ruff-check-fix',
     'ruff-format',
     'shfmt',
