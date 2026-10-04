@@ -205,8 +205,7 @@ run = 'mise run-on-sources django-upgrade \*.py "$@"'
 run = ':'
 
 [tasks.djlint-django]
-# Prettier follows djlint on the same files; djlint --reformat exits 1 after changing files, and
-# lint failures bubble up.
+# Resolve long attribute and other potential formatting differences in favor of prettier
 run = '''
 mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1
 mise run-on-sources prettier \*.dj.html --write "$@"
@@ -214,6 +213,7 @@ mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
 '''
 
 [tasks.djlint-jinja-html]
+# Resolve long attribute and other potential formatting differences in favor of prettier
 run = '''
 mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1
 mise run-on-sources prettier \*.j2.html --write "$@"
@@ -285,6 +285,7 @@ exit 1
 """
 
 [tasks.prettier-write]
+# Prettier incorporated into djlint tasks to reconcile formatting differences
 # Skip Markdown to conserve vertical space.
 # The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
 run = '''
