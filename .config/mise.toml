@@ -205,16 +205,20 @@ run = 'mise run-on-sources django-upgrade \*.py "$@"'
 run = ':'
 
 [tasks.djlint-django]
-run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1'
-
-[tasks.djlint-django-lint]
-run = 'mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"'
+# Prettier follows djlint on the same files; djlint --reformat exits 1 after changing files, and
+# lint failures bubble up.
+run = '''
+mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1
+mise run-on-sources prettier \*.dj.html --write "$@"
+mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
+'''
 
 [tasks.djlint-jinja-html]
-run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1'
-
-[tasks.djlint-jinja-html-lint]
-run = 'mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"'
+run = '''
+mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1
+mise run-on-sources prettier \*.j2.html --write "$@"
+mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
+'''
 
 [tasks.djlint-jinja-yaml]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
@@ -281,12 +285,10 @@ exit 1
 """
 
 [tasks.prettier-write]
-depends = ['djlint-django', 'djlint-jinja-html']
-depends_post = ['djlint-django-lint', 'djlint-jinja-html-lint']
 # Skip Markdown to conserve vertical space.
 # The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
 run = '''
-mise run-on-sources prettier "*.{css,html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.json :!*.j2.yaml" \
+mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} :!*.dj.html :!*.j2.html :!*.j2.json :!*.j2.yaml" \
     --write "$@"
 '''
 
@@ -418,8 +420,10 @@ run = 'mise run-on-sources yamllint "*.yaml :!*.j2.yaml" "$@"'
 depends = [
     # line changers
     'django-upgrade',
-    'end-of-file-fixer',
+    'djlint-django',
+    'djlint-jinja-html',
     'djlint-jinja-yaml',
+    'end-of-file-fixer',
     'prettier-write',
     'ruff-check-fix',
     'ruff-format',
