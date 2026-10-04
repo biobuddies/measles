@@ -20,7 +20,7 @@
 {%- macro show_message(content, category='info', dismissible=true) -%}
     <div class="alert alert-{{ category }}">
         {%- if dismissible -%}
-            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            <button type="button" class="close" data-dismiss="alert">×</button>
         {%- endif -%}
         {%- if caller is defined -%}
             {{ caller() }}
