@@ -224,10 +224,11 @@ mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
 # mangling YAML.
 # Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
+# Exit 1 means reformatted; do not abort sibling tasks.
 run = '''
 mise run-on-sources djlint \*.j2.yaml \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
-    --profile=jinja "$@"
+    --profile=jinja "$@" || test $? -eq 1
 '''
 
 [tasks.end-of-file-fixer]

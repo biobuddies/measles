@@ -163,17 +163,16 @@ def test_formatting_templates():
             esac
             """,
         )
-        for _ in range(2):  # djlint --reformat exits 1 after changing files, aborting siblings
-            call(
-                ['mise', 'pre-commit'],
-                cwd=Path(temporary_directory),
-                env={
-                    **environ,
-                    'ENVI': 'test',
-                    'GITHUB_HEAD_REF': 'formatter-fixtures',
-                    'PATH': f'{mock_directory}:{environ["PATH"]}',
-                },
-            )
+        call(
+            ['mise', 'pre-commit'],
+            cwd=Path(temporary_directory),
+            env={
+                **environ,
+                'ENVI': 'test',
+                'GITHUB_HEAD_REF': 'formatter-fixtures',
+                'PATH': f'{mock_directory}:{environ["PATH"]}',
+            },
+        )
         for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
             assert (
                 template_path.read_text()
