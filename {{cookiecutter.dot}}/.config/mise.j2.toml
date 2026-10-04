@@ -221,30 +221,21 @@ run = 'mise tapply "$@"'
 run = ':'
 {%- endif %}
 
-[tasks.djlint-django]
-run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@"'
-
-[tasks.djlint-jinja-html]
-run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@"'
-
-[tasks.djlint-jinja-yaml]
-# djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
-# mangling YAML.
-# Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
-run = '''
-mise run-on-sources djlint \*.j2.yaml \
-    --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
-    --profile=jinja "$@"
-'''
-
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
 
 [tasks.format-templates]
+# djlint --reformat exits 1 after changing files; --lint failures must bubble up.
+# Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
 run = '''
-mise djlint-django "$@" || test $? -eq 1
-mise djlint-jinja-html "$@" || test $? -eq 1
-mise djlint-jinja-yaml "$@" || test $? -eq 1
+mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1
+mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1
+mise run-on-sources djlint \*.j2.yaml \
+    --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
+    --profile=jinja "$@" || test $? -eq 1
+mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
+mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
+mise run-on-sources djlint \*.j2.yaml --lint --quiet --profile=jinja "$@"
 mise prettier-write "$@"
 '''
 
