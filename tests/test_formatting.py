@@ -163,19 +163,19 @@ def test_formatting_templates():
             esac
             """,
         )
-        for _ in range(2):
-            for task in ('djlint-django', 'djlint-jinja-html', 'djlint-jinja-yaml'):
-                call(  # djlint --reformat exits 1 after changing files
-                    ['mise', task],
-                    cwd=Path(temporary_directory),
-                    env={
-                        **environ,
-                        'AUTOFORMAT_EXCLUDES': '',
-                        'PATH': f'{mock_directory}:{environ["PATH"]}',
-                    },
-                )
-            for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
-                assert (
-                    template_path.read_text()
-                    == stage_path(source_path, '2-formatted-template').read_text()
-                )
+        for _ in range(2):  # djlint --reformat exits 1 after changing files, aborting siblings
+            call(
+                ['mise', 'pre-commit'],
+                cwd=Path(temporary_directory),
+                env={
+                    **environ,
+                    'ENVI': 'test',
+                    'GITHUB_HEAD_REF': 'formatter-fixtures',
+                    'PATH': f'{mock_directory}:{environ["PATH"]}',
+                },
+            )
+        for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
+            assert (
+                template_path.read_text()
+                == stage_path(source_path, '2-formatted-template').read_text()
+            )
