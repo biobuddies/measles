@@ -10,7 +10,6 @@ from subprocess import call, check_call
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from tomllib import loads
-from warnings import warn
 
 import django
 from django.conf import settings
@@ -19,6 +18,7 @@ from jinja2 import Environment, FileSystemLoader
 
 TEMPLATE_PATHS = tuple(sorted(Path(__file__).parent.glob('*/1-unformatted-template.*')))
 CONTEXT = {
+    'address': '900 N New Hope Rd, Raleigh, NC',
     'allowedflare_message': 'Use your allowed account',
     'cl': {
         'query': 'four-file fixtures',
@@ -28,6 +28,7 @@ CONTEXT = {
     },
     'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
     'lead_line': lambda **chords: ' '.join(chords.values()),
+    'name': 'Raleigh Yard Waste Center',
     'node_dependencies': {'jinja2': '*'},
     'node_dev_dependencies': {'pytest': '*'},
     'python_dependencies': ['django', 'jinja2'],
@@ -173,6 +174,7 @@ def test_formatting_templates():
             },
         )
         for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
-            expected_path = stage_path(source_path, '2-formatted-template')
-            if template_path.read_text() != expected_path.read_text():
-                warn(f'Autoformatting does not yet produce {expected_path}', stacklevel=2)
+            assert (
+                template_path.read_text()
+                == stage_path(source_path, '2-formatted-template').read_text()
+            )

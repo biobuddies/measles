@@ -205,19 +205,30 @@ run = 'mise run-on-sources django-upgrade \*.py "$@"'
 run = ':'
 
 [tasks.djlint-django]
-run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@"'
+# Resolve long attribute and other potential formatting differences in favor of prettier
+run = '''
+mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1
+mise run-on-sources prettier \*.dj.html --write "$@"
+mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
+'''
 
 [tasks.djlint-jinja-html]
-run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@"'
+# Resolve long attribute and other potential formatting differences in favor of prettier
+run = '''
+mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1
+mise run-on-sources prettier \*.j2.html --write "$@"
+mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
+'''
 
 [tasks.djlint-jinja-yaml]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
 # mangling YAML.
 # Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
+# Suppress return code 1 for reformatted to avoid aborting sibling tasks
 run = '''
 mise run-on-sources djlint \*.j2.yaml \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
-    --profile=jinja "$@"
+    --profile=jinja "$@" || test $? -eq 1
 '''
 
 [tasks.end-of-file-fixer]
@@ -273,10 +284,11 @@ exit 1
 """
 
 [tasks.prettier-write]
+# Prettier incorporated into djlint tasks to reconcile formatting differences
 # Skip Markdown to conserve vertical space.
 # The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
 run = '''
-mise run-on-sources prettier "*.{css,html,j2.html,js,json,jsx,toml,ts,tsx,yaml} :!*.j2.json :!*.j2.yaml" \
+mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} :!*.dj.html :!*.j2.html :!*.j2.json :!*.j2.yaml" \
     --write "$@"
 '''
 
