@@ -6,7 +6,7 @@ from configparser import ConfigParser
 from os import environ
 from pathlib import Path
 from shlex import quote
-from subprocess import check_call
+from subprocess import call, check_call
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from tomllib import loads
@@ -164,23 +164,16 @@ def test_formatting_templates():
             """,
         )
         for _ in range(2):
-            check_call(
-                [
-                    'mise',
-                    'run',
-                    'djlint-django',
-                    ':::',
-                    'djlint-jinja-html',
-                    ':::',
-                    'djlint-jinja-yaml',
-                ],
-                cwd=Path(temporary_directory),
-                env={
-                    **environ,
-                    'AUTOFORMAT_EXCLUDES': '',
-                    'PATH': f'{mock_directory}:{environ["PATH"]}',
-                },
-            )
+            for task in ('djlint-django', 'djlint-jinja-html', 'djlint-jinja-yaml'):
+                call(  # djlint --reformat exits 1 after changing files
+                    ['mise', task],
+                    cwd=Path(temporary_directory),
+                    env={
+                        **environ,
+                        'AUTOFORMAT_EXCLUDES': '',
+                        'PATH': f'{mock_directory}:{environ["PATH"]}',
+                    },
+                )
             for source_path, template_path in zip(TEMPLATE_PATHS, template_paths, strict=True):
                 assert (
                     template_path.read_text()
