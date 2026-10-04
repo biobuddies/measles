@@ -204,23 +204,32 @@ run = 'mise run-on-sources django-upgrade \*.py "$@"'
 [tasks.deploy]
 run = ':'
 
-[tasks.end-of-file-fixer]
-run = 'mise run-on-sources end-of-file-fixer . "$@"'
+[tasks.djlint-django]
+run = 'mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1'
 
-[tasks.format-templates]
-# djlint --reformat exits 1 after changing files; --lint failures must bubble up.
+[tasks.djlint-django-lint]
+run = 'mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"'
+
+[tasks.djlint-jinja-html]
+run = 'mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1'
+
+[tasks.djlint-jinja-html-lint]
+run = 'mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"'
+
+[tasks.djlint-jinja-yaml]
+# djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
+# mangling YAML.
 # Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
+# Reformat exits 1 after changing files; lint failures bubble up. Prettier skips *.j2.yaml.
 run = '''
-mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" || test $? -eq 1
-mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" || test $? -eq 1
 mise run-on-sources djlint \*.j2.yaml \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
     --profile=jinja "$@" || test $? -eq 1
-mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
-mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
 mise run-on-sources djlint \*.j2.yaml --lint --quiet --profile=jinja "$@"
-mise prettier-write "$@"
 '''
+
+[tasks.end-of-file-fixer]
+run = 'mise run-on-sources end-of-file-fixer . "$@"'
 
 [tasks.hadolint]
 run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
@@ -272,6 +281,8 @@ exit 1
 """
 
 [tasks.prettier-write]
+depends = ['djlint-django', 'djlint-jinja-html']
+depends_post = ['djlint-django-lint', 'djlint-jinja-html-lint']
 # Skip Markdown to conserve vertical space.
 # The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
 run = '''
@@ -408,7 +419,8 @@ depends = [
     # line changers
     'django-upgrade',
     'end-of-file-fixer',
-    'format-templates',
+    'djlint-jinja-yaml',
+    'prettier-write',
     'ruff-check-fix',
     'ruff-format',
     'shfmt',
