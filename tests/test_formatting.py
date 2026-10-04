@@ -165,7 +165,7 @@ def test_formatting_templates():
         )
         for _ in range(2):
             check_call(
-                ['mise', 'format-templates'],
+                ['mise', 'run', 'djlint-jinja-yaml', ':::', 'prettier-write'],
                 cwd=Path(temporary_directory),
                 env={
                     **environ,
