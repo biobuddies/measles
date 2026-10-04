@@ -63,12 +63,10 @@ extends = '.biobuddies/basedpyright.toml'
 [tool.djlint]
 close_void_tags = true
 format_attribute_template_tags = true
-ignore = 'H023'  # no_entity_formatting leaves entity references
 indent = 4
 max_attribute_length = 100
 max_blank_lines = 1
 max_line_length = 100
-no_entity_formatting = true
 quote_style = 'single'
 
 [tool.ruff]
