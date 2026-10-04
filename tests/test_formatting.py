@@ -19,6 +19,7 @@ from jinja2 import Environment, FileSystemLoader
 
 TEMPLATE_PATHS = tuple(sorted(Path(__file__).parent.glob('*/1-unformatted-template.*')))
 CONTEXT = {
+    'address': '900 N New Hope Rd, Raleigh, NC',
     'allowedflare_message': 'Use your allowed account',
     'cl': {
         'query': 'four-file fixtures',
@@ -28,6 +29,7 @@ CONTEXT = {
     },
     'cookiecutter': {'peer_checkouts': {'biobuddies/mublog': 'main'}},
     'lead_line': lambda **chords: ' '.join(chords.values()),
+    'name': 'Raleigh Yard Waste Center',
     'node_dependencies': {'jinja2': '*'},
     'node_dev_dependencies': {'pytest': '*'},
     'python_dependencies': ['django', 'jinja2'],
