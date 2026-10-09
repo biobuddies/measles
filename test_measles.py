@@ -4,6 +4,7 @@ from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
+from jinja2 import Environment
 from pytest import MonkeyPatch, fixture, raises
 
 import measles
@@ -169,3 +170,12 @@ def test_orgn_rejects_bad_characters(
 
     with raises(ValueError, match=r"^Unexpected ORGN characters: 'bad name'$"):
         measles.orgn()
+
+
+def test_github_expression() -> None:
+    assert (
+        Environment(autoescape=True)
+        .from_string('{{ github.token }} {{ github.event.pull_request.number }}')
+        .render(github=measles.GitHubExpression('github'))
+        == '${{ github.token }} ${{ github.event.pull_request.number }}'
+    )

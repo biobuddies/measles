@@ -94,6 +94,23 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
+class GitHubExpression:
+    """Render `${{ github.token }}` from `{{ github.token }}`, sparing Jinja escapes."""
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+    def __getattr__(self, name: str) -> 'GitHubExpression':
+        """Extend the path; underscored names stay Python internals."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return GitHubExpression(f'{self.path}.{name}')
+
+    def __str__(self) -> str:
+        """Wrap the path in GitHub Actions delimiters."""
+        return '${{ %s }}' % self.path
+
+
 class Measles(Extension):
     """Set globals."""
 
@@ -125,6 +142,7 @@ class Measles(Extension):
             'ORGN': orgn(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
+            'github': GitHubExpression('github'),
             'github_actions_env': (
                 dedent(match.group()).replace('github_actions_env:', 'env:', 1)
                 if github_actions_env
