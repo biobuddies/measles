@@ -1,16 +1,14 @@
-{% raw -%}
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'main' || github.ref }}
-    cancel-in-progress: ${{ github.event_name != 'push' }}
+    group: {{ github.workflow }}-{{ github["event_name == 'push' && 'main' || ref"] }}
+    cancel-in-progress: {{ github["event_name != 'push'"] }}
 
-{% endraw -%}
 defaults:
     run:
         shell: bash --noprofile --norc -o errexit -o nounset -o pipefail -o xtrace {0}
 {%- set env = github_actions_env or 'env:\n' %}
 {%- if 'terraform' in cookiecutter.languages.lower().split(',') %}
     {%- if 'TENV_GITHUB_TOKEN' not in env %}
-        {%- set env = env.rstrip('\n') + '\n    TENV_GITHUB_TOKEN: ${{ github.token }}\n' %}
+        {%- set env = env.rstrip('\n') + '\n    TENV_GITHUB_TOKEN: ' ~ github.token ~ '\n' %}
     {%- endif %}
     {%- if 'TF_INPUT' not in env %}
         {%- set env = env.rstrip('\n') + "\n    TF_INPUT: 'false'\n" %}
@@ -19,7 +17,6 @@ defaults:
 {{ '\n' + env if env != 'env:\n' else '' }}
 name: act
 
-{% raw -%}
 permissions:
     contents: read
 
@@ -32,7 +29,7 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref || github.ref }}
+                  ref: {{ github['head_ref || ref'] }}
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
@@ -45,7 +42,7 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref || github.ref }}
+                  ref: {{ github['head_ref || ref'] }}
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
@@ -58,11 +55,10 @@ jobs:
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref || github.ref }}
+                  ref: {{ github['head_ref || ref'] }}
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
-            {%- endraw %}
             - run: |
                   # shellcheck disable=SC2086
                   mkdir -p $HOME/code
@@ -74,7 +70,6 @@ jobs:
                       https://github.com/{{ repository }}.git \
                       $HOME/code/{{ repository.split('/')[-1] }}
                   {%- endfor %}
-            {%- raw %}
             - run: mise test
 
     # Leaf jobs
@@ -82,30 +77,28 @@ jobs:
         needs: [check, test]
         permissions:
             contents: write
-        {%- endraw -%}
         {%- if cookiecutter.publish_to_pypi %}
             id-token: write
-        {%- endif -%}
-        {% raw %}
+        {%- endif %}
         runs-on: ubuntu-latest
         environment:
-            name: ${{ github.head_ref || github.ref_name }}
-        {%- endraw -%}
+            name: {{ github['head_ref || ref_name'] }}
         {%- if cookiecutter.domain_name %}
         {%- set parts = cookiecutter.domain_name.split('.', 1) %}
-            # Synchronize with .config/mise.toml:50 tasks.fqdn.
-            url: >-
-                https://{{ '${{' }} github.ref_name == 'main'
+        {%- set url %}ref_name == 'main'
                 && '{{ cookiecutter.domain_name }}'
         {%- if parts | length > 1 and '.' in parts[1].split('/')[0] %}
                 || format('{0}-{1}.{{ parts[1] }}', '{{ parts[0] }}',
-                github.head_ref || github.ref_name) {{ '}}' }}
+                head_ref || ref_name)
         {%- else %}
                 || format('{0}.{{ cookiecutter.domain_name }}',
-                github.head_ref || github.ref_name) {{ '}}' }}
+                head_ref || ref_name)
         {%- endif %}
-        {%- endif -%}
-        {% raw %}
+        {%- endset %}
+            # Synchronize with .config/mise.toml:50 tasks.fqdn.
+            url: >-
+                https://{{ github[url] }}
+        {%- endif %}
         steps:
             - uses: actions/checkout@v7
             - uses: jdx/mise-action@v4
@@ -113,7 +106,6 @@ jobs:
                   experimental: true
             # TABR is the branch, so FQDN is the preview or production domain
             - run: mise set-environment
-            {%- endraw -%}
             {%- if cookiecutter.publish_to_pypi %}
             - if: github.event_name == 'push'
               env:
@@ -127,7 +119,6 @@ jobs:
             - run: mise build
             - run: mise deploy "{{ github['head_ref || ref_name'] }}"
             {%- endif %}
-            {%- raw %}
             - if: github.event_name == 'push'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
@@ -140,5 +131,4 @@ on: # yamllint disable-line rule:truthy
             - main
     workflow_dispatch:
 
-run-name: Acting on behalf of ${{ github.actor }}
-{% endraw -%}
+run-name: Acting on behalf of {{ github.actor }}
