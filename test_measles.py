@@ -174,12 +174,13 @@ def test_orgn_rejects_bad_characters(
 
 def test_github_expression() -> None:
     assert (
-        Environment(autoescape=True)
+        Environment()  # noqa: S701 cookiecutter renders YAML, not HTML
         .from_string(
             '{{ github.token }} {{ github.event.pull_request.number }}'
-            " {{ github['head_ref || ref_name'] }}"
+            " {{ github['head_ref || ref_name'] }} {{ github.event['before && after || ref'] }}"
         )
         .render(github=measles.GitHubExpression('github'))
         == '${{ github.token }} ${{ github.event.pull_request.number }}'
         ' ${{ github.head_ref || github.ref_name }}'
+        ' ${{ github.event.before && github.event.after || github.event.ref }}'
     )

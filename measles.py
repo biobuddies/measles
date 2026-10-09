@@ -5,7 +5,7 @@ from hashlib import sha1
 from itertools import takewhile
 from os import environ, getenv
 from pathlib import Path
-from re import fullmatch, search
+from re import fullmatch, search, split
 from subprocess import CalledProcessError, check_output
 from sys import stderr
 from textwrap import dedent
@@ -107,9 +107,12 @@ class GitHubExpression:
         return GitHubExpression(f'{self.path}.{name}')
 
     def __getitem__(self, expression: str) -> 'GitHubExpression':
-        """Prefix each operand, so `['head_ref || ref_name']` spans two properties."""
+        """Distribute the prefix over && and || operands, like a(x + y) == ax + ay."""
         return GitHubExpression(
-            ' || '.join(f'{self.path}.{operand.strip()}' for operand in expression.split('||'))
+            ' '.join(
+                token if token in {'&&', '||'} else f'{self.path}.{token}'
+                for token in split(r'\s*(&&|\|\|)\s*', expression.strip())
+            )
         )
 
     def __str__(self) -> str:
