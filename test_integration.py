@@ -7,6 +7,7 @@ from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import MULTILINE, sub
+from shutil import which
 from subprocess import CalledProcessError, check_call, check_output
 from typing import Any
 
@@ -14,6 +15,56 @@ from pytest import fixture, mark, raises
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from yaml import safe_dump
+
+
+def downstream_environment(directory: Path, **overrides: str) -> dict[str, str]:
+    """Specify every variable passed to mise."""
+    home = Path.home()
+    cache = Path(getenv('XDG_CACHE_HOME', home / '.cache'))
+    return {
+        # Needed (some or all of the time) for completeness or correctness
+        # So pre-commit-all stages changes and returns success instead of failing; revisit if we
+        # move to pre-push
+        'ENVI': 'local',
+        **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
+        'HOME': str(home),
+        'MISE_TRUSTED_CONFIG_PATHS': str(directory),
+        'ORGN': 'biobuddies',
+        'PATH': ':'.join(
+            str(path)
+            for path in (
+                directory / '.venv' / 'bin',
+                Path(which('mise') or 'mise').parent,
+                Path(which('uv') or 'uv').parent,
+                home / '.local' / 'bin',
+                home / '.local' / 'share' / 'mise' / 'shims',
+                '/usr/bin',
+                '/bin',
+            )
+        ),
+        # Claude Code on the Web workarounds
+        **{
+            name: environ[name]
+            for name in (
+                'GIT_SSL_CAINFO',
+                'HTTPS_PROXY',
+                'NODE_EXTRA_CA_CERTS',
+                'NO_PROXY',
+                'SSL_CERT_FILE',
+            )
+            if name in environ
+        },
+        # Speedups: reuse the real home's caches and toolchains even when a test replaces HOME
+        'CARGO_HOME': str(home / '.cargo'),
+        'MISE_CACHE_DIR': str(cache / 'mise'),
+        'MISE_DATA_DIR': str(home / '.local' / 'share' / 'mise'),
+        'MISE_GITHUB_ATTESTATIONS': 'false',
+        'MISE_GPG_VERIFY': 'false',
+        'NPM_CONFIG_CACHE': str(home / '.npm'),
+        'RUSTUP_HOME': str(home / '.rustup'),
+        'UV_CACHE_DIR': str(cache / 'uv'),
+        **overrides,
+    }
 
 
 def load_toml(file_path: Path) -> Callable[..., Any]:
@@ -46,8 +97,6 @@ def load_yaml(file_path: Path) -> Callable[..., Any]:
 
 @fixture
 def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., Any]]]:
-    home = Path.home()
-    cache_home = Path(getenv('XDG_CACHE_HOME', str(home / '.cache')))
     repository = Path(__file__).parent
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
@@ -86,31 +135,17 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
             yaml.indent(mapping=4, sequence=4)
             yaml.dump(cookiecutter, cookiecutter_file)
         (tmp_path / '.gitignore').write_text((repository / '.gitignore').read_text())
-        env = {
-            'ENVI': 'local',  # don't fail on changes
-            'HOME': str(tmp_path.parent),
-            'MISE_CACHE_DIR': getenv('MISE_CACHE_DIR', str(cache_home / 'mise')),
-            'MISE_DATA_DIR': getenv('MISE_DATA_DIR', str(home / '.local' / 'share' / 'mise')),
-            'MISE_GITHUB_ATTESTATIONS': 'false',
-            'MISE_GPG_VERIFY': 'false',
-            'NPM_CONFIG_CACHE': getenv('NPM_CONFIG_CACHE', str(home / '.npm')),
-            'ORGN': 'biobuddies',
-            'PATH': f'{tmp_path / ".venv" / "bin"}:{environ["PATH"]}',
-            'PWD': str(tmp_path),
-            'UV_CACHE_DIR': getenv('UV_CACHE_DIR', str(cache_home / 'uv')),
-            **{
-                name: value
-                for name, value in environ.items()
-                if name.upper().endswith(('_CA_CERTS', '_CERT', '_CERT_FILE', '_PROXY'))
-            },
-            **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
+        env = downstream_environment(
+            tmp_path,
+            HOME=str(tmp_path.parent),
+            PWD=str(tmp_path),
             **(
                 {'GITHUB_HEAD_REF': tag_or_branch}
                 if tag_or_branch and environment == 'github'
                 else {}
             ),
             **kwargs,
-        }
+        )
         check_call(
             ['/usr/bin/env', 'bash', '-c', f'set -o errexit -o nounset -o pipefail\n{commands}'],
             cwd=tmp_path,
@@ -317,15 +352,7 @@ def test_new_repository_publishes_to_pypi(
 def test_existing_repository(codename: str, dependencies: list[str], has_django: bool):
     downstream = Path.home() / 'code' / codename
     cookiecutter_yaml = downstream / '.cookiecutter.yaml'
-    env = {
-        'CONA': codename,
-        'ENVI': 'local',  # don't fail on changes
-        'HOME': environ['HOME'],
-        'MISE_TRUSTED_CONFIG_PATHS': str(downstream),
-        'ORGN': 'biobuddies',
-        'PATH': f'{downstream / ".venv" / "bin"}:{environ["PATH"]}',
-        **({'GITHUB_TOKEN': token} if (token := getenv('GITHUB_TOKEN')) else {}),
-    }
+    env = downstream_environment(downstream, CONA=codename)
     if not cookiecutter_yaml.exists():
         cookiecutter_yaml.write_text(
             safe_dump({
