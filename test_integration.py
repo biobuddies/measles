@@ -288,7 +288,11 @@ def test_new_repository_publishes_to_pypi(
     assert environment['name'] == '${{ github.head_ref || github.ref_name }}'
     assert "github.ref_name == 'main' && 'biobuddi.es'" in environment['url']
     assert "format('{0}.biobuddi.es'," in environment['url']
-    assert steps[3] == {'if': "github.event_name == 'push'", 'run': 'mise release'}
+    assert steps[3] == {
+        'env': {'GH_TOKEN': '${{ github.token }}'},
+        'if': "github.event_name == 'push'",
+        'run': 'mise release',
+    }
     assert steps[4]['run'] == 'mise build'
     assert steps[5] == {
         'if': "github.event_name == 'push'",
