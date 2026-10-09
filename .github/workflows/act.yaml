@@ -91,6 +91,8 @@ jobs:
             # TABR is the branch, so FQDN is the preview or production domain
             - run: mise set-environment
             - if: github.event_name == 'push'
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: mise release
             # HEAD is tagged: TABR is now the tag
             - run: mise build

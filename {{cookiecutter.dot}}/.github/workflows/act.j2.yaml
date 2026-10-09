@@ -116,6 +116,8 @@ jobs:
             {%- endraw -%}
             {%- if cookiecutter.publish_to_pypi %}
             - if: github.event_name == 'push'
+              env:
+                  GH_TOKEN: {{ '${{' }} github.token {{ '}}' }}
               run: mise release
             # HEAD is tagged: TABR is now the tag
             - run: mise build
