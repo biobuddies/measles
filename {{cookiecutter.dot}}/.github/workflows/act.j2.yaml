@@ -59,17 +59,7 @@ jobs:
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
-            - run: |
-                  # shellcheck disable=SC2086
-                  mkdir -p $HOME/code
-                  # shellcheck disable=SC2086
-                  ln -s ../work/{{ CONA }}/{{ CONA }} $HOME/code/{{ CONA }}
-{% for repository, branch in cookiecutter.peer_checkouts.items()|sort %}
-                  # shellcheck disable=SC2086
-                  git clone --branch {{ branch }} \
-                      https://github.com/{{ repository }}.git \
-                      $HOME/code/{{ repository.split('/')[-1] }}
-                  {%- endfor %}
+            - run: mise checkout
             - run: mise test
 
     # Leaf jobs

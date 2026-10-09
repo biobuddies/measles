@@ -93,6 +93,60 @@ def test_tabr(git_describe: str, tabr: str):
     )
 
 
+def test_checkout(tmp_path: Path):
+    git = ['git', '-c', 'user.email=test@example.com', '-c', 'user.name=Test']
+    for repository in ('org/required', 'org/extra', 'biobuddies/measles'):
+        source = tmp_path / 'source' / repository
+        check_call(['git', 'init', '--initial-branch=main', str(source)])
+        for version in ('v2026.40.3', 'main'):
+            (source / 'version').write_text(version)
+            check_call([*git, 'add', 'version'], cwd=source)
+            check_call([*git, 'commit', f'--message={version}'], cwd=source)
+            if version != 'main':
+                check_call(['git', 'tag', version], cwd=source)
+        check_call([
+            'git',
+            'clone',
+            '--bare',
+            str(source),
+            str(tmp_path / 'github' / f'{repository}.git'),
+        ])
+    work = tmp_path / 'work' / 'downstream'
+    check_call(['git', 'init', str(work)])
+    (work / '.cookiecutter.yaml').write_text(
+        'default_context:\n    peer_checkouts:\n        - org/required\n'
+    )
+    environment = {
+        'GIT_CONFIG_COUNT': '1',
+        'GIT_CONFIG_KEY_0': f'url.file://{tmp_path}/github/.insteadOf',
+        'GIT_CONFIG_VALUE_0': 'https://github.com/',
+        'HOME': str(tmp_path / 'home'),
+        'PATH': environ['PATH'],
+    }
+    command = [
+        'bash',
+        '-c',
+        verbatim_mise_task('checkout'),
+        'checkout',
+        'org/extra@v2026.40.3',
+        'measles',
+    ]
+
+    check_call(command, cwd=work, env=environment)
+    assert (work.parent / 'required' / 'version').read_text() == 'main'
+    assert (work.parent / 'extra' / 'version').read_text() == 'v2026.40.3'
+    assert (work.parent / 'measles' / 'version').read_text() == 'main'
+    code = tmp_path / 'home' / 'code'
+    assert {path.name: path.resolve() for path in code.iterdir()} == {
+        name: work.parent / name for name in ('downstream', 'extra', 'measles', 'required')
+    }
+
+    (work.parent / 'required' / 'version').write_text('local work')
+    check_call(command, cwd=work, env=environment)
+    assert (work.parent / 'required' / 'version').read_text() == 'local work'
+    assert (work.parent / 'required/.git/FETCH_HEAD').exists()
+
+
 def test_tabr_prefers_latest_tag(tmp_path: Path):
     check_call(['git', 'init'], cwd=tmp_path)
     check_call(
