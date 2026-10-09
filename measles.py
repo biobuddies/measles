@@ -106,6 +106,12 @@ class GitHubExpression:
             raise AttributeError(name)
         return GitHubExpression(f'{self.path}.{name}')
 
+    def __getitem__(self, expression: str) -> 'GitHubExpression':
+        """Prefix each operand, so `['head_ref || ref_name']` spans two properties."""
+        return GitHubExpression(
+            ' || '.join(f'{self.path}.{operand.strip()}' for operand in expression.split('||'))
+        )
+
     def __str__(self) -> str:
         """Wrap the path in GitHub Actions delimiters."""
         return '${{ %s }}' % self.path

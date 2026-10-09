@@ -175,7 +175,11 @@ def test_orgn_rejects_bad_characters(
 def test_github_expression() -> None:
     assert (
         Environment(autoescape=True)
-        .from_string('{{ github.token }} {{ github.event.pull_request.number }}')
+        .from_string(
+            '{{ github.token }} {{ github.event.pull_request.number }}'
+            " {{ github['head_ref || ref_name'] }}"
+        )
         .render(github=measles.GitHubExpression('github'))
         == '${{ github.token }} ${{ github.event.pull_request.number }}'
+        ' ${{ github.head_ref || github.ref_name }}'
     )

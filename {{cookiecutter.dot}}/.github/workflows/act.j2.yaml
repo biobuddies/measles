@@ -125,7 +125,7 @@ jobs:
               uses: pypa/gh-action-pypi-publish@release/v1
             {%- else %}
             - run: mise build
-            - run: mise deploy "{{ '${{' }} github.head_ref || github.ref_name {{ '}}' }}"
+            - run: mise deploy "{{ github['head_ref || ref_name'] }}"
             {%- endif %}
             {%- raw %}
             - if: github.event_name == 'push'
