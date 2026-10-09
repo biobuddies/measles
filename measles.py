@@ -5,7 +5,7 @@ from hashlib import sha1
 from itertools import takewhile
 from os import environ, getenv
 from pathlib import Path
-from re import fullmatch, search
+from re import fullmatch, search, sub
 from subprocess import CalledProcessError, check_output
 from sys import stderr
 from textwrap import dedent
@@ -94,6 +94,33 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
+class GitHubExpression:
+    """Render `${{ github.token }}` from `{{ github.token }}`, sparing Jinja escapes."""
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+    def __getattr__(self, name: str) -> 'GitHubExpression':
+        """Extend the path; underscored names stay Python internals."""
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return GitHubExpression(f'{self.path}.{name}')
+
+    def __getitem__(self, expression: str) -> 'GitHubExpression':
+        """Distribute the prefix over names, like a(x + y) == ax + ay; skip literals and calls."""
+        return GitHubExpression(
+            sub(
+                r"'(?:[^']|'')*'|\b(?:true|false|null)\b|\b([A-Za-z_][\w.-]*)\b(?!\s*\()",
+                lambda match: f'{self.path}.{match[1]}' if match[1] else match[0],
+                expression,
+            )
+        )
+
+    def __str__(self) -> str:
+        """Wrap the path in GitHub Actions delimiters."""
+        return '${{ %s }}' % self.path
+
+
 class Measles(Extension):
     """Set globals."""
 
@@ -125,6 +152,7 @@ class Measles(Extension):
             'ORGN': orgn(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
+            'github': GitHubExpression('github'),
             'github_actions_env': (
                 dedent(match.group()).replace('github_actions_env:', 'env:', 1)
                 if github_actions_env
