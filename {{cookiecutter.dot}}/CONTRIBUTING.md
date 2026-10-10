@@ -130,6 +130,7 @@ mise install  # .venv, node_modules, and mise shims
 ```sh
 diffstat
 gh
+gh stack link  # CCW workaround: gh api repos/{owner}/{repo}/stacks -F 'pull_requests[]=1' ...
 git restore
 git switch
 mise pre-commit-all

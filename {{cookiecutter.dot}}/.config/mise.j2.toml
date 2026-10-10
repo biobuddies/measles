@@ -38,6 +38,8 @@ wait "$npm_pid"
 [ "$uv_status" -eq 0 ] || exit "$uv_status"
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
+mkdir -p ~/.local/share/gh/extensions
+ln -sfn "$(mise where github:github/gh-stack)" ~/.local/share/gh/extensions/gh-stack
 """
 
 # Prerequisite tasks
@@ -572,6 +574,7 @@ git diff --cached --quiet || echo Auto-staged modifications
 
 [tools]
 # latest gh from ~/.config/mise/config.toml
+'github:github/gh-stack' = { version = '0.2.0', bin = 'gh-stack' }
 lychee = '0.23.0'
 node = '24'
 # python from uv
