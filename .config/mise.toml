@@ -236,6 +236,37 @@ mise run-on-sources djlint \*.j2.yaml \
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
 
+[tasks.gh-pr-edit]
+quiet = true
+# Usage: mise gh-pr-edit FIELD NUMBER LEASE < CONTENT, with LEASE from mise gh-pr-read
+# GitHub ignores If-Match on PATCH, so this lease leaves a sub-second race
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+field=${1:?missing title or body} number=${2:?missing number} lease=${3:?missing lease}
+path=repos/$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')/pulls/$number
+current=$(gh api "$path" --jq ".$field // \"\"")
+hash=$(printf '%s\n' "$current" | sha256sum | cut -c1-16)
+if [[ $hash != "$lease" ]]; then
+    printf 'Lease %s broken by concurrent edit to lease %s:\n%s\n' "$lease" "$hash" "$current" >&2
+    exit 1
+fi
+gh api "$path" --jq .html_url --method PATCH -f "$field=$(cat)"
+'''
+
+[tasks.gh-pr-read]
+quiet = true
+# Usage: mise gh-pr-read FIELD NUMBER; prints FIELD to stdout and its lease to stderr
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+field=${1:?missing title or body} number=${2:?missing number}
+path=repos/$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')/pulls/$number
+current=$(gh api "$path" --jq ".$field // \"\"")
+printf '%s\n' "$current"
+printf 'lease %s\n' "$(printf '%s\n' "$current" | sha256sum | cut -c1-16)" >&2
+'''
+
 [tasks.hadolint]
 run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
 

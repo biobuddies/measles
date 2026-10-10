@@ -133,6 +133,8 @@ gh
 gh stack link  # CCW workaround: gh api repos/{owner}/{repo}/stacks -F 'pull_requests[]=1' ...
 git restore
 git switch
+mise gh-pr-edit body 1 LEASE < body.md  # or title; LEASE from gh-pr-read
+mise gh-pr-read body 1  # or title; stdout content, stderr lease
 mise pre-commit-all
 mise test
 ```
