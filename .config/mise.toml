@@ -283,6 +283,59 @@ printf '%s' "$paths"
 exit 1
 """
 
+[tasks.checkout]
+# Usage: mise checkout [[ORGN/]CONA[@TABR]...]
+# Clone arguments and .cookiecutter.yaml peer_checkouts
+# Ensure ~/code/$CONA works (../$CONA doesn't everywhere)
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+commands=$(python - "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
+from pathlib import Path
+from shlex import join, quote
+from sys import argv
+
+from yaml import safe_load
+
+toplevel = Path(argv[1])
+code = Path.home() / 'code'
+organizations = {
+    'gitignore': 'github',
+    'helicopyter': 'biobuddies',
+    'measles': 'biobuddies',
+    'speedrun': 'biobuddies',
+    'terraform-provider-cloudflare': 'cloudflare',
+    'wriggle': 'biobuddies',
+}
+cookiecutter = toplevel / '.cookiecutter.yaml'
+required = (safe_load(cookiecutter.read_text()) if cookiecutter.exists() else {}).get(
+    'default_context', {}
+).get('peer_checkouts', [])
+print(join(['mkdir', '-p', str(code)]))
+paths = [toplevel]
+for peer in [*required, *argv[2:]]:
+    repository, _, tabr = (peer if '@' in peer else f'{peer}@main').partition('@')
+    repository = repository if '/' in repository else f'{organizations[repository]}/{repository}'
+    paths.append(path := toplevel.parent / repository.split('/')[-1])
+    print(
+        join(['git', '-C', str(path), 'fetch', 'origin', tabr])
+        if path.exists()
+        else join([
+            'git',
+            'clone',
+            f'--branch={tabr}',
+            '--filter=blob:none',
+            f'https://github.com/{repository}.git',
+            str(path),
+        ])
+    )
+for path in paths if toplevel.parent != code else []:
+    print(f'[[ -e {quote(str(code / path.name))} ]] || ' + join(['ln', '-s', str(path), str(code)]))
+EOD
+)
+eval "$commands"
+'''
+
 [tasks.prettier-write]
 # Prettier incorporated into djlint tasks to reconcile formatting differences
 # Skip Markdown to conserve vertical space.

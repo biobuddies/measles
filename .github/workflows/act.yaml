@@ -58,20 +58,7 @@ jobs:
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
-            - run: |
-                  # shellcheck disable=SC2086
-                  mkdir -p $HOME/code
-                  # shellcheck disable=SC2086
-                  ln -s ../work/measles/measles $HOME/code/measles
-
-                  # shellcheck disable=SC2086
-                  git clone --branch main \
-                      https://github.com/biobuddies/speedrun.git \
-                      $HOME/code/speedrun
-                  # shellcheck disable=SC2086
-                  git clone --branch main \
-                      https://github.com/biobuddies/wriggle.git \
-                      $HOME/code/wriggle
+            - run: mise checkout
             - run: mise test
 
     # Leaf jobs
