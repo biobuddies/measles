@@ -290,14 +290,15 @@ exit 1
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-commands=$(python - "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
+commands=$(python - "$(mise envi)" "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
 from pathlib import Path
 from shlex import join, quote
 from sys import argv
 
 from yaml import safe_load
 
-toplevel = Path(argv[1])
+envi, toplevel, *arguments = argv[1:]
+toplevel = Path(toplevel)
 code = Path.home() / 'code'
 organizations = {
     'gitignore': 'github',
@@ -313,13 +314,17 @@ required = (safe_load(cookiecutter.read_text()) if cookiecutter.exists() else {}
 ).get('peer_checkouts', [])
 print(join(['mkdir', '-p', str(code)]))
 paths = [toplevel]
-for peer in [*required, *argv[2:]]:
+for peer in [*required, *arguments]:
     repository, _, tabr = (peer if '@' in peer else f'{peer}@main').partition('@')
     repository = repository if '/' in repository else f'{organizations[repository]}/{repository}'
     paths.append(path := toplevel.parent / repository.split('/')[-1])
+    # Adopt actions/checkout's nested path rather than cloning a duplicate
+    nested = toplevel / path.name
+    if adopt := envi == 'github' and not path.exists() and (nested / '.git').exists():
+        print(join(['ln', '-s', str(nested), str(path)]))
     print(
         join(['git', '-C', str(path), 'fetch', 'origin', tabr])
-        if path.exists()
+        if adopt or path.exists()
         else join([
             'git',
             'clone',

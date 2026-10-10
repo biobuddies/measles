@@ -95,7 +95,7 @@ def test_tabr(git_describe: str, tabr: str):
 
 def test_checkout(tmp_path: Path):
     git = ['git', '-c', 'user.email=test@example.com', '-c', 'user.name=Test']
-    for repository in ('org/required', 'org/extra', 'biobuddies/measles'):
+    for repository in ('org/required', 'org/extra', 'org/nested', 'biobuddies/measles'):
         source = tmp_path / 'source' / repository
         check_call(['git', 'init', '--initial-branch=main', str(source)])
         for version in ('v2026.40.3', 'main'):
@@ -126,7 +126,7 @@ def test_checkout(tmp_path: Path):
     command = [
         'bash',
         '-c',
-        verbatim_mise_task('checkout'),
+        replaced_mise_task('checkout', {'$(mise envi)': 'local'}),
         'checkout',
         'org/extra@v2026.40.3',
         'measles',
@@ -145,6 +145,21 @@ def test_checkout(tmp_path: Path):
     check_call(command, cwd=work, env=environment)
     assert (work.parent / 'required' / 'version').read_text() == 'local work'
     assert (work.parent / 'required/.git/FETCH_HEAD').exists()
+
+    check_call(['git', 'clone', str(tmp_path / 'github/org/nested.git'), str(work / 'nested')])
+    check_call(
+        [
+            'bash',
+            '-c',
+            replaced_mise_task('checkout', {'$(mise envi)': 'github'}),
+            'checkout',
+            'org/nested',
+        ],
+        cwd=work,
+        env=environment,
+    )
+    assert (work.parent / 'nested').resolve() == work / 'nested'
+    assert (work / 'nested/.git/FETCH_HEAD').exists()
 
 
 def test_tabr_prefers_latest_tag(tmp_path: Path):
