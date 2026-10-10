@@ -40,6 +40,14 @@ mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 mkdir -p ~/.local/share/gh/extensions
 ln -sfn "$(mise where github:github/gh-stack)" ~/.local/share/gh/extensions/gh-stack
+{% if 'terraform' in cookiecutter.languages.lower().split(',') -%}
+# Unlike a tool postinstall, which a restored mise cache skips
+mirror=~/.terraform.d/plugins/registry.opentofu.org/cloudflare/cloudflare/5.27.0-startup.1
+if directory=$(mise where github:biobuddies/helicopyter 2>/dev/null); then
+    mkdir -p "$mirror"
+    ln -sfn "$directory" "$mirror/linux_amd64"
+fi
+{% endif -%}
 """
 
 # Prerequisite tasks
@@ -582,3 +590,11 @@ node = '24'
 rust = 'stable'
 {% endif -%}
 uv = '0.12.5'
+{% if 'terraform' in cookiecutter.languages.lower().split(',') %}
+# biobuddies/helicopyter provider.yaml build for startup_time_ms; filesystem mirror, unpacked layout
+[tools.'github:biobuddies/helicopyter']
+asset_pattern = '*linux_amd64.zip'
+os = ['linux']
+version = '5.27.0-startup.1'
+version_prefix = 'terraform-provider-cloudflare-v'
+{% endif -%}
