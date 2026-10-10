@@ -2,6 +2,31 @@
 
 lockfile_version = 1
 
+[[tools."github:github/gh-stack"]]
+version = "0.2.0"
+backend = "github:github/gh-stack"
+specifiers = ["0.2.0"]
+
+[tools."github:github/gh-stack"."platforms.linux-arm64"]
+checksum = "sha256:d29684746f337a580667605b34877e5624792bcc390e61473a050bd4839557bf"
+url = "https://github.com/github/gh-stack/releases/download/v0.2.0/linux-arm64"
+url_api = "https://api.github.com/repos/github/gh-stack/releases/assets/606428372"
+
+[tools."github:github/gh-stack"."platforms.linux-x64"]
+checksum = "sha256:577065033b49d4505730ea0ad43ab1b0374b0d9b1308e9765647a6aa8eba3cb7"
+url = "https://github.com/github/gh-stack/releases/download/v0.2.0/linux-amd64"
+url_api = "https://api.github.com/repos/github/gh-stack/releases/assets/606428373"
+
+[tools."github:github/gh-stack"."platforms.macos-arm64"]
+checksum = "sha256:d8033f653f2b98d08e36e423f79d4f243653186b9c1cbe8310397dba5d6ac71e"
+url = "https://github.com/github/gh-stack/releases/download/v0.2.0/darwin-arm64"
+url_api = "https://api.github.com/repos/github/gh-stack/releases/assets/606428322"
+
+[tools."github:github/gh-stack"."platforms.macos-x64"]
+checksum = "sha256:22ddb2887934316b610e4d16a0c81cdd39e659aad29a0e0fd14e6f7d0f80317a"
+url = "https://github.com/github/gh-stack/releases/download/v0.2.0/darwin-amd64"
+url_api = "https://api.github.com/repos/github/gh-stack/releases/assets/606428320"
+
 [[tools.lychee]]
 version = "0.23.0"
 backend = "aqua:lycheeverse/lychee"

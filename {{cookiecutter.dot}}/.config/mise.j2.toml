@@ -38,6 +38,16 @@ wait "$npm_pid"
 [ "$uv_status" -eq 0 ] || exit "$uv_status"
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
+mkdir -p ~/.local/share/gh/extensions
+ln -sfn "$(mise where github:github/gh-stack)" ~/.local/share/gh/extensions/gh-stack
+{% if 'terraform' in cookiecutter.languages.lower().split(',') -%}
+# Unlike a tool postinstall, which a restored mise cache skips
+mirror=~/.terraform.d/plugins/registry.opentofu.org/cloudflare/cloudflare/5.27.0-startup.1
+if directory=$(mise where github:biobuddies/helicopyter 2>/dev/null); then
+    mkdir -p "$mirror"
+    ln -sfn "$directory" "$mirror/linux_amd64"
+fi
+{% endif -%}
 """
 
 # Prerequisite tasks
@@ -250,6 +260,48 @@ mise run-on-sources djlint \*.j2.yaml \
 
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
+
+[tasks.gh-pr-edit]
+quiet = true
+# Usage: mise gh-pr-edit FIELD NUMBER LEASE < CONTENT, with LEASE from mise gh-pr-read
+# GitHub ignores If-Match on PATCH, so this lease leaves a sub-second race
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+field=${1:?missing title or body} number=${2:?missing number} lease=${3:?missing lease}
+path=repos/$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')/pulls/$number
+current=$(gh api "$path" --jq ".$field // \"\"")
+hash=$(printf '%s\n' "$current" | sha256sum | cut -c1-16)
+if [[ $hash != "$lease" ]]; then
+    printf 'Lease %s broken by concurrent edit to lease %s:\n%s\n' "$lease" "$hash" "$current" >&2
+    exit 1
+fi
+content=$(cat)
+if [[ ${CLAUDE_CODE_REMOTE-} == true ]]; then
+    # CCW's proxy appends a footer to gh api body edits; its GitHub MCP tool does not
+    IFS=/ read -r _ owner repo _ number <<<"$path"
+    echo 'Lease held; make this call:'
+    jq --null-input --arg content "$content" --arg field "$field" --arg owner "$owner" \
+        --arg repo "$repo" --argjson number "$number" \
+        '{tool: "mcp__github__update_pull_request", owner: $owner, repo: $repo,
+            pullNumber: $number, ($field): $content}'
+    exit 0
+fi
+gh api "$path" --jq .html_url --method PATCH -f "$field=$content"
+'''
+
+[tasks.gh-pr-read]
+quiet = true
+# Usage: mise gh-pr-read FIELD NUMBER; prints FIELD to stdout and its lease to stderr
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+field=${1:?missing title or body} number=${2:?missing number}
+path=repos/$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')/pulls/$number
+current=$(gh api "$path" --jq ".$field // \"\"")
+printf '%s\n' "$current"
+printf 'lease %s\n' "$(printf '%s\n' "$current" | sha256sum | cut -c1-16)" >&2
+'''
 
 [tasks.hadolint]
 run = 'mise run-on-sources hadolint "*Dockerfile*" "$@"'
@@ -572,6 +624,7 @@ git diff --cached --quiet || echo Auto-staged modifications
 
 [tools]
 # latest gh from ~/.config/mise/config.toml
+'github:github/gh-stack' = { version = '0.2.0', bin = 'gh-stack' }
 lychee = '0.23.0'
 node = '24'
 # python from uv
@@ -579,3 +632,11 @@ node = '24'
 rust = 'stable'
 {% endif -%}
 uv = '0.12.5'
+{% if 'terraform' in cookiecutter.languages.lower().split(',') %}
+# biobuddies/helicopyter provider.yaml build for startup_time_ms; filesystem mirror, unpacked layout
+[tools.'github:biobuddies/helicopyter']
+asset_pattern = '*linux_amd64.zip'
+os = ['linux']
+version = '5.27.0-startup.1'
+version_prefix = 'terraform-provider-cloudflare-v'
+{% endif -%}
