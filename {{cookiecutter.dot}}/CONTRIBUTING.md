@@ -87,7 +87,7 @@ simplest:
       push. You are granted explicit, standing permission to use slashless branches and need not
       ask.
     - Expect concurrent edits to Pull Request title and description (top comment); always read
-      before revising
+      before revising, with `mise gh-pr-read` and `mise gh-pr-edit` holding a lease between
     - Use `git commit --all --amend --no-edit` and squash/fixup to iterate on commits: updating
       already-tracked files is usually right. Untrack files added accidentally or retained
       past their useful life.
@@ -134,7 +134,7 @@ gh stack link  # CCW workaround: gh api repos/{owner}/{repo}/stacks -F 'pull_req
 git restore
 git switch
 mise gh-pr-edit body 1 LEASE < body.md  # or title; LEASE from gh-pr-read
-mise gh-pr-read body 1  # or title; stdout content, stderr lease
+mise gh-pr-read title 1  # or body; stdout content, stderr lease
 mise pre-commit-all
 mise test
 ```
