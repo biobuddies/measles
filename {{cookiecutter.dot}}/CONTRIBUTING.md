@@ -98,7 +98,7 @@ simplest:
           suffices.
         * Standard section headers are `### Background and links`, `### Changes and testing`, and
           `### Followup and questions`. Use a header only when its section has at least three
-          bullets.
+          bullets. `###` H3 headers avoid the horizontal rule GitHub draws under H1 and H2.
         * Automated testing should cover most code changes. Name the one to three existing,
           expanded, or new tests that provide the most useful coverage. Report testing as:
             - `Existing automated test...`
@@ -116,22 +116,34 @@ simplest:
     - Given a stack of local commits
         * Fan each local commit out to its own remote branch
         * Base each Pull Request on the previous branch
-* Favorite tools:
+* Avoid accidentally including .venv, node_modules, full git history; filter appropriately when
+  intentionally searching them for source code and documentation
+
+## Tools
+
+### Start Work in a Repository
 ```sh
-curl
+mise install  # .venv, node_modules, and mise shims
+```
+
+### Change and Check
+```sh
 diffstat
 gh
+git restore
+git switch
+mise pre-commit-all
+mise test
+```
+
+### Discover and Debug
+```sh
+curl
 git grep
 git log
 git ls-files
-git restore
-git switch
 host
-mise pre-commit-all
-mise test
-npm
+npm ls --depth=0
 tree
-uv
+uv pip list  # requirements.txt not uv.lock
 ```
-* Avoid accidentally including .venv, node_modules, full git history; filter appropriately when
-  intentionally searching them for source code and documentation
