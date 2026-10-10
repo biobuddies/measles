@@ -276,7 +276,18 @@ if [[ $hash != "$lease" ]]; then
     printf 'Lease %s broken by concurrent edit to lease %s:\n%s\n' "$lease" "$hash" "$current" >&2
     exit 1
 fi
-gh api "$path" --jq .html_url --method PATCH -f "$field=$(cat)"
+content=$(cat)
+if [[ ${CLAUDE_CODE_REMOTE-} == true ]]; then
+    # CCW's proxy appends a footer to gh api body edits; its GitHub MCP tool does not
+    IFS=/ read -r _ owner repo _ number <<<"$path"
+    echo 'Lease held; make this call:'
+    jq --null-input --arg content "$content" --arg field "$field" --arg owner "$owner" \
+        --arg repo "$repo" --argjson number "$number" \
+        '{tool: "mcp__github__update_pull_request", owner: $owner, repo: $repo,
+            pullNumber: $number, ($field): $content}'
+    exit 0
+fi
+gh api "$path" --jq .html_url --method PATCH -f "$field=$content"
 '''
 
 [tasks.gh-pr-read]
