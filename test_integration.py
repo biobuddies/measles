@@ -310,7 +310,10 @@ def test_new_repository_publishes_to_pypi(
     assert_pyproject('project.urls.source', 'https://github.com/biobuddies/peppier')
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
     assert_pyproject('tool.setuptools.py-modules', ['peppier'])
-    assert_pyproject('tool.setuptools_scm', {})
+    assert_pyproject(
+        'tool.setuptools_scm',
+        {'git_describe_command': "git describe --dirty --tags --long --match 'v*'"},
+    )
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
 
