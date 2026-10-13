@@ -78,6 +78,8 @@ norecursedirs = ['.venv', 'node_modules', '{{ '{{cookiecutter.dot}}' }}']
 py-modules = ['{{ CONA|replace('-', '_') }}']
 
 [tool.setuptools_scm]
+# Skip provider release tags like terraform-provider-cloudflare-v5.27.0-startup.1
+git_describe_command = "git describe --dirty --tags --long --match 'v*'"
 
 {% endif -%}
 [tool.basedpyright]
