@@ -14,5 +14,6 @@
     "python_optional_dependencies": {},
     "python_version": "3.12",
     "node_dependencies": {},
-    "node_dev_dependencies": {}
+    "node_dev_dependencies": {},
+    "upload_artifact_path": ""
 }

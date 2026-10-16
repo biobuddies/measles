@@ -112,6 +112,11 @@ jobs:
               uses: pypa/gh-action-pypi-publish@release/v1
             {%- else %}
             - run: mise build
+            {%- if cookiecutter.upload_artifact_path %}
+            - uses: actions/upload-artifact@v4
+              with:
+                  path: {{ cookiecutter.upload_artifact_path }}
+            {%- endif %}
             - run: mise deploy "{{ github['head_ref || ref_name'] }}"
             {%- endif %}
             - if: github.event_name == 'push'
