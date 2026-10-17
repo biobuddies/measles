@@ -6,6 +6,7 @@ log=/tmp/setup.log
 exec > >(tee -a "$log") 2>&1
 datetimez() { date -u '+%F %TZ'; }
 trap 'echo "ERROR $(datetimez) $PWD"' ERR
+launch=$PWD
 toplevel=$(git -C "$(dirname "${BASH_SOURCE[0]:?requires BASH}")" rev-parse --show-toplevel)
 cd "$toplevel"
 echo "Start $(datetimez) $PWD"
@@ -44,5 +45,10 @@ fi
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
     mkdir --parents ~/.claude
     ln --force --symbolic "$toplevel/.claude/settings.json" ~/.claude/settings.json
+    if [[ $launch != "$toplevel" ]]; then
+        # Multi repository sessions start in the parent directory
+        mkdir --parents "$launch/.claude"
+        ln --force --symbolic "$toplevel/.claude/settings.json" "$launch/.claude/settings.json"
+    fi
 fi
 echo "Complete $(datetimez) $PWD"
