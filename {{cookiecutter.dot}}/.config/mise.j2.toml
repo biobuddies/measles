@@ -521,6 +521,9 @@ run = 'mise run-on-sources trailing-whitespace-fixer . "$@"'
 [tasks.tvalid]
 run = 'mise tact validate "$@"'
 
+[tasks.mise-lock]
+run = 'mise lock "$@"'
+
 [tasks.npm-package-lock]
 run = 'npm install --package-lock-only "$@"'
 
@@ -543,7 +546,7 @@ uv pip compile --all-extras --output-file requirements.txt --quiet \
 '''
 
 [tasks.update-lock-files]
-depends = ['npm-package-lock', 'uv-pip-compile']
+depends = ['mise-lock', 'npm-package-lock', 'uv-pip-compile']
 
 [tasks.validate-pyproject]
 run = 'validate-pyproject pyproject.toml "$@"'
@@ -616,7 +619,7 @@ set -o errexit -o nounset -o pipefail
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise lychee  # Requires Internet
-mise uv-pip-compile  # needs Internet
+mise update-lock-files  # needs Internet
 # dup :414 tasks.pre-commit
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo Auto-staged modifications
