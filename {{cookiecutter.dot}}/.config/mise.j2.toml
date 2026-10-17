@@ -633,10 +633,9 @@ rust = 'stable'
 {% endif -%}
 uv = '0.12.5'
 {% if 'terraform' in cookiecutter.languages.lower().split(',') %}
-# biobuddies/helicopyter provider.yaml build for startup_time_ms; filesystem mirror, unpacked layout
+# biobuddies/helicopyter release with patched Cloudflare provider; filesystem mirror, unpacked layout
 [tools.'github:biobuddies/helicopyter']
 asset_pattern = '*linux_amd64.zip'
 os = ['linux']
-version = '5.27.0-startup.2'
-version_prefix = 'terraform-provider-cloudflare-v'
+version = '2026.41.2'
 {% endif -%}
