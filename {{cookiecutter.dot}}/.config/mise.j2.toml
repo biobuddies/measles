@@ -640,6 +640,5 @@ uv = '0.12.5'
 [tools.'github:biobuddies/helicopyter']
 asset_pattern = '*linux_amd64.zip'
 os = ['linux']
-version = '5.27.0-startup.2'
-version_prefix = 'terraform-provider-cloudflare-v'
+version = '2026.41.2'
 {% endif -%}
