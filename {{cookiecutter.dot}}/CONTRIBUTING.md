@@ -96,6 +96,10 @@ simplest:
         * Use a terse title and short sentences. Write only highlights and surprises; details
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
+        * Describe the net change against the base branch, not the potentially winding path
+          there. Omit renames, reverts, fixups, and reviewer back-and-forth that would not help
+          a busy person reviewing history six months from now. When they help explain why the
+          implemented approach was chosen, do document approaches that were tried and failed.
         * Standard section headers are `### Background and links`, `### Changes and testing`, and
           `### Followup and questions`. Use a header only when its section has at least three
           bullets. `###` H3 headers avoid the horizontal rule GitHub draws under H1 and H2.
