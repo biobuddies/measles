@@ -248,7 +248,8 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 field=${1:?missing title or body} number=${2:?missing number} lease=${3:?missing lease}
-path=repos/$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')/pulls/$number
+repository=$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')
+path=repos/$repository/pulls/$number
 current=$(gh api "$path" --jq ".$field // \"\"")
 hash=$(printf '%s\n' "$current" | sha256sum | cut -c1-16)
 if [[ $hash != "$lease" ]]; then
@@ -276,7 +277,8 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 field=${1:?missing title or body} number=${2:?missing number}
-path=repos/$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')/pulls/$number
+repository=$(git remote get-url origin | sed -E 's,.*[:/]([^/]+/[^/]+)$,\1,; s,\.git$,,')
+path=repos/$repository/pulls/$number
 current=$(gh api "$path" --jq ".$field // \"\"")
 printf '%s\n' "$current"
 printf 'lease %s\n' "$(printf '%s\n' "$current" | sha256sum | cut -c1-16)" >&2
@@ -394,8 +396,8 @@ eval "$commands"
 # Skip Markdown to conserve vertical space.
 # The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
 run = '''
-mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} :!*.dj.html :!*.j2.html :!*.j2.json :!*.j2.yaml" \
-    --write "$@"
+mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} \
+    :!*.dj.html :!*.j2.html :!*.j2.json :!*.j2.yaml" --write "$@"
 '''
 
 [tasks.pyrefly]
@@ -518,7 +520,10 @@ depends = ['mise-lock', 'npm-package-lock', 'uv-pip-compile']
 run = 'validate-pyproject pyproject.toml "$@"'
 
 [tasks.wait-actions]
-run = 'mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json databaseId --jq ".[0].databaseId" | xargs -I {} mise x -- gh run watch {}'
+run = '''
+mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json databaseId \
+    --jq '.[0].databaseId' | xargs -I {} mise x -- gh run watch {}
+'''
 
 [tasks.yamllint]
 # Jinja tags are invalid YAML; djlint handles Jinja YAML.
