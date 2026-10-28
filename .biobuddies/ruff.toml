@@ -50,10 +50,6 @@ parametrize-values-type = 'tuple'
 split-on-trailing-comma = false
 
 [lint.per-file-ignores]
-# Command line interfaces by path; followup: detect [project.scripts] targets and __main__ guards
-'**/{__main__,management/commands/*,manage,scripts/*}.py' = [
-    'T201', # Command line interfaces print
-]
 '**/{conftest,test*}.py' = [
     'ANN201',  # -> None doesn't improve pytest functions
     'N802',    # Test functions can match class names

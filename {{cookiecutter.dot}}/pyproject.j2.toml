@@ -97,6 +97,11 @@ quote_style = 'single'
 [tool.ruff]
 extend = '.biobuddies/ruff.toml'
 
+# Command line interfaces print; anchored at the repository root, unlike patterns in the extended
+# file. Followup: detect [project.scripts] targets and __main__ guards
+[tool.ruff.lint.extend-per-file-ignores]
+'**/{__main__,management/commands/*,manage,scripts/*}.py' = ['T201']
+
 [tool.pyrefly]
 project-includes = [
     "**/*.py*",
