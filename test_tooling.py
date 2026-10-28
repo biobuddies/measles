@@ -673,7 +673,7 @@ def test_python_version():
         (template / 'pyproject.j2.toml').read_text().split('dependencies = [', 1)[0]
     ).render(context)
     assert "target-version = 'py313'" in environment.from_string(
-        (template / '.biobuddies' / 'ruff.j2.toml').read_text()
+        (template / 'pyproject.j2.toml').read_text().split('[tool.ruff]', 1)[1]
     ).render(context)
     assert '--python-version 3.13' in environment.from_string(
         (template / '.config' / 'mise.j2.toml').read_text()
