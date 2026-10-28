@@ -401,7 +401,8 @@ def test_existing_repository(codename: str, dependencies: list[str], has_django:
 
     assert_pyproject = load_toml(downstream / 'pyproject.toml')
     pytest_options = assert_pyproject('tool.pytest.ini_options')
-    assert (downstream / '.biobuddies' / 'ruff.toml').exists()
+    assert not (downstream / '.biobuddies' / 'ruff.toml').exists()
+    assert assert_pyproject('tool.ruff.line-length') == 100
     assert (downstream / '.gitignore').exists()
     assert set(dependencies) <= set(assert_pyproject('project.dependencies'))
     assert assert_pyproject('project.optional-dependencies.test') == [

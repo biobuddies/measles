@@ -90,9 +90,9 @@ def test_configuration_files_agree():
     root = Path(__file__).parents[1]
     editorconfig = ConfigParser()
     editorconfig.read_string('[DEFAULT]\n' + (root / '.editorconfig').read_text())
-    djlint = loads((root / 'pyproject.toml').read_text())['tool']['djlint']
+    tool = loads((root / 'pyproject.toml').read_text())['tool']
+    djlint, ruff = tool['djlint'], tool['ruff']
     prettier = loads((root / '.prettierrc.toml').read_text())
-    ruff = loads((root / '.biobuddies/ruff.toml').read_text())
     assert djlint['indent'] == int(editorconfig['*']['indent_size'])
     assert (
         djlint['max_line_length']

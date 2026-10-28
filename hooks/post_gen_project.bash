@@ -8,6 +8,7 @@ set -o errexit -o nounset -o pipefail -o xtrace
 sed -i.bak "/^SECRET_KEY = /{ /# noqa/! s/$/  # noqa: S105, typos/; }" config/settings.py
 rm config/settings.py.bak
 {% endif %}
+rm -f .biobuddies/ruff.toml
 {% if not cookiecutter.publish_to_pypi %}
 rm -f MANIFEST.in pypi_compatible_build.py
 {% endif %}
