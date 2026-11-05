@@ -43,6 +43,8 @@ simplest:
         * Prefer '{f}-strings' until curly braces show up, then minimize escapes with percent
     - 100 character lines
     - Add fewer than 500 lines per commit/pull request
+    - Accumulate all changes into the same feature branch and pull request batch until about 100
+      lines added, then begin splitting topically
     - Split files around 500 lines
 * Alphabetize, sometimes within sections (header worth a comment)
 * Order command arguments: positional arguments, alphabetized `--flags`, then alphabetized
