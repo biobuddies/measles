@@ -50,8 +50,12 @@ parametrize-values-type = 'tuple'
 split-on-trailing-comma = false
 
 [lint.per-file-ignores]
+# From the repository root because patterns here resolve from this directory
+'../**/migrations/*.py' = [
+    'D100', # Django generates migrations without module docstrings
+]
 # Command line interfaces by path; followup: detect [project.scripts] targets and __main__ guards
-'**/{__main__,management/commands/*,manage,scripts/*}.py' = [
+'../**/{__main__,management/commands/*,manage,scripts/*}.py' = [
     'T201', # Command line interfaces print
 ]
 '**/{conftest,test*}.py' = [
