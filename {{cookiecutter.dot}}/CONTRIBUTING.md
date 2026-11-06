@@ -103,17 +103,20 @@ simplest:
                 * RFC 952 forbids underscores `_` in hostnames
                 * Normalization Form Kompatibility Composition (NFKC) replaces `\xb5` micro sign
                   with `\u03bc` Greek small mu
+                * GitHub draws a horizontal rule under H1 and H2 headers
             - Simple past or past progressive for changed context:
                 * Ruff 0.1.7 turned on brace hugging for `preview = true`
                 * Text was overlapping the musical staff
+                * `helicopyter/` and `stacks/` were never linted
             - Imperative mood for titles and current changes:
                 * Write a sieve rule moving future messages from `two.dots.domain` or
                   `sender@onedot.domain` to junk
                 * If `BACKING_SERVICE_URL` is unset, let the `KeyError` exception bubble up
-            - Imperative mood for future followups:
+                * Replan `etag` as unknown
+            - Mostly imperative mood for future followups:
                 * Contract by dropping `DATABASE_PORT` from environment variables
-            - Imply subjects and drop articles; use passive voice when the actor is obvious or
-              irrelevant
+                * Propose the fix upstream, then drop this patched build
+                * Consumers will need to switch to calver `v` tags
         * Describe the net change against the base branch, not the potentially winding path
           there. Omit renames, reverts, fixups, and reviewer back-and-forth that would not help
           a busy person reviewing history six months from now. When they help explain why the
