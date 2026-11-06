@@ -218,7 +218,9 @@ def test_new_repository_not_django(
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
     assert_mise('tools.rust', 'stable')
-    assert_mise('tasks.deploy.run', 'mise tapply "$@"')
+    assert_mise(
+        'tasks.deploy.run', 'test -z "${GITHUB_HEAD_REF:-}" || mise tplan main && mise tapply "$@"'
+    )
     assert_pyproject(
         'project.optional-dependencies.test', ['pytest', 'pytest-cov', 'pytest-httpserver']
     )

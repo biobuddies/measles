@@ -1,0 +1,3 @@
+# DROP ME: preview the tapply step summary with a canned mublog apply
+[tasks.tact]
+run = 'cat apply-preview.txt #'

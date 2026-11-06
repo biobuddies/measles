@@ -63,6 +63,8 @@ jobs:
                   experimental: true
             - run: mise checkout
             - run: mise test
+            - if: always()  # DROP ME
+              run: MISE_ENV=preview mise tapply main -auto-approve
 
     # Leaf jobs
     build-deploy:
