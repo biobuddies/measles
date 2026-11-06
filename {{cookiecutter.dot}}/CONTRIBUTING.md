@@ -99,7 +99,7 @@ simplest:
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
         * Vary tense, mood, passivity, and implicitness by context to bring focus and familiarity:
-            - Simple present for unchanging context:
+            - Simple present for lasting facts:
                 * RFC 952 forbids underscores `_` in hostnames
                 * Normalization Form Kompatibility Composition (NFKC) replaces `\xb5` micro sign
                   with `\u03bc` Greek small mu
