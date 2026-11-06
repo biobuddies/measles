@@ -98,6 +98,15 @@ simplest:
         * Use a terse title and short sentences. Write only highlights and surprises; details
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
+        * Choose tense and mood by what each sentence describes:
+            - Imperative mood for the title, changes, and followups: `Let KeyError bubble up when
+              BACKING_SERVICE_URL is unset`, `Contract by dropping DATABASE_PORT`
+            - Simple present for unchanging context: `RFC 952 forbids underscores in hostnames`,
+              `NFKC replaces the \xb5 micro sign with \u03bc Greek small mu`
+            - Simple past for changed context, or past progressive for a state this change
+              ends: `Ruff switched to brace hugging`, `Text was overlapping the staff`
+            - Imply subjects and drop articles; use passive voice when the actor is obvious or
+              irrelevant
         * Describe the net change against the base branch, not the potentially winding path
           there. Omit renames, reverts, fixups, and reviewer back-and-forth that would not help
           a busy person reviewing history six months from now. When they help explain why the
