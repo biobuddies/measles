@@ -564,6 +564,8 @@ def test_release(tmp_path: Path, week: int, latest: str, release: int):
         """
         if [[ $1 == fetch ]]; then
             printf 'git %s\n' "$*" >> "$CALLS"
+        elif [[ $1 == rev-parse ]]; then
+            echo 0123456789abcdef0123456789abcdef01234567
         elif [[ $1 == tag ]]; then
             printf 'git %s\n' "$*" >> "$CALLS"
             echo "$LATEST"
@@ -578,7 +580,8 @@ def test_release(tmp_path: Path, week: int, latest: str, release: int):
     assert calls.read_text().splitlines() == [
         'git fetch --tags',
         f'git tag --list v2026.{week}.* --sort=-version:refname',
-        f'gh release create v2026.{week}.{release} --generate-notes',
+        f'gh release create v2026.{week}.{release} --generate-notes'
+        ' --target=0123456789abcdef0123456789abcdef01234567',
         'git fetch --tags',
     ]
 
