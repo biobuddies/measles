@@ -43,6 +43,8 @@ simplest:
         * Prefer '{f}-strings' until curly braces show up, then minimize escapes with percent
     - 100 character lines
     - Add fewer than 500 lines per commit/pull request
+    - Accumulate all changes into the same feature branch and pull request batch until about 100
+      lines added, then begin splitting topically
     - Split files around 500 lines
 * Alphabetize, sometimes within sections (header worth a comment)
 * Order command arguments: positional arguments, alphabetized `--flags`, then alphabetized
@@ -96,6 +98,26 @@ simplest:
         * Use a terse title and short sentences. Write only highlights and surprises; details
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
+        * Vary tense, mood, passivity, and implicitness by context to bring focus and familiarity:
+            - Simple present for lasting facts:
+                * RFC 952 forbids underscores `_` in hostnames
+                * Normalization Form Kompatibility Composition (NFKC) replaces `\xb5` micro sign
+                  with `\u03bc` Greek small mu
+                * GitHub draws a horizontal rule under `#` H1 and `##` H2 headers
+            - Simple past or past progressive for changed context:
+                * Ruff 0.1.7 turned on brace hugging for `preview = true`
+                * Text was overlapping the musical staff
+                * `helicopyter/` and `stacks/` were never linted
+            - Imperative mood for titles and current changes:
+                * Write a sieve rule moving future messages from `two.dots.domain` or
+                  `sender@onedot.domain` to junk
+                * If `BACKING_SERVICE_URL` is unset, let the `KeyError` exception bubble up
+                * Replan `etag` as unknown
+            - Mostly imperative mood for future followups:
+                * Contract by dropping `DATABASE_PORT` from environment variables
+                * Propose the fix upstream, then drop this patched build
+                * We can get to classes and the problems with
+                  https://peps.python.org/pep-0008/#designing-for-inheritance later
         * Describe the net change against the base branch, not the potentially winding path
           there. Omit renames, reverts, fixups, and reviewer back-and-forth that would not help
           a busy person reviewing history six months from now. When they help explain why the
