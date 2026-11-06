@@ -98,7 +98,7 @@ simplest:
         * Use a terse title and short sentences. Write only highlights and surprises; details
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
-        * Choose tense and mood by what each sentence describes:
+        * Vary tense, mood, passivity, and implicitness by context to bring focus and familiarity:
             - Imperative mood for the title, changes, and followups: `Let KeyError bubble up when
               BACKING_SERVICE_URL is unset`, `Contract by dropping DATABASE_PORT`
             - Simple present for unchanging context: `RFC 952 forbids underscores in hostnames`,
