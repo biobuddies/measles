@@ -102,7 +102,7 @@ simplest:
             - Imperative mood for the title, changes, and followups: `Let KeyError bubble up when
               BACKING_SERVICE_URL is unset`, `Contract by dropping DATABASE_PORT`
             - Simple present for unchanging context: `RFC 952 forbids underscores in hostnames`,
-              `NFKC replaces the \xb5 micro sign with \u03bc Greek small mu`
+              `NFKC replaces \xb5 micro sign with \u03bc Greek small mu`
             - Simple past for changed context, or past progressive for a state this change
               ends: `Ruff 0.1.7 previewed brace hugging`, `Text was overlapping the staff`
             - Imply subjects and drop articles; use passive voice when the actor is obvious or
