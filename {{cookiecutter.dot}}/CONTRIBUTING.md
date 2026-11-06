@@ -104,7 +104,7 @@ simplest:
             - Simple present for unchanging context: `RFC 952 forbids underscores in hostnames`,
               `NFKC replaces the \xb5 micro sign with \u03bc Greek small mu`
             - Simple past for changed context, or past progressive for a state this change
-              ends: `Ruff switched to brace hugging`, `Text was overlapping the staff`
+              ends: `Ruff 0.1.7 previewed brace hugging`, `Text was overlapping the staff`
             - Imply subjects and drop articles; use passive voice when the actor is obvious or
               irrelevant
         * Describe the net change against the base branch, not the potentially winding path
