@@ -3,10 +3,11 @@
 import stat
 from collections.abc import Iterable
 from configparser import ConfigParser
+from json import loads as load_json
 from os import environ
 from pathlib import Path
 from shlex import quote
-from subprocess import call, check_call
+from subprocess import call, check_call, run
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from tomllib import loads
@@ -15,6 +16,7 @@ import django
 from django.conf import settings
 from django.template import Context, Engine
 from jinja2 import Environment, FileSystemLoader
+from pytest import mark
 
 TEMPLATE_PATHS = tuple(sorted(Path(__file__).parent.glob('*/1-unformatted-template.*')))
 CONTEXT = {
@@ -178,3 +180,42 @@ def test_formatting_templates():
                 template_path.read_text()
                 == stage_path(source_path, '2-formatted-template').read_text()
             )
+
+
+@mark.parametrize(
+    ('filename', 'expected'),
+    (
+        ('test_widget.py', []),
+        ('nested/test_widget.py', []),
+        ('widget.py', ['D100']),
+        ('conftest.py', ['D100']),
+    ),
+)
+def test_test_module_docstrings(tmp_path: Path, filename: str, expected: list[str]) -> None:
+    template = Path(__file__).parents[1] / '{{cookiecutter.dot}}' / '.biobuddies' / 'ruff.j2.toml'
+    configuration = tmp_path / '.biobuddies' / 'ruff.toml'
+    configuration.parent.mkdir()
+    configuration.write_text(
+        Environment(autoescape=False)  # noqa: S701
+        .from_string(template.read_text())
+        .render(cookiecutter={'python_version': '3.12'})
+    )
+    result = run(
+        [
+            'ruff',
+            'check',
+            '-',
+            '--config',
+            str(configuration),
+            '--output-format=json',
+            '--select=D100',
+            '--stdin-filename',
+            str(tmp_path / filename),
+        ],
+        check=False,
+        capture_output=True,
+        input='value = 1\n',
+        text=True,
+    )
+    assert result.returncode == int(bool(expected)), result.stderr
+    assert [diagnostic['code'] for diagnostic in load_json(result.stdout)] == expected
