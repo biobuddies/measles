@@ -103,7 +103,7 @@ simplest:
                 * RFC 952 forbids underscores `_` in hostnames
                 * Normalization Form Kompatibility Composition (NFKC) replaces `\xb5` micro sign
                   with `\u03bc` Greek small mu
-                * GitHub draws a horizontal rule under H1 and H2 headers
+                * GitHub draws a horizontal rule under `#` H1 and `##` H2 headers
             - Simple past or past progressive for changed context:
                 * Ruff 0.1.7 turned on brace hugging for `preview = true`
                 * Text was overlapping the musical staff
