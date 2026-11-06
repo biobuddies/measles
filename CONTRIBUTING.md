@@ -99,12 +99,18 @@ simplest:
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
         * Vary tense, mood, passivity, and implicitness by context to bring focus and familiarity:
-            - Imperative mood for the title, changes, and followups: `Let KeyError bubble up when
-              BACKING_SERVICE_URL is unset`, `Contract by dropping DATABASE_PORT`
-            - Simple present for unchanging context: `RFC 952 forbids underscores in hostnames`,
-              `NFKC replaces \xb5 micro sign with \u03bc Greek small mu`
-            - Simple past for changed context, or past progressive for a state this change
-              ends: `Ruff 0.1.7 previewed brace hugging`, `Text was overlapping the staff`
+            - Simple present for unchanging context:
+                * RFC 952 forbids underscores `_` in hostnames
+                * NFKC replaces `\xb5` micro sign with `\u03bc` Greek small mu
+            - Simple past or past progressive for changed context:
+                * Ruff 0.1.7 turned on brace hugging for `preview = true`
+                * Text was overlapping the musical staff
+            - Imperative mood for titles and current changes:
+                * Write a sieve rule moving future messages from `two.dots.domain` or
+                  `sender@onedot.domain` to junk
+                * If `BACKING_SERVICE_URL` is unset, let the `KeyError` exception bubble up
+            - Imperative mood for future followups:
+                * Contract by dropping `DATABASE_PORT` from environment variables
             - Imply subjects and drop articles; use passive voice when the actor is obvious or
               irrelevant
         * Describe the net change against the base branch, not the potentially winding path
