@@ -101,7 +101,8 @@ simplest:
         * Vary tense, mood, passivity, and implicitness by context to bring focus and familiarity:
             - Simple present for unchanging context:
                 * RFC 952 forbids underscores `_` in hostnames
-                * NFKC replaces `\xb5` micro sign with `\u03bc` Greek small mu
+                * Normalization Form Kompatibility Composition (NFKC) replaces `\xb5` micro sign
+                  with `\u03bc` Greek small mu
             - Simple past or past progressive for changed context:
                 * Ruff 0.1.7 turned on brace hugging for `preview = true`
                 * Text was overlapping the musical staff
