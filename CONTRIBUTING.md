@@ -116,7 +116,8 @@ simplest:
             - Mostly imperative mood for future followups:
                 * Contract by dropping `DATABASE_PORT` from environment variables
                 * Propose the fix upstream, then drop this patched build
-                * Dependencies will need to switch to calendar versioned `v` tags
+                * We can get to classes and the problems with
+                  https://peps.python.org/pep-0008/#designing-for-inheritance later
         * Describe the net change against the base branch, not the potentially winding path
           there. Omit renames, reverts, fixups, and reviewer back-and-forth that would not help
           a busy person reviewing history six months from now. When they help explain why the
