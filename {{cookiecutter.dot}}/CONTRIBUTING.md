@@ -116,7 +116,7 @@ simplest:
             - Mostly imperative mood for future followups:
                 * Contract by dropping `DATABASE_PORT` from environment variables
                 * Propose the fix upstream, then drop this patched build
-                * Consumers will need to switch to calver `v` tags
+                * Consumers will need to switch to calendar versioned `v` tags
         * Describe the net change against the base branch, not the potentially winding path
           there. Omit renames, reverts, fixups, and reviewer back-and-forth that would not help
           a busy person reviewing history six months from now. When they help explain why the
