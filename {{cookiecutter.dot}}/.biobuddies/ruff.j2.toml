@@ -54,6 +54,7 @@ split-on-trailing-comma = false
 '../**/migrations/*.py' = [
     'D100', # Django generates migrations without module docstrings
 ]
+'**/test_*.py' = ['D100']
 # Command line interfaces by path; followup: detect [project.scripts] targets and __main__ guards
 '../**/{__main__,management/commands/*,manage,scripts/*}.py' = [
     'T201', # Command line interfaces print
