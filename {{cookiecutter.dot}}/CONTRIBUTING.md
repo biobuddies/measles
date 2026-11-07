@@ -98,6 +98,8 @@ simplest:
         * Use a terse title and short sentences. Write only highlights and surprises; details
           belong in the Files changed tab / git diff. Leave the body empty when the title
           suffices.
+        * Interfaces, automation, or both show diffstats and stack (patch series) details.
+          Omit these from the Pull Request top comment.
         * Vary tense, mood, passivity, and implicitness by context to bring focus and familiarity:
             - Simple present for lasting facts:
                 * RFC 952 forbids underscores `_` in hostnames
