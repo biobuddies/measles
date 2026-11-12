@@ -6,7 +6,7 @@ from itertools import takewhile
 from os import environ, getenv
 from pathlib import Path
 from re import fullmatch, search, sub
-from subprocess import CalledProcessError, check_output
+from subprocess import DEVNULL, CalledProcessError, call, check_output, run
 from sys import stderr
 from textwrap import dedent
 from urllib.error import HTTPError, URLError
@@ -150,6 +150,9 @@ class Measles(Extension):
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
+            'TABR': run(
+                ['mise', 'tabr'], capture_output=True, check=False, cwd=environ['PWD'], text=True
+            ).stdout.strip(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
             'github': GitHubExpression('github'),
@@ -169,6 +172,17 @@ class Measles(Extension):
             'node_dev_dependencies': default_context['node_dev_dependencies'],
             'python_optional_dependencies': default_context['python_optional_dependencies'],
         })
+        # Help new repositories run the workflow
+        environment.globals['branch_trigger'] = (
+            # pyrefly: ignore[unsupported-operation]
+            environment.globals['TABR'] not in ('', 'main')
+            and call(
+                ['git', 'cat-file', '-e', 'origin/main:.github/workflows/act.yaml'],
+                cwd=environ['PWD'],
+                stderr=DEVNULL,
+            )
+            != 0
+        )
         # pyrefly: ignore[not-iterable,unsupported-operation]
         environment.globals['has_django'] = any(
             'django' in dependency.lower()

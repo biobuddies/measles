@@ -326,6 +326,8 @@ def test_new_repository_publishes_to_pypi(
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
     assert environment['name'] == '${{ github.head_ref || github.ref_name }}'
+    tabr = getenv('GITHUB_HEAD_REF', '')
+    assert_yaml('on.push.branches', [*([tabr] if tabr not in ('', 'main') else []), 'main'])
     assert "github.ref_name == 'main' && 'biobuddi.es'" in environment['url']
     assert "format('{0}.biobuddi.es'," in environment['url']
     assert steps[3] == {
