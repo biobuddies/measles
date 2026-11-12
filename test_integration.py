@@ -332,12 +332,12 @@ def test_new_repository_publishes_to_pypi(
     assert "format('{0}.biobuddi.es'," in environment['url']
     assert steps[3] == {
         'env': {'GH_TOKEN': '${{ github.token }}'},
-        'if': "github.event_name == 'push'",
+        'if': "github.event_name == 'push' && github.ref == 'refs/heads/main'",
         'run': 'mise release',
     }
     assert steps[4]['run'] == 'mise build'
     assert steps[5] == {
-        'if': "github.event_name == 'push'",
+        'if': "github.event_name == 'push' && github.ref == 'refs/heads/main'",
         'uses': 'pypa/gh-action-pypi-publish@release/v1',
     }
     assert (
