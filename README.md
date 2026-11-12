@@ -21,7 +21,13 @@ mise pre-commit-all
 mise test
 ```
 
-## Autoformat excludes
+## First Run
+
+Until `main` has `.github/workflows/act.yaml`, rendering adds `TABR` to its `push`
+triggers, so a bootstrap branch runs act before its pull request merges. Once `origin/main` has
+the workflow, the next render drops that branch.
+
+## Autoformat Excludes
 
 To exclude files from autoformatting and linting, add extended regular expressions
 for relative paths from the repository root to `.config/autoformat-excludes` like:
@@ -31,7 +37,7 @@ for relative paths from the repository root to `.config/autoformat-excludes` lik
 ^publickey\.asc$
 ```
 
-## Agent sandboxes
+## Agent Sandboxes
 
 Set environment setup script to
 
