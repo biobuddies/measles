@@ -8,7 +8,12 @@ set -o errexit -o nounset -o pipefail -o xtrace
 sed -i.bak "/^SECRET_KEY = /{ /# noqa/! s/$/  # noqa: S105, typos/; }" config/settings.py
 rm config/settings.py.bak
 {% endif %}
-{% if not cookiecutter.publish_to_pypi %}
+{% if cookiecutter.publish_to_pypi %}
+module='{{ CONA|replace("-", "_") }}'
+mkdir -p "$module"
+[[ ! -f $module.py || -e $module/__init__.py ]] || mv "$module"{.py,/__init__.py}
+touch "$module/py.typed"
+{% else %}
 rm -f MANIFEST.in pypi_compatible_build.py
 {% endif %}
 # https://developers.openai.com/codex/guides/agents-md

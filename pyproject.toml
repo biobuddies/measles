@@ -52,8 +52,8 @@ source_pkgs = ['measles']
 [tool.pytest.ini_options]
 norecursedirs = ['.venv', 'node_modules', '{{cookiecutter.dot}}']
 
-[tool.setuptools]
-py-modules = ['measles']
+[tool.setuptools.packages.find]
+include = ['measles*']
 
 [tool.setuptools_scm]
 # Skip provider release tags like terraform-provider-cloudflare-v5.27.0-startup.1
