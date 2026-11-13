@@ -19,7 +19,8 @@ from jinja2 import Environment, Template
 from jinja2.ext import Extension
 from yaml import safe_load
 
-# $PWD survives cookiecutter's os.chdir() to the template repository before rendering hooks
+# $PWD survives cookiecutter's os.chdir() to the template repo during
+# run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
 PWD = Path(environ['PWD'])
 
 
@@ -143,8 +144,6 @@ class Measles(Extension):
             )
 
         environment.get_template = get_hash_or_curly_template
-        # $PWD survives cookiecutter's os.chdir() to the template repo during
-        # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         default_context = defaultdict(
             dict,
             safe_load(yaml_source := (PWD / '.cookiecutter.yaml').read_text())['default_context'],
