@@ -28,12 +28,14 @@ def precise_environment(monkeypatch: MonkeyPatch) -> Callable[..., None]:
                 ),
                 MISSING,
             )
-            | kwargs
+            | {'PWD': str(Path.cwd()), **kwargs}
         ).items():
             if value is MISSING:
                 monkeypatch.delitem(environ, key, raising=False)
             else:
                 monkeypatch.setenv(key, value)  # pyrefly: ignore[bad-argument-type]
+
+        monkeypatch.setattr(measles, 'PWD', Path(environ['PWD']))
 
     return inner
 
@@ -106,6 +108,7 @@ def test_cona_orgn_follow_pwd_out_of_template(
         ])
     monkeypatch.chdir(tmp_path / 'template')
     precise_environment(PWD=str(tmp_path / 'downstream'))
+    monkeypatch.setenv('PWD', str(tmp_path / 'template'))
 
     assert (measles.cona(), measles.orgn()) == ('wriggle', 'biobuddies')
 
