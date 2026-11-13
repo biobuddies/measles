@@ -408,10 +408,10 @@ eval "$commands"
 [tasks.prettier-write]
 # Prettier incorporated into autoformat tasks to reconcile formatting differences
 # Skip Markdown to conserve vertical space.
-# The Jinja parser's HTML layout mangles Jinja JSON.
+# Prettier mangles Jinja in other templates, such as JSON and TOML.
 run = '''
 mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} \
-    :!*.dj.html :!*.hj.yaml :!*.j2.html :!*.j2.json :!*.j2.toml" --write "$@"
+    :!*.dj.* :!*.hj.* :!*.j2.*" --write "$@"
 '''
 
 [tasks.pyrefly]

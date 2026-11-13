@@ -52,10 +52,8 @@ def quote_paths(paths: Iterable[Path]) -> str:
     return ' '.join(quote(str(path)) for path in paths)
 
 
-def quote_paths_matching(
-    paths: Iterable[Path], suffixes: tuple[str, ...], *, exclude: bool = False
-) -> str:
-    return quote_paths(path for path in paths if path.name.endswith(suffixes) != exclude)
+def quote_paths_matching(paths: Iterable[Path], suffixes: tuple[str, ...]) -> str:
+    return quote_paths(path for path in paths if path.name.endswith(suffixes))
 
 
 def stage_path(unformatted_template_path: Path, stage_name: str) -> Path:
@@ -154,8 +152,7 @@ def test_formatting_templates():
             Path(mock_directory) / 'git',
             f"""
             case " $* " in
-            *' *.css '*) printf '%s\\n' \
-                {quote_paths_matching(template_paths, ('.hj.yaml', '.j2.json'), exclude=True)} ;;
+            *' *.css '*) exit ;;
             *' *.dj.html '*) printf '%s\\n' \
                 {quote_paths_matching(template_paths, ('.dj.html',))} ;;
             *' *.hj.yaml '*) printf '%s\\n' \
