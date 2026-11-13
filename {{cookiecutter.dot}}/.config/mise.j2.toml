@@ -227,7 +227,9 @@ mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
 
 [tasks.autoformat-py]
 # Format after fixing, since fixes can reflow code; ruff format also covers Markdown code blocks
+# Suppress django-upgrade return code 1 for rewritten so ruff still runs
 run = '''
+mise run-on-sources django-upgrade \*.py "$@" || test $? -eq 1
 mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"
 mise run-on-sources ruff "*.{md,py,pyi}" format --force-exclude "$@"
 '''
@@ -268,9 +270,6 @@ else
 fi
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $template
 '''
-
-[tasks.django-upgrade]
-run = 'mise run-on-sources django-upgrade \*.py "$@"'
 
 [tasks.deploy]
 {% if 'terraform' in cookiecutter.languages.lower().split(',') -%}
@@ -619,21 +618,28 @@ mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json dat
 run = 'mise run-on-sources yamllint "*.yaml :!*.hj.yaml" "$@"'
 
 # Task collections
-[tasks.parallel-pre-commit]
+[tasks.change-lines]
+# Partitioned by extension, so these run in parallel without writing the same file
 depends = [
-    # line changers
     'autoformat-dj-html',
     'autoformat-hj-yaml',
     'autoformat-j2-bash',
     'autoformat-j2-html',
     'autoformat-py',
-    'django-upgrade',
-    'end-of-file-fixer',
     'prettier-write',
     'shfmt',
-    'trailing-whitespace-fixer',
-    'typos',
-    # line keepers
+]
+
+[tasks.fix-every-extension]
+# Each of these may write any file, so they run one at a time
+run = '''
+mise end-of-file-fixer
+mise trailing-whitespace-fixer
+mise typos
+'''
+
+[tasks.keep-lines]
+depends = [
     'actionlint',
     'check-branch',
     {% if has_django -%}
@@ -655,7 +661,13 @@ depends = [
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-mise parallel-pre-commit
+# Concurrent writes can lose edits
+# * asottile's pre-commit is serial
+# * prek parallelizes within hand-assigned priority groups
+# * hk parallelizes with locks 🎉 but requires PKL 😢
+mise fix-every-extension
+mise change-lines
+mise keep-lines
 # dup :435 tasks.pre-commit-all
 [[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
 # Stage once where the parallel run-on-sources tasks join; concurrent git add raced index.lock

@@ -274,7 +274,7 @@ def test_new_repository_yes_django(
         'python -m manage makemigrations --check',
         'python -m gunicorn config.wsgi --check-config',
     ]
-    assert 'check-django' in assert_mise('tasks.parallel-pre-commit.depends')
+    assert 'check-django' in assert_mise('tasks.keep-lines.depends')
     assert 'rust' not in assert_mise('tools')
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert (
