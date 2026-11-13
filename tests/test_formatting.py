@@ -155,9 +155,11 @@ def test_formatting_templates():
             f"""
             case " $* " in
             *' *.css '*) printf '%s\\n' \
-                {quote_paths_matching(template_paths, ('.j2.json',), exclude=True)} ;;
+                {quote_paths_matching(template_paths, ('.hj.yaml', '.j2.json'), exclude=True)} ;;
             *' *.dj.html '*) printf '%s\\n' \
                 {quote_paths_matching(template_paths, ('.dj.html',))} ;;
+            *' *.hj.yaml '*) printf '%s\\n' \
+                {quote_paths_matching(template_paths, ('.hj.yaml',))} ;;
             *' *.j2.html '*) printf '%s\\n' \
                 {quote_paths_matching(template_paths, ('.j2.html',))} ;;
             *' -- . '*) printf '%s\\n' \

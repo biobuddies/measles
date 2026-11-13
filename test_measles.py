@@ -4,9 +4,10 @@ from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
-from pytest import MonkeyPatch, fixture, raises
+from pytest import CaptureFixture, MonkeyPatch, fixture, raises
 
 import measles
+from measles.djlint_hash_jinja import curly, hashed, main, translate
 
 MISSING = object()
 
@@ -169,3 +170,17 @@ def test_orgn_rejects_bad_characters(
 
     with raises(ValueError, match=r"^Unexpected ORGN characters: 'bad name'$"):
         measles.orgn()
+
+
+def test_djlint_hash_jinja(capsys: CaptureFixture[str], tmp_path: Path):
+    workflow = Path('{{cookiecutter.dot}}/.github/workflows/act.hj.yaml')
+    assert translate(translate(workflow.read_text(), curly), hashed) == workflow.read_text()
+    assert main(['--lint', '--profile=jinja', str(workflow)]) == 0
+    capsys.readouterr()
+    crowded = tmp_path / 'crowded.hj.yaml'
+    crowded.write_text('name: #{cookiecutter.name}#\n')
+    assert main(['--lint', '--profile=jinja', str(crowded)]) == 1
+    output = capsys.readouterr().out
+    assert str(crowded) in output
+    assert 'T001' in output
+    assert crowded.read_text() == 'name: #{cookiecutter.name}#\n'

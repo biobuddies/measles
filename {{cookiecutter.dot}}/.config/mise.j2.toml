@@ -244,6 +244,14 @@ mise run-on-sources prettier \*.dj.html --write "$@"
 mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
 '''
 
+[tasks.djlint-hash-jinja]
+# djlint --reformat indents tags by Jinja nesting, breaking YAML structure, so prettier formats
+run = '''
+mise run-on-sources prettier '*.hj.yaml' --write "$@"
+mise run-on-sources python '*.hj.yaml' -m measles.djlint_hash_jinja --lint --profile=jinja --quiet \
+    "$@"
+'''
+
 [tasks.djlint-jinja-html]
 # Resolve long attribute and other potential formatting differences in favor of prettier
 run = '''
@@ -436,7 +444,7 @@ eval "$commands"
 # The Jinja parser's HTML layout mangles Jinja JSON.
 run = '''
 mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} \
-    :!*.dj.html :!*.j2.html :!*.j2.json" --write "$@"
+    :!*.dj.html :!*.hj.yaml :!*.j2.html :!*.j2.json" --write "$@"
 '''
 
 [tasks.pyrefly]
@@ -614,6 +622,7 @@ depends = [
     # line changers
     'django-upgrade',
     'djlint-django',
+    'djlint-hash-jinja',
     'djlint-jinja-html',
     'djlint-jinja-bash',
     'end-of-file-fixer',
