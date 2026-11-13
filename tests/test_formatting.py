@@ -18,6 +18,8 @@ from django.template import Context, Engine
 from jinja2 import Environment, FileSystemLoader
 from pytest import mark
 
+from measles import hash_jinja
+
 TEMPLATE_PATHS = tuple(sorted(Path(__file__).parent.glob('*/1-unformatted-template.*')))
 CONTEXT = {
     'address': '900 N New Hope Rd, Raleigh, NC',
@@ -50,16 +52,16 @@ def quote_paths(paths: Iterable[Path]) -> str:
     return ' '.join(quote(str(path)) for path in paths)
 
 
-def quote_paths_matching(
-    paths: Iterable[Path], suffixes: tuple[str, ...], *, exclude: bool = False
-) -> str:
-    return quote_paths(path for path in paths if path.name.endswith(suffixes) != exclude)
+def quote_paths_matching(paths: Iterable[Path], suffixes: tuple[str, ...]) -> str:
+    return quote_paths(path for path in paths if path.name.endswith(suffixes))
 
 
 def stage_path(unformatted_template_path: Path, stage_name: str) -> Path:
     name = unformatted_template_path.name.replace('1-unformatted-template', stage_name)
     return unformatted_template_path.with_name(
-        name.replace('.dj.', '.').replace('.j2.', '.') if 'rendering' in stage_name else name
+        name.replace('.dj.', '.').replace('.hj.', '.').replace('.j2.', '.')
+        if 'rendering' in stage_name
+        else name
     )
 
 
@@ -82,6 +84,7 @@ def render(template_path: Path) -> str:
             autoescape=False,  # noqa: S701
             keep_trailing_newline=True,
             loader=FileSystemLoader(template_path.parent),
+            **(hash_jinja if '.hj.' in template_path.name else {}),
         )
         .get_template(template_path.name)
         .render(CONTEXT)
@@ -149,14 +152,13 @@ def test_formatting_templates():
             Path(mock_directory) / 'git',
             f"""
             case " $* " in
-            *' *.css '*) printf '%s\\n' \
-                {quote_paths_matching(template_paths, ('.j2.json', '.j2.yaml'), exclude=True)} ;;
+            *' *.css '*) exit ;;
             *' *.dj.html '*) printf '%s\\n' \
                 {quote_paths_matching(template_paths, ('.dj.html',))} ;;
+            *' *.hj.yaml '*) printf '%s\\n' \
+                {quote_paths_matching(template_paths, ('.hj.yaml',))} ;;
             *' *.j2.html '*) printf '%s\\n' \
                 {quote_paths_matching(template_paths, ('.j2.html',))} ;;
-            *' *.j2.yaml '*) printf '%s\\n' \
-                {quote_paths_matching(template_paths, ('.j2.yaml',))} ;;
             *' -- . '*) printf '%s\\n' \
                 {quote_paths(template_paths)} ;;
             *' diff --color=always --exit-code '*) exit ;;

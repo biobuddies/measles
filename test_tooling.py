@@ -703,7 +703,7 @@ def test_rust_tool(languages: str, has_rust: bool):
 def test_post_gen_project_bash(tmp_path: Path):
     hook = (
         Environment(autoescape=False)  # noqa: S701
-        .from_string((Path(__file__).parent / 'hooks' / 'post_gen_project.bash').read_text())
+        .from_string((Path(__file__).parent / 'hooks' / 'post_gen_project.j2.bash').read_text())
         .render(
             CONA='speedrun',
             ORGN='biobuddies',
@@ -730,7 +730,7 @@ def test_post_gen_project_bash(tmp_path: Path):
         stderr=STDOUT,
     ).decode().splitlines()[0] == (
         '+ : CONA=speedrun ORGN=biobuddies '
-        'template=hooks/post_gen_project.bash via=run-post-gen.bash'
+        'template=hooks/post_gen_project.j2.bash via=run-post-gen.bash'
     )
     assert (tmp_path / 'manage.py').exists()
     assert (tmp_path / 'config' / 'settings.py').read_text() == (

@@ -274,7 +274,7 @@ def test_new_repository_yes_django(
         'python -m manage makemigrations --check',
         'python -m gunicorn config.wsgi --check-config',
     ]
-    assert 'check-django' in assert_mise('tasks.parallel-pre-commit.depends')
+    assert 'check-django' in assert_mise('tasks.keep-lines.depends')
     assert 'rust' not in assert_mise('tools')
     assert (tmp_path / 'config' / 'settings.py').exists()
     assert (
@@ -284,9 +284,10 @@ def test_new_repository_yes_django(
 
 
 def test_new_repository_publishes_to_pypi(
-    readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]],
+    readme_bootstrap: Callable[..., tuple[Path, Callable[..., Any]]], tmp_path: Path
 ):
-    tmp_path, assert_pyproject = readme_bootstrap(
+    (tmp_path / 'peppier.py').write_text('"""Peppier."""\n')
+    _, assert_pyproject = readme_bootstrap(
         {
             'default_context': {
                 'classifiers': ['Topic :: System :: Systems Administration'],
@@ -311,7 +312,10 @@ def test_new_repository_publishes_to_pypi(
     assert_pyproject('project.readme', 'README.md')
     assert_pyproject('project.urls.source', 'https://github.com/biobuddies/peppier')
     assert 'setuptools' not in assert_pyproject('project.optional-dependencies.pre-commit')
-    assert_pyproject('tool.setuptools.py-modules', ['peppier'])
+    assert_pyproject('tool.setuptools.packages.find', {'include': ['peppier*']})
+    assert not (tmp_path / 'peppier.py').exists()
+    assert (tmp_path / 'peppier' / '__init__.py').read_text() == '"""Peppier."""\n'
+    assert (tmp_path / 'peppier' / 'py.typed').exists()
     assert_pyproject(
         'tool.setuptools_scm',
         {'git_describe_command': "git describe --dirty --tags --long --match 'v*'"},

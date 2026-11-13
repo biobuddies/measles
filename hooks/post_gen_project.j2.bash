@@ -1,14 +1,19 @@
 #!/bin/bash
 # shellcheck disable=1054,1056,1072,1073,1083
 set -o errexit -o nounset -o pipefail -o xtrace
-: CONA={{ CONA }} ORGN={{ ORGN }} template=hooks/post_gen_project.bash via="$0"
+: CONA={{ CONA }} ORGN={{ ORGN }} template=hooks/post_gen_project.j2.bash via="$0"
 # shellcheck disable=SC1009
 {% if has_django %}
 [[ -f manage.py ]] || uvx --from django django-admin startproject config .
 sed -i.bak "/^SECRET_KEY = /{ /# noqa/! s/$/  # noqa: S105, typos/; }" config/settings.py
 rm config/settings.py.bak
 {% endif %}
-{% if not cookiecutter.publish_to_pypi %}
+{% if cookiecutter.publish_to_pypi %}
+module='{{ CONA|replace("-", "_") }}'
+mkdir -p "$module"
+[[ ! -f $module.py || -e $module/__init__.py ]] || mv "$module"{.py,/__init__.py}
+touch "$module/py.typed"
+{% else %}
 rm -f MANIFEST.in pypi_compatible_build.py
 {% endif %}
 # https://developers.openai.com/codex/guides/agents-md
