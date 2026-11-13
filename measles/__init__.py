@@ -12,6 +12,8 @@ from textwrap import dedent
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
+from cookiecutter import hooks
+from cookiecutter.hooks import valid_hook
 from jinja2 import Environment
 from jinja2.ext import Extension
 from yaml import safe_load
@@ -135,6 +137,10 @@ class Measles(Extension):
             source.replace('.j2', '') if '\n' not in source else source,
             *args,
             **kwargs,
+        )
+        # Cookiecutter matches hook stems exactly; accept post_gen_project.j2.bash too
+        hooks.valid_hook = lambda hook_file, hook_name: valid_hook(
+            hook_file.replace('.j2', ''), hook_name
         )
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml

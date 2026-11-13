@@ -22,7 +22,7 @@ _.python.venv = { path = '.venv' }
 
 [hooks]
 # Files needing frequent updates.
-# See hooks/post_gen_project.bash for files initialized once but rarely updated.
+# See hooks/post_gen_project.j2.bash for files initialized once but rarely updated.
 # WARNING: some kind of non-BASH shell on GitHub Actions
 postinstall = """
 set -o errexit -o nounset
@@ -253,13 +253,13 @@ mise run-on-sources prettier \*.j2.html --write "$@"
 mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
 '''
 
-[tasks.djlint-jinja-yaml]
+[tasks.djlint-jinja-text]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
-# mangling YAML.
+# mangling Bash and YAML.
 # Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
 # Suppress return code 1 for reformatted to avoid aborting sibling tasks
 run = '''
-mise run-on-sources djlint \*.j2.yaml \
+mise run-on-sources djlint '*.j2.{bash,yaml}' \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
     --profile=jinja "$@" 2>/dev/null || test $? -eq 1
 '''
@@ -616,7 +616,7 @@ depends = [
     'django-upgrade',
     'djlint-django',
     'djlint-jinja-html',
-    'djlint-jinja-yaml',
+    'djlint-jinja-text',
     'end-of-file-fixer',
     'prettier-write',
     'ruff-check-fix',
