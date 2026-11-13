@@ -16,5 +16,3 @@
 ^requirements\.txt$
 ^\.shellcheckrc$
 ^\.yamllint\.yaml$
-# Except hash Jinja (.hj.) templates, which prettier can parse
-^\{\{cookiecutter\.dot\}\}/([^.]|\.[^h]|\.h[^j]|\.hj[^.])*$

@@ -412,11 +412,11 @@ eval "$commands"
 # The Jinja parser's HTML layout mangles Jinja JSON.
 run = '''
 mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} \
-    :!*.dj.html :!*.hj.yaml :!*.j2.html :!*.j2.json" --write "$@"
+    :!*.dj.html :!*.hj.yaml :!*.j2.html :!*.j2.json :!*.j2.toml" --write "$@"
 '''
 
 [tasks.pyrefly]
-run = 'mise run-on-sources pyrefly "*.py{,i}" check "$@"'
+run = 'mise run-on-sources pyrefly "*.py{,i} :!*.j2.py" check "$@"'
 
 [tasks.release]
 run = '''
