@@ -25,16 +25,20 @@ def cona() -> str:
     cona = getenv('CONA', '')
     if not cona and (repository_from_environment := getenv('GITHUB_REPOSITORY')):
         cona = repository_from_environment.split('/')[-1]
-    if not cona and (Path.cwd() / '.git').exists():
+    # $PWD survives cookiecutter's os.chdir() to the template repository before rendering hooks
+    directory = Path(getenv('PWD', '.'))
+    if not cona and (directory / '.git').exists():
         try:
-            remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
+            remote = (
+                check_output(['git', 'remote', 'get-url', 'origin'], cwd=directory).decode().strip()
+            )
             if repository_from_remote := search(r'github.com[:/][^/]+/([^/]+)', remote):
                 cona = repository_from_remote.group(1).removesuffix('.git')
         except CalledProcessError:
             pass
     if not cona and (virtual_environment := getenv('VIRTUAL_ENV')):
         cona = Path(virtual_environment).parent.name
-    cona = cona or Path.cwd().name
+    cona = cona or directory.resolve().name
     if fullmatch(r'[A-Za-z0-9._-]+', cona):
         return cona
     raise ValueError(f'Unexpected CONA characters: {cona!r}')
@@ -47,10 +51,13 @@ def orgn() -> str:
     elif repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
         orgn = repository_owner
     else:
-        if not (Path.cwd() / '.git').exists():
+        directory = Path(getenv('PWD', '.'))
+        if not (directory / '.git').exists():
             return 'github-organization-unknown'
         try:
-            remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
+            remote = (
+                check_output(['git', 'remote', 'get-url', 'origin'], cwd=directory).decode().strip()
+            )
         except CalledProcessError:
             return 'github-organization-unknown'
         if owner := search(r'github.com[:/]([^/]+)', remote):

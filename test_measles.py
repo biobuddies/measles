@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from os import environ
 from pathlib import Path
+from subprocess import check_call
 
 from pytest import CaptureFixture, MonkeyPatch, fixture, raises
 
@@ -68,7 +69,7 @@ def test_cona_uses_git_remote(
     monkeypatch.chdir(repository)
     precise_environment()
     monkeypatch.setattr(
-        measles, 'check_output', lambda _: b'https://github.com/biobuddies/wriggle.git\n'
+        measles, 'check_output', lambda *_, **__: b'https://github.com/biobuddies/wriggle.git\n'
     )
 
     assert measles.cona() == 'wriggle'
@@ -83,10 +84,30 @@ def test_cona_uses_git_remote_in_worktree(
     monkeypatch.chdir(repository)
     precise_environment()
     monkeypatch.setattr(
-        measles, 'check_output', lambda _: b'git@github.com:biobuddies/wriggle.git\n'
+        measles, 'check_output', lambda *_, **__: b'git@github.com:biobuddies/wriggle.git\n'
     )
 
     assert measles.cona() == 'wriggle'
+
+
+def test_cona_orgn_follow_pwd_out_of_template(
+    monkeypatch: MonkeyPatch, tmp_path: Path, precise_environment: Callable[..., None]
+):
+    for name, remote in (('template', 'measles'), ('downstream', 'wriggle')):
+        check_call(['git', 'init', '--quiet', tmp_path / name])
+        check_call([
+            'git',
+            '-C',
+            tmp_path / name,
+            'remote',
+            'add',
+            'origin',
+            f'https://github.com/biobuddies/{remote}.git',
+        ])
+    monkeypatch.chdir(tmp_path / 'template')
+    precise_environment(PWD=str(tmp_path / 'downstream'))
+
+    assert (measles.cona(), measles.orgn()) == ('wriggle', 'biobuddies')
 
 
 def test_cona_virtual_env(
@@ -147,7 +168,7 @@ def test_orgn_uses_git_remote(
     monkeypatch.chdir(repository)
     precise_environment()
     monkeypatch.setattr(
-        measles, 'check_output', lambda _: b'git@github.com:biobuddies/wriggle.git\n'
+        measles, 'check_output', lambda *_, **__: b'git@github.com:biobuddies/wriggle.git\n'
     )
 
     assert measles.orgn() == 'biobuddies'
