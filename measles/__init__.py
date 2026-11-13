@@ -19,22 +19,26 @@ from jinja2 import Environment, Template
 from jinja2.ext import Extension
 from yaml import safe_load
 
+# $PWD survives cookiecutter's os.chdir() to the template repo during
+# run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
+PWD = Path(environ['PWD'])
+
 
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
     cona = getenv('CONA', '')
     if not cona and (repository_from_environment := getenv('GITHUB_REPOSITORY')):
         cona = repository_from_environment.split('/')[-1]
-    if not cona and (Path.cwd() / '.git').exists():
+    if not cona and (PWD / '.git').exists():
         try:
-            remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
+            remote = check_output(['git', 'remote', 'get-url', 'origin'], cwd=PWD).decode().strip()
             if repository_from_remote := search(r'github.com[:/][^/]+/([^/]+)', remote):
                 cona = repository_from_remote.group(1).removesuffix('.git')
         except CalledProcessError:
             pass
     if not cona and (virtual_environment := getenv('VIRTUAL_ENV')):
         cona = Path(virtual_environment).parent.name
-    cona = cona or Path.cwd().name
+    cona = cona or PWD.resolve().name
     if fullmatch(r'[A-Za-z0-9._-]+', cona):
         return cona
     raise ValueError(f'Unexpected CONA characters: {cona!r}')
@@ -47,10 +51,10 @@ def orgn() -> str:
     elif repository_owner := getenv('GITHUB_REPOSITORY_OWNER'):
         orgn = repository_owner
     else:
-        if not (Path.cwd() / '.git').exists():
+        if not (PWD / '.git').exists():
             return 'github-organization-unknown'
         try:
-            remote = check_output(['git', 'remote', 'get-url', 'origin']).decode().strip()
+            remote = check_output(['git', 'remote', 'get-url', 'origin'], cwd=PWD).decode().strip()
         except CalledProcessError:
             return 'github-organization-unknown'
         if owner := search(r'github.com[:/]([^/]+)', remote):
@@ -64,7 +68,7 @@ def orgn() -> str:
 
 def gitignore(languages: str) -> str:
     names = languages.split(',')
-    gitignore_path = Path(environ['PWD']) / '.gitignore'
+    gitignore_path = PWD / '.gitignore'
     existing = gitignore_path.read_text().splitlines()[2:] if gitignore_path.exists() else []
     hashes = [*takewhile(lambda line: fullmatch(r'# [\w+-]+=[0-9a-f]+', line), existing)]
     body = '\n'.join(existing[len(hashes) :]) + '\n'
@@ -140,13 +144,9 @@ class Measles(Extension):
             )
 
         environment.get_template = get_hash_or_curly_template
-        # $PWD survives cookiecutter's os.chdir() to the template repo during
-        # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         default_context = defaultdict(
             dict,
-            safe_load(yaml_source := (Path(environ['PWD']) / '.cookiecutter.yaml').read_text())[
-                'default_context'
-            ],
+            safe_load(yaml_source := (PWD / '.cookiecutter.yaml').read_text())['default_context'],
         )
         github_actions_env = default_context.pop('github_actions_env', {})
 
@@ -155,7 +155,7 @@ class Measles(Extension):
             'CONA': cona(),
             'ORGN': orgn(),
             'TABR': run(
-                ['mise', 'tabr'], capture_output=True, check=False, cwd=environ['PWD'], text=True
+                ['mise', 'tabr'], capture_output=True, check=False, cwd=PWD, text=True
             ).stdout.strip(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
@@ -181,7 +181,7 @@ class Measles(Extension):
             environment.globals['TABR'] not in ('', 'main')
             and call(
                 ['git', 'cat-file', '-e', 'origin/main:.github/workflows/act.yaml'],
-                cwd=environ['PWD'],
+                cwd=PWD,
                 stderr=DEVNULL,
             )
             != 0
