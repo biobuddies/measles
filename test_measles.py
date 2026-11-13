@@ -16,26 +16,18 @@ MISSING = object()
 @fixture
 def precise_environment(monkeypatch: MonkeyPatch) -> Callable[..., None]:
     def inner(**kwargs: str) -> None:
+        monkeypatch.setattr(measles, 'workdir', Path(kwargs.pop('PWD', '.')))
         for key, value in (
             dict.fromkeys(
-                (
-                    'CONA',
-                    'GITHUB_REPOSITORY',
-                    'GITHUB_REPOSITORY_OWNER',
-                    'ORGN',
-                    'PWD',
-                    'VIRTUAL_ENV',
-                ),
+                ('CONA', 'GITHUB_REPOSITORY', 'GITHUB_REPOSITORY_OWNER', 'ORGN', 'VIRTUAL_ENV'),
                 MISSING,
             )
-            | {'PWD': str(Path.cwd()), **kwargs}
+            | kwargs
         ).items():
             if value is MISSING:
                 monkeypatch.delitem(environ, key, raising=False)
             else:
                 monkeypatch.setenv(key, value)  # pyrefly: ignore[bad-argument-type]
-
-        monkeypatch.setattr(measles, 'PWD', Path(environ['PWD']))
 
     return inner
 
@@ -108,7 +100,6 @@ def test_cona_orgn_follow_pwd_out_of_template(
         ])
     monkeypatch.chdir(tmp_path / 'template')
     precise_environment(PWD=str(tmp_path / 'downstream'))
-    monkeypatch.setenv('PWD', str(tmp_path / 'template'))
 
     assert (measles.cona(), measles.orgn()) == ('wriggle', 'biobuddies')
 
