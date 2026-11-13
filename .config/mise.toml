@@ -167,6 +167,50 @@ fi
 actionlint "$@"
 '''
 
+[tasks.autoformat-dj-html]
+# Resolve long attribute and other potential formatting differences in favor of prettier
+run = '''
+mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" 2>/dev/null \
+    || test $? -eq 1
+mise run-on-sources prettier \*.dj.html --write "$@"
+mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
+'''
+
+[tasks.autoformat-hj-yaml]
+# djlint --reformat indents tags by Jinja nesting, breaking YAML structure, so prettier formats
+run = '''
+mise run-on-sources prettier '*.hj.yaml' --write "$@"
+mise run-on-sources python '*.hj.yaml' -m measles.djlint_hash_jinja --lint --profile=jinja --quiet \
+    "$@"
+'''
+
+[tasks.autoformat-j2-bash]
+# Preserve leading space so djlint leaves Bash indentation to shfmt
+run = '''
+mise run-on-sources djlint '*.j2.bash' \
+    --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
+    --profile=jinja "$@" 2>/dev/null || test $? -eq 1
+mise run-on-sources shfmt '*.j2.bash' \
+    --binary-next-line --case-indent --simplify --write \
+    --indent 4 --language-dialect bash "$@"
+'''
+
+[tasks.autoformat-j2-html]
+# Resolve long attribute and other potential formatting differences in favor of prettier
+run = '''
+mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" 2>/dev/null \
+    || test $? -eq 1
+mise run-on-sources prettier \*.j2.html --write "$@"
+mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
+'''
+
+[tasks.autoformat-py]
+# Format after fixing, since fixes can reflow code; ruff format also covers Markdown code blocks
+run = '''
+mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"
+mise run-on-sources ruff "*.{md,py,pyi}" format --force-exclude "$@"
+'''
+
 [tasks.bash]
 run = 'env bash --login -o errexit -o pipefail'
 
@@ -207,42 +251,6 @@ run = 'mise run-on-sources django-upgrade \*.py "$@"'
 
 [tasks.deploy]
 run = ':'
-
-[tasks.djlint-django]
-# Resolve long attribute and other potential formatting differences in favor of prettier
-run = '''
-mise run-on-sources djlint \*.dj.html --quiet --reformat --profile=django "$@" 2>/dev/null \
-    || test $? -eq 1
-mise run-on-sources prettier \*.dj.html --write "$@"
-mise run-on-sources djlint \*.dj.html --lint --quiet --profile=django "$@"
-'''
-
-[tasks.djlint-hash-jinja]
-# djlint --reformat indents tags by Jinja nesting, breaking YAML structure, so prettier formats
-run = '''
-mise run-on-sources prettier '*.hj.yaml' --write "$@"
-mise run-on-sources python '*.hj.yaml' -m measles.djlint_hash_jinja --lint --profile=jinja --quiet \
-    "$@"
-'''
-
-[tasks.djlint-jinja-html]
-# Resolve long attribute and other potential formatting differences in favor of prettier
-run = '''
-mise run-on-sources djlint \*.j2.html --quiet --reformat --profile=jinja "$@" 2>/dev/null \
-    || test $? -eq 1
-mise run-on-sources prettier \*.j2.html --write "$@"
-mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
-'''
-
-[tasks.djlint-jinja-bash]
-# djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
-# mangling Bash.
-# Suppress return code 1 for reformatted to avoid aborting sibling tasks
-run = '''
-mise run-on-sources djlint '*.j2.bash' \
-    --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
-    --profile=jinja "$@" 2>/dev/null || test $? -eq 1
-'''
 
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
@@ -399,7 +407,7 @@ eval "$commands"
 '''
 
 [tasks.prettier-write]
-# Prettier incorporated into djlint tasks to reconcile formatting differences
+# Prettier incorporated into autoformat tasks to reconcile formatting differences
 # Skip Markdown to conserve vertical space.
 # The Jinja parser's HTML layout mangles Jinja JSON.
 run = '''
@@ -421,12 +429,6 @@ count=${latest#"$prefix"}
 gh release create "$prefix$((${count:-0} + 1))" --generate-notes --target="$(git rev-parse HEAD)"
 git fetch --tags
 '''
-
-[tasks.ruff-check-fix]
-run = 'mise run-on-sources ruff "*.py{,i}" check --force-exclude --fix "$@"'
-
-[tasks.ruff-format]
-run = 'mise run-on-sources ruff "*.{md,py,pyi}" format --force-exclude "$@"'
 
 [tasks.set-environment]
 run = """
@@ -451,7 +453,7 @@ run = 'mise run-on-sources shellcheck "*.{bash,sh}" "$@"'
 
 [tasks.shfmt]
 run = '''
-mise run-on-sources shfmt "*.{bash,sh}" \
+mise run-on-sources shfmt "*.{bash,sh} :!*.j2.bash" \
     --binary-next-line --case-indent --simplify --write \
     --indent 4 --language-dialect bash "$@"
 '''
@@ -580,15 +582,14 @@ run = 'mise run-on-sources yamllint "*.yaml :!*.hj.yaml" "$@"'
 [tasks.parallel-pre-commit]
 depends = [
     # line changers
+    'autoformat-dj-html',
+    'autoformat-hj-yaml',
+    'autoformat-j2-bash',
+    'autoformat-j2-html',
+    'autoformat-py',
     'django-upgrade',
-    'djlint-django',
-    'djlint-hash-jinja',
-    'djlint-jinja-html',
-    'djlint-jinja-bash',
     'end-of-file-fixer',
     'prettier-write',
-    'ruff-check-fix',
-    'ruff-format',
     'shfmt',
     'trailing-whitespace-fixer',
     'typos',
