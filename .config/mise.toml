@@ -226,13 +226,12 @@ mise run-on-sources prettier \*.j2.html --write "$@"
 mise run-on-sources djlint \*.j2.html --lint --quiet --profile=jinja "$@"
 '''
 
-[tasks.djlint-jinja-text]
+[tasks.djlint-jinja-bash]
 # djlint hopefully does some Jinja linting and autoformatting. This configuration avoids
-# mangling Bash and YAML.
-# Workflow templates use YAML-shaped Jinja indentation that djlint flattens.
+# mangling Bash.
 # Suppress return code 1 for reformatted to avoid aborting sibling tasks
 run = '''
-mise run-on-sources djlint '*.j2.{bash,yaml}' \
+mise run-on-sources djlint '*.j2.bash' \
     --no-function-formatting --preserve-blank-lines --preserve-leading-space --quiet --reformat \
     --profile=jinja "$@" 2>/dev/null || test $? -eq 1
 '''
@@ -394,10 +393,10 @@ eval "$commands"
 [tasks.prettier-write]
 # Prettier incorporated into djlint tasks to reconcile formatting differences
 # Skip Markdown to conserve vertical space.
-# The Jinja parser's HTML layout mangles Jinja JSON; djlint handles Jinja YAML.
+# The Jinja parser's HTML layout mangles Jinja JSON.
 run = '''
 mise run-on-sources prettier "*.{css,html,js,json,jsx,toml,ts,tsx,yaml} \
-    :!*.dj.html :!*.j2.html :!*.j2.json :!*.j2.yaml" --write "$@"
+    :!*.dj.html :!*.j2.html :!*.j2.json" --write "$@"
 '''
 
 [tasks.pyrefly]
@@ -567,7 +566,7 @@ mise x -- gh run list --branch $(git branch --show-current) --limit 1 --json dat
 
 [tasks.yamllint]
 # Jinja tags are invalid YAML; djlint handles Jinja YAML.
-run = 'mise run-on-sources yamllint "*.yaml :!*.j2.yaml" "$@"'
+run = 'mise run-on-sources yamllint "*.yaml :!*.hj.yaml" "$@"'
 
 # Task collections
 [tasks.parallel-pre-commit]
@@ -576,7 +575,7 @@ depends = [
     'django-upgrade',
     'djlint-django',
     'djlint-jinja-html',
-    'djlint-jinja-text',
+    'djlint-jinja-bash',
     'end-of-file-fixer',
     'prettier-write',
     'ruff-check-fix',

@@ -4,8 +4,7 @@ from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
-from jinja2 import Environment
-from pytest import MonkeyPatch, fixture, mark, raises
+from pytest import MonkeyPatch, fixture, raises
 
 import measles
 
@@ -170,36 +169,3 @@ def test_orgn_rejects_bad_characters(
 
     with raises(ValueError, match=r"^Unexpected ORGN characters: 'bad name'$"):
         measles.orgn()
-
-
-@mark.parametrize(
-    ('template', 'expected'),
-    (
-        ('{{ github.token }}', '${{ github.token }}'),
-        ('{{ github.event.pull_request.number }}', '${{ github.event.pull_request.number }}'),
-        ("{{ github['head_ref || ref_name'] }}", '${{ github.head_ref || github.ref_name }}'),
-        (
-            "{{ github.event['before && after || ref'] }}",
-            '${{ github.event.before && github.event.after || github.event.ref }}',
-        ),
-        (
-            """{{ github["event_name == 'push' && 'main' || ref"] }}""",
-            "${{ github.event_name == 'push' && 'main' || github.ref }}",
-        ),
-        ("""{{ github["event_name != 'push'"] }}""", "${{ github.event_name != 'push' }}"),
-        (
-            """{{ github["ref_name == 'main' && 'example.com'
-    || format('{0}-{1}.example.com', 'preview', head_ref || ref_name)"] }}""",
-            """${{ github.ref_name == 'main' && 'example.com'
-    || format('{0}-{1}.example.com', 'preview', github.head_ref || github.ref_name) }}""",
-        ),
-    ),
-    ids=('token', 'nested', 'or', 'and-or', 'concurrency-group', 'concurrency-cancel', 'url'),
-)
-def test_github_expression(template: str, expected: str) -> None:
-    assert (
-        Environment()  # noqa: S701 cookiecutter renders YAML, not HTML
-        .from_string(template)
-        .render(github=measles.GitHubExpression('github'))
-        == expected
-    )

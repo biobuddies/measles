@@ -12,3 +12,9 @@ A fresh repo should pass `mise install && mise pre-commit` immediately after gen
     - A git repository with existing files and commits
 - Add an automated regression test that runs `mise cookiecutter` and asserts no diff to catch
   drift between template configs and generated manifests.
+
+## Generate JSON from Python
+
+Build JSON configuration as Python data and serialize it, in the style of Facebook's Configerator,
+starting with `package.j2.json`: Jinja loops emitting comma-separated entries are fragile, and
+JSON has no comments for hash Jinja to hide in.

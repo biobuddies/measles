@@ -5,16 +5,17 @@ from hashlib import sha1
 from itertools import takewhile
 from os import environ, getenv
 from pathlib import Path
-from re import fullmatch, search, sub
+from re import fullmatch, search
 from subprocess import DEVNULL, CalledProcessError, call, check_output, run
 from sys import stderr
 from textwrap import dedent
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 from cookiecutter import hooks
 from cookiecutter.hooks import valid_hook
-from jinja2 import Environment
+from jinja2 import Environment, Template
 from jinja2.ext import Extension
 from yaml import safe_load
 
@@ -96,31 +97,17 @@ def gitignore(languages: str) -> str:
     return '\n'.join((*hashes, body))
 
 
-class GitHubExpression:
-    """Render `${{ github.token }}` from `{{ github.token }}`, sparing Jinja escapes."""
-
-    def __init__(self, path: str) -> None:
-        self.path = path
-
-    def __getattr__(self, name: str) -> 'GitHubExpression':
-        """Extend the path; underscored names stay Python internals."""
-        if name.startswith('_'):
-            raise AttributeError(name)
-        return GitHubExpression(f'{self.path}.{name}')
-
-    def __getitem__(self, expression: str) -> 'GitHubExpression':
-        """Distribute the prefix over names, like a(x + y) == ax + ay; skip literals and calls."""
-        return GitHubExpression(
-            sub(
-                r"'(?:[^']|'')*'|\b(?:true|false|null)\b|\b([A-Za-z_][\w.-]*)\b(?!\s*\()",
-                lambda match: f'{self.path}.{match[1]}' if match[1] else match[0],
-                expression,
-            )
-        )
-
-    def __str__(self) -> str:
-        """Wrap the path in GitHub Actions delimiters."""
-        return '${{ %s }}' % self.path
+# Hash Jinja (.hj.) templates hide tags in # comments, staying valid YAML for prettier
+hash_jinja: dict[str, Any] = {
+    'block_end_string': '%#',
+    'block_start_string': '#%',
+    'comment_end_string': '*#',
+    'comment_start_string': '#*',
+    'lstrip_blocks': True,
+    'trim_blocks': True,
+    'variable_end_string': '}#',
+    'variable_start_string': '#{',
+}
 
 
 class Measles(Extension):
@@ -129,12 +116,12 @@ class Measles(Extension):
     def __init__(self, environment: Environment) -> None:
         super().__init__(environment)
         # Cookiecutter renders output paths through from_string (generate.py) but also multi-line
-        # hook bodies (hooks.py); strip the .j2 marker from single-line paths only, so
+        # hook bodies (hooks.py); strip the .hj and .j2 markers from single-line paths only, so
         # pyproject.j2.toml renders to pyproject.toml while linters treat sources as Jinja
         render = environment.from_string
         environment.from_string = lambda source, *args, **kwargs: render(
             # pyrefly: ignore[missing-attribute,not-iterable]
-            source.replace('.j2', '') if '\n' not in source else source,
+            source.replace('.hj', '').replace('.j2', '') if '\n' not in source else source,
             *args,
             **kwargs,
         )
@@ -142,6 +129,17 @@ class Measles(Extension):
         hooks.valid_hook = lambda hook_file, hook_name: valid_hook(
             hook_file.replace('.j2', ''), hook_name
         )
+        get_template = environment.get_template
+
+        def get_hash_or_curly_template(name: str, *args: Any, **kwargs: Any) -> Template:
+            if '.hj.' not in name:
+                return get_template(name, *args, **kwargs)
+            # Overlay late: extensions load after __init__, and cookiecutter sets loader later still
+            return Environment.get_template(
+                environment.overlay(**hash_jinja), name, *args, **kwargs
+            )
+
+        environment.get_template = get_hash_or_curly_template
         # $PWD survives cookiecutter's os.chdir() to the template repo during
         # run_hook_from_repo_dir(). Path.cwd() would find the wrong .cookiecutter.yaml
         default_context = defaultdict(
@@ -161,7 +159,6 @@ class Measles(Extension):
             ).stdout.strip(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
-            'github': GitHubExpression('github'),
             'github_actions_env': (
                 dedent(match.group()).replace('github_actions_env:', 'env:', 1)
                 if github_actions_env
