@@ -232,6 +232,7 @@ def test_new_repository_not_django(
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
     assert not (tmp_path / 'pypi_compatible_build.py').exists()
+    assert 'test_arrangement' not in (tmp_path / 'test_boilerplate.py').read_text()
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
     assert_yaml = load_yaml(workflow_path)
     workflow = workflow_path.read_text()
@@ -324,6 +325,7 @@ def test_new_repository_publishes_to_pypi(
     )
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
+    assert "distributions(name='peppier')" in (tmp_path / 'test_boilerplate.py').read_text()
 
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
     assert_yaml = load_yaml(workflow_path)
