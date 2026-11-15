@@ -104,7 +104,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
     cookiecutter_task = (
         loads(check_output(['mise', 'tasks', 'info', 'cookiecutter', '--json']))['run'][0]
         .replace('$(mise tabr)', tag_or_branch)
-        .replace('\ncookiecutter', '\nuvx cookiecutter')
+        .replace('\ncookiecutter', '\nuv tool run cookiecutter')
     )
     cookiecutter_task = (
         f'set -- --edit {repository}\n{cookiecutter_task}'
@@ -113,7 +113,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
     )
     pre_commit_arguments = f' --edit {repository}' if tag_or_branch != 'main' else ''
     commands = sub(
-        r'^uvx cookiecutter .+$',
+        r'^uv tool run cookiecutter .+$',
         cookiecutter_task,
         sub(
             r'(mise pre-commit-all)',
@@ -218,9 +218,10 @@ def test_new_repository_not_django(
     assert package['dependencies']['react'] == '^19.0.0'
     assert package['devDependencies']['vite'] == '^7.0.0'
     assert_mise('tools.rust', 'stable')
-    assert_mise(
-        'tasks.deploy.run', 'test -z "${GITHUB_HEAD_REF:-}" || mise tplan main && mise tapply "$@"'
+    assert 'test -z "${GITHUB_HEAD_REF:-}" || mise tplan main\nmise tapply "$@"\n' in assert_mise(
+        'tasks.deploy.run'
     )
+    assert 'uv publish' not in assert_mise('tasks.deploy.run')
     assert_pyproject(
         'project.optional-dependencies.test', ['pytest', 'pytest-cov', 'pytest-httpserver']
     )
@@ -231,6 +232,7 @@ def test_new_repository_not_django(
     assert not (tmp_path / 'manage.py').exists()
     assert not (tmp_path / 'config' / 'settings.py').exists()
     assert not (tmp_path / 'pypi_compatible_build.py').exists()
+    assert 'test_arrangement' not in (tmp_path / 'test_boilerplate.py').read_text()
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
     assert_yaml = load_yaml(workflow_path)
     workflow = workflow_path.read_text()
@@ -243,10 +245,11 @@ def test_new_repository_not_django(
     assert_yaml('env.TF_INPUT', 'false')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
-    assert steps[4]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
+    assert steps[3]['run'] == 'mise release'
+    assert steps[5]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
-        in steps[5]['run']
+        in steps[6]['run']
     )
 
 
@@ -322,6 +325,7 @@ def test_new_repository_publishes_to_pypi(
     )
     assert (tmp_path / 'MANIFEST.in').read_text() == 'include pypi_compatible_build.py\n'
     assert (tmp_path / 'pypi_compatible_build.py').exists()
+    assert "distributions(name='peppier')" in (tmp_path / 'test_boilerplate.py').read_text()
 
     workflow_path = tmp_path / '.github' / 'workflows' / 'act.yaml'
     assert_yaml = load_yaml(workflow_path)
@@ -340,23 +344,22 @@ def test_new_repository_publishes_to_pypi(
         'run': 'mise release',
     }
     assert steps[4]['run'] == 'mise build'
-    assert steps[5] == {
-        'if': "github.event_name == 'push' && github.ref == 'refs/heads/main'",
-        'uses': 'pypa/gh-action-pypi-publish@release/v1',
-    }
+    assert steps[5]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
         in steps[6]['run']
     )
-    assert all(not step.get('run', '').startswith('mise deploy') for step in steps)
 
     assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')
-    assert_mise('tasks.deploy.run', ':')
+    assert assert_mise('tasks.deploy.run').endswith(
+        '\n[[ ${1-} != main ]] || uv publish --trusted-publishing always\n'
+    )
     assert assert_mise('tasks.lychee.run') == (
         'lychee --base-url=https://biobuddi.es --no-progress "$@" .'
     )
     assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in assert_mise('tasks.build.run')
-    assert 'uvx twine check --strict dist/*' in assert_mise('tasks.build.run')
+    assert 'uv tool run twine check --strict dist/*' in assert_mise('tasks.build.run')
+    assert "python -c 'import peppier'" in assert_mise('tasks.build.run')
 
 
 @mark.parametrize(
@@ -376,7 +379,7 @@ def test_existing_repository(codename: str, dependencies: list[str], has_django:
         )
         check_call(
             [
-                'uvx',
+                *('uv', 'tool', 'run'),
                 'cookiecutter',
                 '--config-file',
                 '.cookiecutter.yaml',

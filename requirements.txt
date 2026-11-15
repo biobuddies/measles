@@ -47,7 +47,9 @@ idna==3.11
 iniconfig==2.3.0
     # via pytest
 jinja2==3.1.6
-    # via cookiecutter
+    # via
+    #   measles (pyproject.toml)
+    #   cookiecutter
 jsbeautifier==1.15.4
     # via
     #   cssbeautifier
@@ -98,6 +100,7 @@ python-slugify==8.0.4
     # via cookiecutter
 pyyaml==6.0.3
     # via
+    #   measles (pyproject.toml)
     #   cookiecutter
     #   djlint
     #   yamllint

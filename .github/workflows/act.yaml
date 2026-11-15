@@ -92,8 +92,7 @@ jobs:
               run: mise release
             # HEAD is tagged: TABR is now the tag
             - run: mise build
-            - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-              uses: pypa/gh-action-pypi-publish@release/v1
+            - run: mise deploy "${{ github.head_ref || github.ref_name }}"
             - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)

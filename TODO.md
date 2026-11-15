@@ -6,7 +6,7 @@ A fresh repo should pass `mise install && mise pre-commit` immediately after gen
 
 - Generate `pyproject.toml` and `package.json` with project-specific values.
 - Add automated regression tests for README bootstrap variants, asserting `mise install &&
-  mise pre-commit` succeeds without manual file creation when running `uvx cookiecutter` in:
+  mise pre-commit` succeeds without manual file creation when running `uv tool run cookiecutter` in:
     - An empty directory
     - A `git init` directory with untracked files and no commits
     - A git repository with existing files and commits
