@@ -104,7 +104,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
     cookiecutter_task = (
         loads(check_output(['mise', 'tasks', 'info', 'cookiecutter', '--json']))['run'][0]
         .replace('$(mise tabr)', tag_or_branch)
-        .replace('\ncookiecutter', '\nuvx cookiecutter')
+        .replace('\ncookiecutter', '\nuv tool run cookiecutter')
     )
     cookiecutter_task = (
         f'set -- --edit {repository}\n{cookiecutter_task}'
@@ -113,7 +113,7 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
     )
     pre_commit_arguments = f' --edit {repository}' if tag_or_branch != 'main' else ''
     commands = sub(
-        r'^uvx cookiecutter .+$',
+        r'^uv tool run cookiecutter .+$',
         cookiecutter_task,
         sub(
             r'(mise pre-commit-all)',
@@ -356,7 +356,7 @@ def test_new_repository_publishes_to_pypi(
         'lychee --base-url=https://biobuddi.es --no-progress "$@" .'
     )
     assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in assert_mise('tasks.build.run')
-    assert 'uvx twine check --strict dist/*' in assert_mise('tasks.build.run')
+    assert 'uv tool run twine check --strict dist/*' in assert_mise('tasks.build.run')
     assert "python -c 'import peppier'" in assert_mise('tasks.build.run')
 
 
@@ -377,7 +377,7 @@ def test_existing_repository(codename: str, dependencies: list[str], has_django:
         )
         check_call(
             [
-                'uvx',
+                *('uv', 'tool', 'run'),
                 'cookiecutter',
                 '--config-file',
                 '.cookiecutter.yaml',

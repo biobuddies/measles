@@ -56,6 +56,17 @@ hash_jinja = {
 }
 ```
 
+## Workflow Tasks
+
+`.github/workflows/act.yaml` runs these mise tasks, which can be overridden in `mise.toml`:
+
+- `build` takes no arguments, so it suits environment-agnostic steps like most Python wheels and
+  Docker images. Put environment-specific steps in `deploy`.
+- `test` runs locally and on GitHub, so it suits unit and integration tests.
+- `deploy` takes the environment: the pull request branch or `main`. Put environment-specific
+  JavaScript And Markup (JAM) builds here, and start end-to-end tests that need a real hosted
+  environment.
+
 ## First GitHub Action Run
 
 Until `main` has `.github/workflows/act.yaml`, rendering adds `TABR` to its `push`

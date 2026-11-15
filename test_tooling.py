@@ -318,7 +318,7 @@ def write_mock_executable(path: Path, body: str) -> None:
 def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
     calls = tmp_path / 'calls'
     environment = {'CALLS': str(calls), 'PATH': f'{tmp_path}:{environ["PATH"]}'}
-    for executable in ('docker', 'uv', 'uvx'):
+    for executable in ('docker', 'uv'):
         write_mock_executable(
             tmp_path / executable,
             f"""
@@ -341,8 +341,8 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
     assert calls.read_text().splitlines() == [
         'uv build',
         'uv publish --dry-run dist/package-1.tar.gz dist/package-1.whl',
-        'uvx twine check --strict dist/package-1.tar.gz dist/package-1.whl',
-        f'uv run --isolated --no-project --directory dist --with {tmp_path}/dist/package-1.whl'
+        'uv tool run twine check --strict dist/package-1.tar.gz dist/package-1.whl',
+        f'uv tool run --directory dist --from {tmp_path}/dist/package-1.whl'
         ' python -c import measles',
         *(('docker compose --progress=plain build --pull',) if len(docker_files) == 2 else ()),
     ]
@@ -717,7 +717,7 @@ def test_post_gen_project_bash(tmp_path: Path):
     (tmp_path / 'CONTRIBUTING.md').write_text('')
     (tmp_path / 'pypi_compatible_build.py').write_text('')
     write_mock_executable(
-        tmp_path / 'uvx',
+        tmp_path / 'uv',
         """
             mkdir -p config
             touch manage.py
