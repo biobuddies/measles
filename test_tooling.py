@@ -342,6 +342,8 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
         'uv build',
         'uv publish --dry-run dist/package-1.tar.gz dist/package-1.whl',
         'uvx twine check --strict dist/package-1.tar.gz dist/package-1.whl',
+        f'uv run --isolated --no-project --directory dist --with {tmp_path}/dist/package-1.whl'
+        ' python -c import measles',
         *(('docker compose --progress=plain build --pull',) if len(docker_files) == 2 else ()),
     ]
 

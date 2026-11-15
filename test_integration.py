@@ -357,6 +357,7 @@ def test_new_repository_publishes_to_pypi(
     )
     assert 'rm -rf dist\nuv build\nuv publish --dry-run dist/*' in assert_mise('tasks.build.run')
     assert 'uvx twine check --strict dist/*' in assert_mise('tasks.build.run')
+    assert "python -c 'import peppier'" in assert_mise('tasks.build.run')
 
 
 @mark.parametrize(

@@ -12,6 +12,10 @@ default_context:
         - speedrun
         - wriggle
     publish_to_pypi: true
+    python_dependencies:
+        - cookiecutter
+        - jinja2
+        - pyyaml
     python_optional_dependencies:
         test:
             - django

@@ -227,6 +227,8 @@ rm -rf dist
 uv build
 uv publish --dry-run dist/*
 uvx twine check --strict dist/*
+uv run --isolated --no-project --directory dist --with "$PWD"/dist/*.whl \
+    python -c 'import measles'
 if [[ -f Dockerfile && -f compose.yaml ]]; then
     docker compose --progress=plain build "$@"
 fi

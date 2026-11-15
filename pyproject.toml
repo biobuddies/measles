@@ -12,6 +12,12 @@ dynamic = ['version']
 
 dependencies = [
     
+    'cookiecutter',
+    
+    'jinja2',
+    
+    'pyyaml',
+    
 ]
 
 [project.optional-dependencies]
