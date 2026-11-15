@@ -65,7 +65,7 @@ hash_jinja = {
 - `test` runs locally and on GitHub, so it suits unit and integration tests.
 - `deploy` takes the environment: the pull request branch or `main`. Put environment-specific
   JavaScript And Markup (JAM) builds here, and start end-to-end tests that need a real hosted
-  environment.
+  environment. Guard production-only steps with `[[ ${1-} == main ]]`.
 
 ## First GitHub Action Run
 

@@ -250,7 +250,11 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 '''
 
 [tasks.deploy]
-run = ':'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+[[ ${1-} != main ]] || uv publish --trusted-publishing always
+'''
 
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'

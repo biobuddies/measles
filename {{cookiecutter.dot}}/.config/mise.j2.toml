@@ -273,8 +273,19 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 '''
 
 [tasks.deploy]
-{% if 'terraform' in cookiecutter.languages.lower().split(',') -%}
-run = 'test -z "${GITHUB_HEAD_REF:-}" || mise tplan main && mise tapply "$@"'
+{% set terraform = 'terraform' in cookiecutter.languages.lower().split(',') -%}
+{% if terraform or cookiecutter.publish_to_pypi -%}
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+{% if terraform -%}
+test -z "${GITHUB_HEAD_REF:-}" || mise tplan main
+mise tapply "$@"
+{% endif -%}
+{% if cookiecutter.publish_to_pypi -%}
+[[ ${1-} != main ]] || uv publish --trusted-publishing always
+{% endif -%}
+'''
 {%- else -%}
 run = ':'
 {%- endif %}

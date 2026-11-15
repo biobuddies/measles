@@ -349,6 +349,21 @@ def test_build(tmp_path: Path, docker_files: tuple[str, ...]):
 
 
 @mark.parametrize(
+    ('environment', 'calls'),
+    (('main', ['uv publish --trusted-publishing always']), ('some-cool-feature', [])),
+)
+def test_deploy(tmp_path: Path, environment: str, calls: list[str]):
+    log = tmp_path / 'calls'
+    write_mock_executable(tmp_path / 'uv', '''printf 'uv %s\\n' "$*" >> "$CALLS"''')
+    check_call(
+        ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('deploy'), 'deploy', environment],
+        cwd=tmp_path,
+        env={'CALLS': str(log), 'PATH': f'{tmp_path}:{environ["PATH"]}'},
+    )
+    assert (log.read_text().splitlines() if log.exists() else []) == calls
+
+
+@mark.parametrize(
     ('conas', 'arguments', 'calls'),
     (
         (
