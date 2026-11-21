@@ -18,7 +18,7 @@ TENV_AUTO_INSTALL = 'true'
 TOFUENV_INSTALL_MODE = 'mirror'
 TOFUENV_LIST_MODE = 'mirror'
 _.path = ['./node_modules/.bin']
-_.python.venv = { path = '.venv' }
+_.python.venv.path = '.venv'
 
 [hooks]
 # Files needing frequent updates.
@@ -697,7 +697,8 @@ git diff --cached --quiet || echo Auto-staged modifications
 
 [tools]
 # latest gh from ~/.config/mise/config.toml
-'github:github/gh-stack' = { version = '0.2.0', bin = 'gh-stack' }
+'github:github/gh-stack'.bin = 'gh-stack'
+'github:github/gh-stack'.version = '0.2.0'
 lychee = '0.23.0'
 node = '24'
 # python from uv
