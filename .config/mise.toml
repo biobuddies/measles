@@ -46,26 +46,40 @@ ln -sfn "$(mise where github:github/gh-stack)" ~/.local/share/gh/extensions/gh-s
 
 # Prerequisite tasks
 [tasks.cona]
-run = 'echo measles'
+run = 'mise validate CONA "${CONA:-measles}"'
 
 [tasks.envi]
-run = """
+run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${ENVI-} ]]; then echo "$ENVI"
+if [[ ${ENVI:-} ]]; then mise validate ENVI "$ENVI"
 elif [[ ${GITHUB_ACTIONS-} ]]; then echo github
 else echo local
 fi
-"""
+'''
 
 [tasks.fqdn]
-run = ':'
+run = 'echo "${FQDN:-}"'
 
 [tasks.giha]
-run = 'git describe --abbrev=40 --always --dirty --match=-'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+if [[ ${GIHA:-} ]]; then
+    if [[ ! $GIHA =~ ^[a-f0-9]{40}(-dirty)?$ ]]; then
+        echo 'GIHA must be a 40-character lowercase Git hash with an optional -dirty suffix.' >&2
+        exit 1
+    fi
+    echo "$GIHA"
+else git describe --abbrev=40 --always --dirty --match=-
+fi
+'''
 
 [tasks.orgn]
-run = 'echo biobuddies'
+run = 'mise validate ORGN "${ORGN:-biobuddies}"'
+
+[tasks.role]
+run = 'echo "${ROLE:-}"'
 
 [tasks.run-on-sources]
 quiet = true
@@ -94,6 +108,9 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+if [[ ${TABR:-} ]]; then
+    exec mise validate TABR "$TABR"
+fi
 tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
     status=$?
     [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
@@ -105,6 +122,19 @@ else
     git describe --all --dirty --exact-match 2>/dev/null \
         | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p' || [[ $? -eq 128 ]]
 fi
+'''
+
+[tasks.validate]
+quiet = true
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+name=$2
+if [[ ! $name =~ ^[A-Za-z0-9._][A-Za-z0-9._-]*$ ]]; then
+    echo "Invalid $1 name" >&2
+    exit 1
+fi
+echo "$name"
 '''
 
 [tasks.tinit]
@@ -147,7 +177,9 @@ fi
 [[ ! $envi ]] || "$INSH_TF" -chdir="deploys/$cona/terraform" workspace select -or-create "$envi"
 [[ $action != init ]] || exit 0
 # Always set TF_WORKSPACE explicitly; don't rely on this side effect
-TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE=$envi \
+giha=$(mise giha)
+tabr=$(mise tabr)
+TF_VAR_giha=$giha TF_VAR_tabr=$tabr TF_WORKSPACE=$envi \
     "$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
 """
 
@@ -237,14 +269,16 @@ fi
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-tabr=$(mise tabr)
+template=https://github.com/biobuddies/measles.git
 if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
     template=${2:-$HOME/code/measles}
-elif [[ ${CONA-$(mise cona)} == measles && ${ORGN-$(mise orgn)} == biobuddies \
-    && $tabr != main ]]; then
-    template=.
 else
-    template=https://github.com/biobuddies/measles.git
+    cona=$(mise cona)
+    orgn=$(mise orgn)
+    tabr=$(mise tabr)
+    if [[ $cona == measles && $orgn == biobuddies && $tabr != main ]]; then
+        template=.
+    fi
 fi
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $template
 '''
@@ -332,7 +366,8 @@ exit $return_code
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-[[ ${GITHUB_HEAD_REF:-$(git branch --show-current)} =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] && exit 0
+branch=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-$(git branch --show-current)}}
+[[ $branch =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] && exit 0
 echo 'Branch names must use lowercase letters and digits separated by single hyphens.' >&2
 exit 1
 """
@@ -359,7 +394,8 @@ exit 1
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-commands=$(python - "$(mise envi)" "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
+envi=$(mise envi)
+commands=$(python - "$envi" "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
 from pathlib import Path
 from shlex import join, quote
 from sys import argv
@@ -438,18 +474,20 @@ git fetch --tags
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+cona=$(mise cona)
+envi=$(mise envi)
+giha=$(mise giha)
+orgn=$(mise orgn)
+tabr=$(mise tabr)
 cat <<EOD | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
-CONA=measles
-ENVI=$(mise envi)
+CONA=$cona
+ENVI=$envi
 FQDN=$(mise fqdn)
-GIHA=$(mise giha)
-ORGN=biobuddies
-ROLE=${ROLE-}
-TABR=$(mise tabr)
+GIHA=$giha
+ORGN=$orgn
+ROLE=$(mise role)
+TABR=$tabr
 EOD
-set -o allexport
-# shellcheck disable=SC1090
-source "${GITHUB_ENV:-/tmp/flan.ini}"
 """
 
 [tasks.shellcheck]
@@ -469,16 +507,21 @@ run = 'AUTOFORMAT_EXCLUDES=${AUTOFORMAT_EXCLUDES-} mise run-on-sources styleforc
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+cona=$(mise cona)
+envi=$(mise envi)
+giha=$(mise giha)
+orgn=$(mise orgn)
+tabr=$(mise tabr)
 cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | Unabbreviat. | FLAN | Value        |
 | ------------ | ---- | ------------ |
-| COdeNAme     | CONA | measles |
-| ENVIronment  | ENVI | $(mise envi) |
+| COdeNAme     | CONA | $cona |
+| ENVIronment  | ENVI | $envi |
 | Fully Qualified Domain Name | FQDN | $(mise fqdn) |
-| GIt HAsH     | GIHA | $(mise giha) |
-| ORGanizatioN | ORGN | biobuddies |
-| ROLE         | ROLE | ${ROLE-} |
-| TAg/BRanch   | TABR | $(mise tabr) |
+| GIt HAsH     | GIHA | $giha |
+| ORGanizatioN | ORGN | $orgn |
+| ROLE         | ROLE | $(mise role) |
+| TAg/BRanch   | TABR | $tabr |
 EOD
 """
 
@@ -559,11 +602,12 @@ run = 'uv pip check "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+envi=$(mise envi)
 # Styleforce wheels require manylinux 2.28; uv's generic linux target assumes manylinux 2.17.
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform x86_64-manylinux_2_28 \
     --python-version 3.12 pyproject.toml "$@"
-[[ $(mise envi) != local ]] || git add requirements.txt
+[[ $envi != local ]] || git add requirements.txt
 '''
 
 [tasks.update-lock-files]
@@ -623,6 +667,7 @@ depends = [
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+envi=$(mise envi)
 # Concurrent writes can lose edits
 # * asottile's pre-commit is serial
 # * prek parallelizes within hand-assigned priority groups
@@ -631,7 +676,7 @@ mise fix-every-extension
 mise change-lines
 mise keep-lines
 # dup :435 tasks.pre-commit-all
-[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+[[ $envi == local ]] || { git diff --color=always --exit-code; exit $?; }
 # Stage once where the parallel run-on-sources tasks join; concurrent git add raced index.lock
 # dup :71 tasks.run-on-sources
 mapfile -t staged < <(
@@ -648,12 +693,13 @@ git diff --cached --quiet || echo Auto-staged modifications
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+envi=$(mise envi)
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise lychee  # Requires Internet
 mise update-lock-files  # needs Internet
 # dup :414 tasks.pre-commit
-[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+[[ $envi == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo Auto-staged modifications
 '''
 

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from json import loads
 from os import environ, getenv
 from pathlib import Path
-from re import MULTILINE, sub
+from shlex import quote
 from shutil import which
 from subprocess import CalledProcessError, check_call, check_output
 from typing import Any
@@ -101,31 +101,19 @@ def readme_bootstrap(tmp_path: Path) -> Callable[..., tuple[Path, Callable[..., 
     environment = check_output(['mise', 'envi']).decode().strip()
     tag_or_branch = check_output(['mise', 'tabr']).decode().strip()
     uv_version = check_output(['mise', 'current', 'uv']).decode().strip()
-    cookiecutter_task = (
-        loads(check_output(['mise', 'tasks', 'info', 'cookiecutter', '--json']))['run'][0]
-        .replace('$(mise tabr)', tag_or_branch)
-        .replace('\ncookiecutter', '\nuv tool run cookiecutter')
+    commands = (
+        (repository / 'README.md')
+        .read_text()
+        .split('```bash\n')[1]
+        .split('\n```')[0]
+        .split('\nEOF\n', 1)[1]
+        .replace('mise use --global uv@latest', f'mise use --global uv@{uv_version}')
     )
-    cookiecutter_task = (
-        f'set -- --edit {repository}\n{cookiecutter_task}'
-        if tag_or_branch != 'main'
-        else cookiecutter_task
-    )
-    pre_commit_arguments = f' --edit {repository}' if tag_or_branch != 'main' else ''
-    commands = sub(
-        r'^uv tool run cookiecutter .+$',
-        cookiecutter_task,
-        sub(
-            r'(mise pre-commit-all)',
-            rf'\1{pre_commit_arguments}',
-            (repository / 'README.md')
-            .read_text()
-            .split('```bash\n')[1]
-            .split('\n```')[0]
-            .split('\nEOF\n', 1)[1],
-        ),
-        flags=MULTILINE,
-    ).replace('mise use --global uv@latest', f'mise use --global uv@{uv_version}')
+    if tag_or_branch != 'main':
+        template = quote(str(repository))
+        commands = commands.replace('https://github.com/biobuddies/measles.git', template).replace(
+            'mise pre-commit-all', f'mise pre-commit-all --edit {template}'
+        )
 
     def inner(
         cookiecutter: dict[str, object], *, has_django: bool, **kwargs: str
@@ -245,7 +233,7 @@ def test_new_repository_not_django(
     assert_yaml('env.TF_INPUT', 'false')
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
-    assert steps[3]['run'] == 'mise release'
+    assert steps[3]['run'].startswith('mise release\n')
     assert steps[5]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
@@ -334,14 +322,14 @@ def test_new_repository_publishes_to_pypi(
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
     assert environment['name'] == '${{ github.head_ref || github.ref_name }}'
-    tabr = getenv('GITHUB_HEAD_REF', '')
+    tabr = getenv('GITHUB_HEAD_REF') or getenv('GITHUB_REF_NAME', '')
     assert_yaml('on.push.branches', [*([tabr] if tabr not in ('', 'main') else []), 'main'])
     assert "github.ref_name == 'main' && 'biobuddi.es'" in environment['url']
     assert "format('{0}.biobuddi.es'," in environment['url']
     assert steps[3] == {
         'env': {'GH_TOKEN': '${{ github.token }}'},
         'if': "github.event_name == 'push' && github.ref == 'refs/heads/main'",
-        'run': 'mise release',
+        'run': 'mise release\ntabr=$(env -u TABR mise tabr)\necho "TABR=$tabr" >> "$GITHUB_ENV"\n',
     }
     assert steps[4]['run'] == 'mise build'
     assert steps[5]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'

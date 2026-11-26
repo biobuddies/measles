@@ -73,6 +73,48 @@ Until `main` has `.github/workflows/act.yaml`, rendering adds `TABR` to its `pus
 triggers, so a bootstrap branch runs act before its pull request merges. Once `origin/main` has
 the workflow, the next render drops that branch.
 
+## GitHub Actions
+
+```mermaid
+flowchart TD
+    Event["PR, push to main, or workflow dispatch"] --> Head["check, test, tabularize each check out the PR head SHA or event SHA"]
+    Head --> Context["mise set-environment → GIHA, TABR, FQDN"]
+    Context --> Summary["tabularize: mise tabularize → job summary"]
+    Context --> Peers["test: mise checkout → clone configured peer repos"]
+    Peers --> Tests["mise test → pytest"]
+    Context --> Check["check: mise pre-commit-all"]
+    Check -.-> Tasks["cookiecutter → pre-commit (format and lint) → lychee → update-lock-files"]
+    Check --> Fix{"Tracked changes on an eligible feature PR?"}
+    Fix -- "No: first pass succeeds" --> Ready{"check and test both succeeded?"}
+    Fix -- "No: first pass fails" --> Failed["Job fails"]
+    Fix -- Yes --> Commit["Stage tracked changes and commit locally"]
+    Commit --> Retry["Rerun mise pre-commit-all with the new GIHA and TABR"]
+    Retry -- "Fails or leaves a diff" --> Failed
+    Retry -- Clean --> Push["Push PR branch with lease on original PR head SHA"]
+    Push -- "Lease rejected" --> Failed
+    Push -- Success --> Dispatch["Dispatch act.yaml on updated PR branch and skip original build-deploy"]
+    Dispatch --> Event
+    Tests -- Pass --> Ready
+    Tests -- Fail --> Failed
+    Ready -- Yes --> BuildContext["build-deploy: checkout PR merge commit or event SHA → mise set-environment"]
+    BuildContext --> Release{"Push to main?"}
+    Release -- Yes --> Tag["mise release → GitHub release and tag → refresh TABR"]
+    Tag --> Build["mise build → package and/or container build"]
+    Release -- No --> Build
+    Build --> Deploy["mise deploy with the PR branch or event ref name"]
+    Deploy -- "Terraform PR" --> Plan["mise tplan main → plan main, add or update PR comment"]
+    Plan -- Success --> Apply["mise tapply with the target workspace → apply and write job summary"]
+    Plan -- Failure --> Failed
+    Deploy -- "Terraform push or dispatch" --> Apply
+    Apply -- Failure --> Failed
+    Apply -- Success --> Publish{"PyPI project targeting main?"}
+    Deploy -- "No Terraform" --> Publish
+    Publish -- Yes --> Upload["uv publish with trusted publishing"]
+    Publish -- No --> Done["Deploy succeeds"]
+    Upload --> Done
+    Done -- "Push to main" --> Prod["Advance prod branch"]
+```
+
 ## Agent Sandboxes
 
 Set environment setup script to

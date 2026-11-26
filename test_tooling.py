@@ -27,26 +27,71 @@ def test_four_letter_abbreviations():
 
     assert check_output(['mise', 'envi']) == b'github\n' if getenv('GITHUB_ACTIONS') else b'local\n'
 
-    giha = check_output(['mise', 'giha'])
+    giha = check_output(['env', '-u', 'GIHA', 'mise', 'giha'])
     assert match(rb'^[0-9a-f]{40}(-dirty)?\n$', giha)
     is_dirty = bool(check_output(['git', 'status', '--porcelain', '--untracked-files=no']))
     assert giha.endswith(b'-dirty\n') == is_dirty
 
     assert check_output(['mise', 'orgn']) == b'biobuddies\n'
 
-    assert check_output(
-        ['mise', 'tabr'],
-        env={
-            'MISE_TRUSTED_CONFIG_PATHS': getenv('MISE_TRUSTED_CONFIG_PATHS', ''),
-            'PATH': environ['PATH'],
-        },
-    ) == (
-        b''
-        if is_dirty
-        else check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip() + b'\n'
-    )
+    if tabr := getenv('TABR'):
+        assert check_output(['mise', 'tabr']) == f'{tabr}\n'.encode()
+        assert check_output(['mise', 'giha']).strip() == environ['GIHA'].encode()
+    else:
+        assert check_output(
+            ['mise', 'tabr'],
+            env={
+                'MISE_TRUSTED_CONFIG_PATHS': getenv('MISE_TRUSTED_CONFIG_PATHS', ''),
+                'PATH': environ['PATH'],
+            },
+        ) == (
+            b''
+            if is_dirty
+            else check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip() + b'\n'
+        )
 
-    assert check_output(['mise', 'fqdn']) == b''
+    assert check_output(['mise', 'fqdn']).strip() == b''
+
+
+@mark.parametrize('task', ('fqdn', 'role'))
+@mark.parametrize('value', ('override', ''))
+def test_flan_override(task: str, value: str):
+    output = check_output(['mise', task], env={**environ, task.upper(): value})
+    assert output == f'{value}\n'.encode()
+
+
+@mark.parametrize('task', ('cona', 'envi', 'orgn', 'tabr'))
+def test_flan_name_override(task: str):
+    output = check_output(['mise', task], env={**environ, task.upper(): 'preview-2'})
+    assert output == b'preview-2\n'
+
+
+@mark.parametrize('flan', ('CONA', 'ENVI', 'GIHA', 'ORGN', 'TABR'))
+@mark.parametrize('task', ('set-environment', 'tabularize'))
+def test_invalid_flan_fails_before_output(flan: str, task: str):
+    with raises(CalledProcessError) as error:
+        check_output(['mise', task], env={**environ, flan: 'two words'})
+    assert error.value.output == b''
+
+
+@mark.parametrize('value', ('-n', 'two words'))
+@mark.parametrize('task', ('cona', 'envi'))
+def test_invalid_flan_name(task: str, value: str):
+    with raises(CalledProcessError) as error:
+        check_output(['mise', task], env={**environ, task.upper(): value})
+    assert error.value.output == b''
+
+
+@mark.parametrize(('actions', 'expected'), (('', b'local\n'), ('true', b'github\n')))
+def test_empty_envi_uses_default(actions: str, expected: bytes):
+    env = {**environ, 'ENVI': '', 'GITHUB_ACTIONS': actions}
+    assert check_output(['mise', 'envi'], env=env) == expected
+
+
+@mark.parametrize('suffix', ('', '-dirty'))
+def test_giha_override(suffix: str):
+    value = 'a' * 40 + suffix
+    assert check_output(['mise', 'giha'], env={**environ, 'GIHA': value}) == f'{value}\n'.encode()
 
 
 def verbatim_mise_task(name: str) -> str:
@@ -212,7 +257,7 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
             'https://github.com/biobuddies/measles.git',
         ),
         # Downstream, local, files
-        ('speedrun', {}, 'downstream-feature', ['--edit'], '/home/biobuddy/code/measles'),
+        ('speedrun', {}, 'downstream-feature', ['--edit'], str(Path.home() / 'code' / 'measles')),
         # Downstream, local, HTTPS
         ('speedrun', {}, 'downstream-feature', [], 'https://github.com/biobuddies/measles.git'),
         # Downstream, GitHub Actions, HTTPS
@@ -235,19 +280,18 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
                 '-c',
                 replaced_mise_task(
                     'cookiecutter',
-                    {
-                        'cookiecutter --config-file': 'echo cookiecutter --config-file',
-                        'tabr=$(mise tabr)': f'tabr={branch}',
-                    },
+                    {'cookiecutter --config-file': 'echo cookiecutter --config-file'},
                 ),
                 'cookiecutter',
                 *arguments,
             ],
             env={
                 'CONA': codename,
-                'HOME': '/home/biobuddy',
+                'HOME': str(Path.home()),
+                'MISE_TRUSTED_CONFIG_PATHS': str(Path(__file__).resolve().parent),
                 'ORGN': 'biobuddies',
                 'PATH': environ['PATH'],
+                'TABR': branch,
                 **environment,
             },
         )
@@ -285,16 +329,14 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
         .split('[tasks.fqdn]\n', 1)[1]
         .split('[tasks.giha]')[0]
     )
-    if domain:
-        fqdn_task = (
-            template
-            .strip()
-            .replace('{%- if cookiecutter.domain_name %}\n', '')
-            .replace("\n{%- else %}\nrun = ':'\n{%- endif %}", '')
-            .replace('{{ cookiecutter.domain_name }}', domain)
+    with_domain, without_domain = template.split('{%- else %}', 1)
+    fqdn_task = (
+        with_domain.replace('{%- if cookiecutter.domain_name %}', '').replace(
+            '{{ cookiecutter.domain_name }}', domain
         )
-    else:
-        fqdn_task = "run = ':'\n"
+        if domain
+        else without_domain.replace('{%- endif %}', '')
+    )
     (tmp_path / '.config').mkdir()
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
@@ -490,6 +532,13 @@ def test_check_branch(tmp_path: Path):
         check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
     assert error.value.output == (
         b'Branch names must use lowercase letters and digits separated by single hyphens.\n'
+    )
+
+    check_output(
+        command,
+        cwd=tmp_path,
+        env={**environment, 'GITHUB_REF_NAME': 'dispatch-branch'},
+        stderr=STDOUT,
     )
 
     # Arrange bad head reference
