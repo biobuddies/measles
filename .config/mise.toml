@@ -474,14 +474,10 @@ git fetch --tags
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-lines=()
 for flan in cona envi fqdn giha orgn role tabr; do
     value=$(mise "$flan")
-    lines+=("${flan^^}=$value")
+    echo "${flan^^}=$value" | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
 done
-for line in "${lines[@]}"; do
-    echo "$line"
-done | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
 '''
 
 [tasks.shellcheck]

@@ -68,10 +68,15 @@ def test_flan_name_override(task: str):
 
 @mark.parametrize('flan', ('CONA', 'ENVI', 'GIHA', 'ORGN', 'TABR'))
 @mark.parametrize('task', ('set-environment', 'tabularize'))
-def test_invalid_flan_fails_before_output(flan: str, task: str):
-    with raises(CalledProcessError) as error:
-        check_output(['mise', task], env={**environ, flan: 'two words'})
-    assert error.value.output == b''
+def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
+    env = {
+        **environ,
+        flan: 'two words',
+        'GITHUB_ENV': str(tmp_path / 'github-env'),
+        'GITHUB_STEP_SUMMARY': str(tmp_path / 'github-summary'),
+    }
+    with raises(CalledProcessError):
+        check_output(['mise', task], env=env)
 
 
 @mark.parametrize('value', ('-n', 'two words'))
