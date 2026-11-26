@@ -526,7 +526,7 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 for flan in cona envi fqdn giha orgn role tabr; do
-    value=$(mise "$flan")
+    value=$(mise $flan)
     echo "${flan^^}=$value" | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
 done
 '''
