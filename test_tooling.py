@@ -23,7 +23,7 @@ import measles
 
 
 def test_four_letter_abbreviations():
-    assert check_output(['mise', 'cona']) == b'measles\n'
+    assert check_output(['mise', 'cona'], env={**environ, 'CONA': 'another-repo'}) == b'measles\n'
 
     assert check_output(['mise', 'envi']) == b'github\n' if getenv('GITHUB_ACTIONS') else b'local\n'
 
@@ -60,13 +60,13 @@ def test_flan_override(task: str, value: str):
     assert output == f'{value}\n'.encode()
 
 
-@mark.parametrize('task', ('cona', 'envi', 'orgn', 'tabr'))
+@mark.parametrize('task', ('envi', 'orgn', 'tabr'))
 def test_flan_name_override(task: str):
     output = check_output(['mise', task], env={**environ, task.upper(): 'preview-2'})
     assert output == b'preview-2\n'
 
 
-@mark.parametrize('flan', ('CONA', 'ENVI', 'GIHA', 'ORGN', 'ROLE', 'TABR'))
+@mark.parametrize('flan', ('ENVI', 'GIHA', 'ORGN', 'ROLE', 'TABR'))
 @mark.parametrize('task', ('set-environment', 'tabularize'))
 def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
     env = {
@@ -80,7 +80,7 @@ def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
 
 
 @mark.parametrize('value', ('-n', 'two words'))
-@mark.parametrize('task', ('cona', 'envi', 'role'))
+@mark.parametrize('task', ('envi', 'role'))
 def test_invalid_flan_name(task: str, value: str):
     with raises(CalledProcessError) as error:
         check_output(['mise', task], env={**environ, task.upper(): value})

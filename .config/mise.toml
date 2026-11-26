@@ -46,7 +46,7 @@ ln -sfn "$(mise where github:github/gh-stack)" ~/.local/share/gh/extensions/gh-s
 
 # Prerequisite tasks
 [tasks.cona]
-run = 'mise flan CONA measles'
+run = 'echo measles'
 
 [tasks.envi]
 run = '''
@@ -273,7 +273,7 @@ template=https://github.com/biobuddies/measles.git
 if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
     template=${2:-$HOME/code/measles}
 else
-    cona=$(mise cona)
+    cona=${CONA:-$(mise cona)}
     orgn=$(mise orgn)
     tabr=$(mise tabr)
     if [[ $cona == measles && $orgn == biobuddies && $tabr != main ]]; then
