@@ -12,7 +12,7 @@ default_context:
         - gunicorn
 EOF
 mise use --global uv@latest
-uvx cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists https://github.com/biobuddies/measles.git
+uv tool run cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists https://github.com/biobuddies/measles.git
 mise trust --yes
 mise install
 mise pre-commit-all
@@ -55,6 +55,17 @@ hash_jinja = {
     'variable_start_string': '#{',
 }
 ```
+
+## Workflow Tasks
+
+`.github/workflows/act.yaml` runs these mise tasks, which can be overridden in `mise.toml`:
+
+- `build` takes no arguments, so it suits environment-agnostic steps like most Python wheels and
+  Docker images. Put environment-specific steps in `deploy`.
+- `test` runs locally and on GitHub, so it suits unit and integration tests.
+- `deploy` takes the environment: the pull request branch or `main`. Put environment-specific
+  JavaScript And Markup (JAM) builds here, and start end-to-end tests that need a real hosted
+  environment. Guard production-only steps with `[[ ${1-} == main ]]`.
 
 ## First GitHub Action Run
 

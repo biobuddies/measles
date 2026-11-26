@@ -226,7 +226,8 @@ set -o errexit -o nounset -o pipefail
 rm -rf dist
 uv build
 uv publish --dry-run dist/*
-uvx twine check --strict dist/*
+uv tool run twine check --strict dist/*
+uv tool run --directory dist --from "$PWD"/dist/*.whl python -c 'import measles'
 if [[ -f Dockerfile && -f compose.yaml ]]; then
     docker compose --progress=plain build "$@"
 fi
@@ -249,7 +250,11 @@ cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $
 '''
 
 [tasks.deploy]
-run = ':'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+[[ ${1-} != main ]] || uv publish --trusted-publishing always
+'''
 
 [tasks.end-of-file-fixer]
 run = 'mise run-on-sources end-of-file-fixer . "$@"'
