@@ -74,8 +74,9 @@ def orgn() -> str:
 def tabr() -> str:
     tabr = (
         getenv('TABR')
-        or run(['mise', 'tabr'], capture_output=True, check=False, cwd=workdir, text=True)
-        .stdout.strip()
+        or run(
+            ['mise', 'tabr'], capture_output=True, check=False, cwd=workdir, text=True
+        ).stdout.strip()
     )
     return validate_name('TABR', tabr) if tabr else ''
 
