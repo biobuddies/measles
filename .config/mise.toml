@@ -179,10 +179,11 @@ fi
 [[ ! $envi ]] || "$INSH_TF" -chdir="deploys/$cona/terraform" workspace select -or-create "$envi"
 [[ $action != init ]] || exit 0
 # Always set TF_WORKSPACE explicitly; don't rely on this side effect
-giha=$(mise giha)
-tabr=$(mise tabr)
-TF_VAR_giha=$giha TF_VAR_tabr=$tabr TF_WORKSPACE=$envi \
-    "$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
+TF_VAR_giha=$(mise giha)
+TF_VAR_tabr=$(mise tabr)
+TF_WORKSPACE=$envi
+export TF_VAR_giha TF_VAR_tabr TF_WORKSPACE
+"$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
 """
 
 # Leaf tasks
