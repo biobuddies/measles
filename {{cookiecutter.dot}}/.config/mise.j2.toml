@@ -522,24 +522,18 @@ git fetch --tags
 '''
 
 [tasks.set-environment]
-run = """
+run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-cona=$(mise cona)
-envi=$(mise envi)
-giha=$(mise giha)
-orgn=$(mise orgn)
-tabr=$(mise tabr)
-cat <<EOD | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
-CONA=$cona
-ENVI=$envi
-FQDN=$(mise fqdn)
-GIHA=$giha
-ORGN=$orgn
-ROLE=$(mise role)
-TABR=$tabr
-EOD
-"""
+lines=()
+for flan in cona envi fqdn giha orgn role tabr; do
+    value=$(mise "$flan")
+    lines+=("${flan^^}=$value")
+done
+for line in "${lines[@]}"; do
+    echo "$line"
+done | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
+'''
 
 [tasks.shellcheck]
 run = 'mise run-on-sources shellcheck "*.{bash,sh}" "$@"'
