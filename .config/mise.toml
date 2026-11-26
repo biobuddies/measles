@@ -46,7 +46,7 @@ ln -sfn "$(mise where github:github/gh-stack)" ~/.local/share/gh/extensions/gh-s
 
 # Prerequisite tasks
 [tasks.cona]
-run = 'mise flan CONA "measles"'
+run = 'mise flan CONA measles'
 
 [tasks.envi]
 run = '''
@@ -54,7 +54,7 @@ run = '''
 set -o errexit -o nounset -o pipefail
 envi=local
 if [[ ${GITHUB_ACTIONS-} ]]; then envi=github; fi
-mise flan ENVI "$envi"
+mise flan ENVI $envi
 '''
 
 [tasks.fqdn]
@@ -75,7 +75,7 @@ fi
 '''
 
 [tasks.orgn]
-run = 'mise flan ORGN "biobuddies"'
+run = 'mise flan ORGN biobuddies'
 
 [tasks.role]
 run = 'mise flan ROLE ""'
