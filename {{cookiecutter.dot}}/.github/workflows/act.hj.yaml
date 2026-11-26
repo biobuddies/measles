@@ -61,7 +61,7 @@ jobs:
                   git add --update
                   git -c user.name='github-actions[bot]' \
                       -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-                      commit -m 'Apply generated files and formatting'
+                      commit -m Autoformat
                   GIHA=$(env -u GIHA mise giha)
                   TABR=$(env -u TABR mise tabr)
                   export GIHA TABR
