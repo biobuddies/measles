@@ -132,7 +132,11 @@ def test_tabr(git_describe: str, tabr: str):
                 'bash',
                 '-c',
                 replaced_mise_task(
-                    'tabr', {'git describe --all --dirty --exact-match': f'echo "{git_describe}"'}
+                    'tabr',
+                    {
+                        "mise flan TABR ''": ':',
+                        'git describe --all --dirty --exact-match': f'echo "{git_describe}"',
+                    },
                 ),
             ],
             env={},
@@ -231,7 +235,12 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
         check_call(['git', 'tag', tag], cwd=tmp_path)
     assert (
         check_output(
-            ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('tabr')],
+            [
+                '/usr/bin/env',
+                'bash',
+                '-c',
+                replaced_mise_task('tabr', {"mise flan TABR ''": ':'}),
+            ],
             cwd=tmp_path,
             env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
         )
@@ -320,14 +329,6 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
     ),
 )
 def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
-    tabr_task = replaced_mise_task(
-        'tabr',
-        {
-            'git describe --all --dirty --exact-match': (
-                f'echo "heads/{tabr}-dirty"' if tabr == '' else f'echo "heads/{tabr}"'
-            )
-        },
-    )
     template = (
         (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.j2.toml')
         .read_text()
@@ -344,9 +345,9 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
     )
     (tmp_path / '.config').mkdir()
     (tmp_path / '.config' / 'mise.toml').write_text(
-        f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
+        f"""[tasks.tabr]\nrun = 'echo "$TABR"'\n\n[tasks.fqdn]\n{fqdn_task}\n"""
     )
-    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH']}
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH'], 'TABR': tabr}
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
     assert output == fqdn
 

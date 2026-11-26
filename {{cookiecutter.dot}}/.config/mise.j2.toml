@@ -56,16 +56,15 @@ fi
 
 # Prerequisite tasks
 [tasks.cona]
-run = 'mise validate CONA "${CONA:-{{ CONA }}}"'
+run = 'mise flan CONA "{{ CONA }}"'
 
 [tasks.envi]
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${ENVI:-} ]]; then mise validate ENVI "$ENVI"
-elif [[ ${GITHUB_ACTIONS-} ]]; then echo github
-else echo local
-fi
+envi=local
+if [[ ${GITHUB_ACTIONS-} ]]; then envi=github; fi
+mise flan ENVI "$envi"
 '''
 
 [tasks.fqdn]
@@ -101,10 +100,10 @@ fi
 '''
 
 [tasks.orgn]
-run = 'mise validate ORGN "${ORGN:-{{ ORGN }}}"'
+run = 'mise flan ORGN "{{ ORGN }}"'
 
 [tasks.role]
-run = 'if [ -n "${ROLE:-}" ]; then mise validate ROLE "$ROLE"; else echo; fi'
+run = 'mise flan ROLE ""'
 
 [tasks.run-on-sources]
 quiet = true
@@ -133,14 +132,14 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${TABR:-} ]]; then
-    exec mise validate TABR "$TABR"
+tabr=$(mise flan TABR '')
+if [[ ! $tabr ]]; then
+    tabr=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
+        status=$?
+        [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
+    }
 fi
-tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
-    status=$?
-    [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
-}
-if [[ $tag ]]; then echo "$tag"
+if [[ $tabr ]]; then echo "$tabr"
 elif [[ ${GITHUB_HEAD_REF-} ]]; then echo "$GITHUB_HEAD_REF"
 elif [[ ${GITHUB_REF_NAME-} ]]; then echo "$GITHUB_REF_NAME"
 else
@@ -149,17 +148,18 @@ else
 fi
 '''
 
-[tasks.validate]
+[tasks.flan]
 quiet = true
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-name=$2
-if [[ ! $name =~ ^[A-Za-z0-9._][A-Za-z0-9._-]*$ ]]; then
-    echo "Invalid $1 name" >&2
+flan=$1
+value=${!flan:-$2}
+if [[ $value && ! $value =~ ^[A-Za-z0-9._][A-Za-z0-9._-]*$ ]]; then
+    echo "Invalid $flan name" >&2
     exit 1
 fi
-echo "$name"
+echo "$value"
 '''
 
 [tasks.tinit]
