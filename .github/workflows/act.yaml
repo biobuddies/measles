@@ -75,6 +75,7 @@ jobs:
               run: |
                   branch="refs/heads/$GITHUB_HEAD_REF"
                   git push --force-with-lease="$branch:$ORIGINAL_HEAD" origin "HEAD:$branch"
+                  # PR runs from GITHUB_TOKEN pushes require approval.
                   gh workflow run act.yaml --ref "$GITHUB_HEAD_REF"
     tabularize:
         runs-on: ubuntu-latest
