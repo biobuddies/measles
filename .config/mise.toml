@@ -501,6 +501,7 @@ cona=$(mise cona)
 envi=$(mise envi)
 giha=$(mise giha)
 orgn=$(mise orgn)
+role=$(mise role)
 tabr=$(mise tabr)
 cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | Unabbreviat. | FLAN | Value        |
@@ -510,7 +511,7 @@ cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | Fully Qualified Domain Name | FQDN | $(mise fqdn) |
 | GIt HAsH     | GIHA | $giha |
 | ORGanizatioN | ORGN | $orgn |
-| ROLE         | ROLE | $(mise role) |
+| ROLE         | ROLE | $role |
 | TAg/BRanch   | TABR | $tabr |
 EOD
 """
