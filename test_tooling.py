@@ -66,7 +66,7 @@ def test_flan_name_override(task: str):
     assert output == b'preview-2\n'
 
 
-@mark.parametrize('flan', ('CONA', 'ENVI', 'GIHA', 'ORGN', 'TABR'))
+@mark.parametrize('flan', ('CONA', 'ENVI', 'GIHA', 'ORGN', 'ROLE', 'TABR'))
 @mark.parametrize('task', ('set-environment', 'tabularize'))
 def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
     env = {
@@ -80,7 +80,7 @@ def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
 
 
 @mark.parametrize('value', ('-n', 'two words'))
-@mark.parametrize('task', ('cona', 'envi'))
+@mark.parametrize('task', ('cona', 'envi', 'role'))
 def test_invalid_flan_name(task: str, value: str):
     with raises(CalledProcessError) as error:
         check_output(['mise', task], env={**environ, task.upper(): value})

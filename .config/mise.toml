@@ -79,7 +79,7 @@ fi
 run = 'mise validate ORGN "${ORGN:-biobuddies}"'
 
 [tasks.role]
-run = 'echo "${ROLE:-}"'
+run = 'if [ -n "${ROLE:-}" ]; then mise validate ROLE "$ROLE"; else echo; fi'
 
 [tasks.run-on-sources]
 quiet = true
