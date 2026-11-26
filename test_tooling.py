@@ -235,12 +235,7 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
         check_call(['git', 'tag', tag], cwd=tmp_path)
     assert (
         check_output(
-            [
-                '/usr/bin/env',
-                'bash',
-                '-c',
-                replaced_mise_task('tabr', {"mise flan TABR ''": ':'}),
-            ],
+            ['/usr/bin/env', 'bash', '-c', replaced_mise_task('tabr', {"mise flan TABR ''": ':'})],
             cwd=tmp_path,
             env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
         )
