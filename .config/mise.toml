@@ -418,18 +418,15 @@ exit 1
 # Clone arguments and .cookiecutter.yaml peer_checkouts
 # Ensure ~/code/$CONA works (../$CONA doesn't everywhere)
 run = '''
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-envi=$(mise envi)
-commands=$(python - $envi "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
+#!/usr/bin/env python
 from pathlib import Path
-from shlex import join, quote
+from subprocess import check_call, check_output
 from sys import argv
 
 from yaml import safe_load
 
-envi, toplevel, *arguments = argv[1:]
-toplevel = Path(toplevel)
+envi = check_output(['mise', 'envi'], text=True).strip()
+toplevel = Path(check_output(['git', 'rev-parse', '--show-toplevel'], text=True).removesuffix('\n'))
 code = Path.home() / 'code'
 organizations = {
     'gitignore': 'github',
@@ -443,20 +440,20 @@ cookiecutter = toplevel / '.cookiecutter.yaml'
 required = (safe_load(cookiecutter.read_text()) if cookiecutter.exists() else {}).get(
     'default_context', {}
 ).get('peer_checkouts', [])
-print(join(['mkdir', '-p', str(code)]))
+code.mkdir(parents=True, exist_ok=True)
 paths = [toplevel]
-for peer in [*required, *arguments]:
+for peer in [*required, *argv[1:]]:
     repository, _, tabr = (peer if '@' in peer else f'{peer}@main').partition('@')
     repository = repository if '/' in repository else f'{organizations[repository]}/{repository}'
     paths.append(path := toplevel.parent / repository.split('/')[-1])
     # Adopt actions/checkout's nested path rather than cloning a duplicate
     nested = toplevel / path.name
-    if adopt := envi == 'github' and not path.exists() and (nested / '.git').exists():
-        print(join(['ln', '-s', str(nested), str(path)]))
-    print(
-        join(['git', '-C', str(path), 'fetch', 'origin', tabr])
-        if adopt or path.exists()
-        else join([
+    if envi == 'github' and not path.exists() and (nested / '.git').exists():
+        path.symlink_to(nested, target_is_directory=True)
+    if path.exists():
+        check_call(['git', '-C', str(path), 'fetch', '--', 'origin', tabr])
+    else:
+        check_call([
             'git',
             'clone',
             f'--branch={tabr}',
@@ -464,12 +461,10 @@ for peer in [*required, *arguments]:
             f'https://github.com/{repository}.git',
             str(path),
         ])
-    )
 for path in paths if toplevel.parent != code else []:
-    print(f'[[ -e {quote(str(code / path.name))} ]] || ' + join(['ln', '-s', str(path), str(code)]))
-EOD
-)
-eval "$commands"
+    link = code / path.name
+    if not link.exists():
+        link.symlink_to(path, target_is_directory=True)
 '''
 
 [tasks.prettier-write]

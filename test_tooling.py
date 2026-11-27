@@ -2,6 +2,7 @@
 
 import stat
 import sys
+import tomllib
 from io import BytesIO
 from json import loads
 from os import environ, getenv
@@ -149,6 +150,10 @@ def test_tabr(git_describe: str, tabr: str):
 
 
 def test_checkout(tmp_path: Path):
+    checkout = tomllib.loads((Path(__file__).parent / '.config/mise.toml').read_text())['tasks'][
+        'checkout'
+    ]['run']
+    write_mock_executable(tmp_path / 'mise', 'echo $ENVI')
     git = ['git', '-c', 'user.email=test@example.com', '-c', 'user.name=Test']
     for repository in ('org/required', 'org/extra', 'org/nested', 'biobuddies/measles'):
         source = tmp_path / 'source' / repository
@@ -166,23 +171,23 @@ def test_checkout(tmp_path: Path):
             str(source),
             str(tmp_path / 'github' / f'{repository}.git'),
         ])
-    work = tmp_path / 'work' / 'downstream'
+    work = tmp_path / 'work dir' / 'downstream'
     check_call(['git', 'init', str(work)])
     (work / '.cookiecutter.yaml').write_text(
         'default_context:\n    peer_checkouts:\n        - org/required\n'
     )
     environment = {
+        'ENVI': 'local',
         'GIT_CONFIG_COUNT': '1',
         'GIT_CONFIG_KEY_0': f'url.file://{tmp_path}/github/.insteadOf',
         'GIT_CONFIG_VALUE_0': 'https://github.com/',
-        'HOME': str(tmp_path / 'home'),
-        'PATH': environ['PATH'],
+        'HOME': str(tmp_path / 'home dir'),
+        'PATH': f'{tmp_path}:{environ["PATH"]}',
     }
     command = [
-        'bash',
+        sys.executable,
         '-c',
-        replaced_mise_task('checkout', {'$(mise envi)': 'local'}),
-        'checkout',
+        checkout,
         'org/extra@v2026.40.3',
         'measles',
     ]
@@ -191,7 +196,7 @@ def test_checkout(tmp_path: Path):
     assert (work.parent / 'required' / 'version').read_text() == 'main'
     assert (work.parent / 'extra' / 'version').read_text() == 'v2026.40.3'
     assert (work.parent / 'measles' / 'version').read_text() == 'main'
-    code = tmp_path / 'home' / 'code'
+    code = tmp_path / 'home dir' / 'code'
     assert {path.name: path.resolve() for path in code.iterdir()} == {
         name: work.parent / name for name in ('downstream', 'extra', 'measles', 'required')
     }
@@ -203,15 +208,9 @@ def test_checkout(tmp_path: Path):
 
     check_call(['git', 'clone', str(tmp_path / 'github/org/nested.git'), str(work / 'nested')])
     check_call(
-        [
-            'bash',
-            '-c',
-            replaced_mise_task('checkout', {'$(mise envi)': 'github'}),
-            'checkout',
-            'org/nested',
-        ],
+        [sys.executable, '-c', checkout, 'org/nested'],
         cwd=work,
-        env=environment,
+        env={**environment, 'ENVI': 'github'},
     )
     assert (work.parent / 'nested').resolve() == work / 'nested'
     assert (work / 'nested/.git/FETCH_HEAD').exists()
@@ -331,7 +330,8 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
         .split('[tasks.fqdn]\n', 1)[1]
         .split('[tasks.giha]')[0]
     )
-    fqdn_task = Environment().from_string(template).render(cookiecutter={'domain_name': domain})
+    environment = Environment(autoescape=False)  # noqa: S701 shell task template
+    fqdn_task = environment.from_string(template).render(cookiecutter={'domain_name': domain})
     (tmp_path / '.config').mkdir()
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"""[tasks.tabr]\nrun = 'echo $TABR'\n\n[tasks.fqdn]\n{fqdn_task}\n"""
