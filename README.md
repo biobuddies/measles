@@ -79,7 +79,7 @@ the workflow, the next render drops that branch.
 flowchart TD
     Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check[" `mise pre-commit-all` (check)"]
     Context --> Test[" `mise test`"]
-    Check -- "Generated diff" --> Retry["Commit, retry, push, dispatch"]
+    Check -- "Generated diff" --> Retry["Commit and rerun"]
     Retry --> Context
     Check -- Fail --> Stop["Stop"]
     Test -- Fail --> Stop
