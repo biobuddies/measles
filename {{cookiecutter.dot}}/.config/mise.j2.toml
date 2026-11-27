@@ -39,7 +39,7 @@ uv pip compile --all-extras --output-file requirements.txt --quiet \
     && uv pip sync requirements.txt --allow-empty-requirements --quiet \
     || uv_status=$?
 wait $npm_pid
-[[ $uv_status -eq 0 ]] || exit $uv_status
+test $uv_status -eq 0 || exit $uv_status
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 mkdir -p ~/.local/share/gh/extensions
