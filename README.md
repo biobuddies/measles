@@ -77,7 +77,7 @@ the workflow, the next render drops that branch.
 
 ```mermaid
 flowchart TD
-    Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check[" `mise pre-commit-all` (check) including `prettier`"]
+    Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check[" `mise pre-commit-all` (check)"]
     Context --> Test[" `mise test`"]
     Check -- "Generated diff" --> Retry["Commit, retry, push, dispatch"]
     Retry --> Context
