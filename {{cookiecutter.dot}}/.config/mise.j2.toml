@@ -79,7 +79,9 @@ fqdn=${FQDN:-}
 if [[ ! $fqdn ]]; then
     tabr=$(mise tabr)
     [[ $tabr ]] || exit 0
-    fqdn=$(python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' $tabr)
+    # tabularize skips mise install, so a restored cache leaves no .venv
+    fqdn=$(uv tool run --constraints requirements.txt --from helicopyter \
+        python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' $tabr)
 fi
 {%- endif %}
 label='[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?'
