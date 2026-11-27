@@ -88,11 +88,11 @@ flowchart TD
     BuildDeploy -- "Push to main" --> Release[" `mise release` (build-deploy), refresh $TABR"]
     BuildDeploy -- Otherwise --> Build[" `mise build` (build-deploy)"]
     Release --> Build
-    Build --> Deploy[" `mise deploy BRANCH` (build-deploy), PR branch or event ref"]
+    Build --> Deploy[" `mise deploy TARGET` (build-deploy), TARGET is the PR branch or event ref"]
     Deploy -- "Terraform PR" --> Plan[" `mise tplan main` (PR comment)"]
-    Plan --> Apply[" `mise tapply BRANCH`"]
+    Plan --> Apply[" `mise tapply TARGET`"]
     Deploy -- "Other Terraform runs" --> Apply
-    Deploy -- "PyPI, BRANCH=main" --> Publish[" `uv publish`"]
+    Deploy -- "PyPI, TARGET=main" --> Publish[" `uv publish`"]
 ```
 
 ## Agent Sandboxes
