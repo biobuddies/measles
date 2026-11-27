@@ -2,12 +2,13 @@
 
 import stat
 import sys
+import tomllib
 from io import BytesIO
 from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output, run
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import SimpleNamespace
@@ -23,30 +24,100 @@ import measles
 
 
 def test_four_letter_abbreviations():
-    assert check_output(['mise', 'cona']) == b'measles\n'
+    assert check_output(['mise', 'cona'], env={**environ, 'CONA': 'another-repo'}) == b'measles\n'
 
     assert check_output(['mise', 'envi']) == b'github\n' if getenv('GITHUB_ACTIONS') else b'local\n'
 
-    giha = check_output(['mise', 'giha'])
+    giha = check_output(['env', '-u', 'GIHA', 'mise', 'giha'])
     assert match(rb'^[0-9a-f]{40}(-dirty)?\n$', giha)
     is_dirty = bool(check_output(['git', 'status', '--porcelain', '--untracked-files=no']))
     assert giha.endswith(b'-dirty\n') == is_dirty
 
     assert check_output(['mise', 'orgn']) == b'biobuddies\n'
 
-    assert check_output(
-        ['mise', 'tabr'],
-        env={
-            'MISE_TRUSTED_CONFIG_PATHS': getenv('MISE_TRUSTED_CONFIG_PATHS', ''),
-            'PATH': environ['PATH'],
-        },
-    ) == (
-        b''
-        if is_dirty
-        else check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip() + b'\n'
-    )
+    if tabr := getenv('TABR'):
+        assert check_output(['mise', 'tabr']) == f'{tabr}\n'.encode()
+        assert check_output(['mise', 'giha']).strip() == environ['GIHA'].encode()
+    else:
+        assert check_output(
+            ['mise', 'tabr'],
+            env={
+                'MISE_TRUSTED_CONFIG_PATHS': getenv('MISE_TRUSTED_CONFIG_PATHS', ''),
+                'PATH': environ['PATH'],
+            },
+        ) == (
+            b''
+            if is_dirty
+            else check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip() + b'\n'
+        )
 
-    assert check_output(['mise', 'fqdn']) == b''
+    assert check_output(['mise', 'fqdn']).strip() == b''
+
+
+@mark.parametrize('task', ('fqdn', 'role'))
+@mark.parametrize('value', ('override', ''))
+def test_flan_override(task: str, value: str):
+    output = check_output(['mise', task], env={**environ, task.upper(): value})
+    assert output == f'{value}\n'.encode()
+
+
+@mark.parametrize('task', ('envi', 'orgn', 'tabr'))
+def test_flan_name_override(task: str):
+    output = check_output(['mise', task], env={**environ, task.upper(): 'preview-2'})
+    assert output == b'preview-2\n'
+
+
+@mark.parametrize('flan', ('ENVI', 'FQDN', 'GIHA', 'ORGN', 'ROLE', 'TABR'))
+@mark.parametrize('task', ('set-environment', 'tabularize'))
+def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
+    env = {
+        **environ,
+        flan: 'two words',
+        'GITHUB_ENV': str(tmp_path / 'github-env'),
+        'GITHUB_STEP_SUMMARY': str(tmp_path / 'github-summary'),
+    }
+    with raises(CalledProcessError):
+        check_output(['mise', task], env=env)
+
+
+@mark.parametrize('value', ('-n', 'two words', 'one;two', 'foo*'))
+@mark.parametrize('task', ('envi', 'fqdn', 'role'))
+def test_invalid_flan_name(task: str, value: str):
+    with raises(CalledProcessError) as error:
+        check_output(['mise', task], env={**environ, task.upper(): value})
+    assert error.value.output == b''
+
+
+@mark.parametrize(('actions', 'expected'), (('', b'local\n'), ('true', b'github\n')))
+def test_empty_envi_uses_default(actions: str, expected: bytes):
+    env = {**environ, 'ENVI': '', 'GITHUB_ACTIONS': actions}
+    assert check_output(['mise', 'envi'], env=env) == expected
+
+
+@mark.parametrize(
+    ('fqdn', 'error'),
+    (
+        ('my_host.example/path', b'Invalid FQDN hostname'),
+        ('example.com:-1/path', b'Invalid FQDN hostname'),
+        ('example.com/bad%xx', b'Invalid FQDN path'),
+        ('example.com./path_with_underscore/~user%20name', b''),
+    ),
+)
+def test_fqdn_hostname_and_path(fqdn: str, error: bytes):
+    command = ['mise', 'fqdn']
+    env = {**environ, 'FQDN': fqdn}
+    if error:
+        with raises(CalledProcessError) as result:
+            check_output(command, env=env, stderr=STDOUT)
+        assert error in result.value.output
+    else:
+        assert check_output(command, env=env) == f'{fqdn}\n'.encode()
+
+
+@mark.parametrize('suffix', ('', '-dirty'))
+def test_giha_override(suffix: str):
+    value = 'a' * 40 + suffix
+    assert check_output(['mise', 'giha'], env={**environ, 'GIHA': value}) == f'{value}\n'.encode()
 
 
 def verbatim_mise_task(name: str) -> str:
@@ -61,6 +132,11 @@ def replaced_mise_task(name: str, replacements: dict[str, str]) -> str:
         assert old in task
         task = task.replace(old, new)
     return task
+
+
+def tabr_with_local_flan(**replacements: str) -> str:
+    tabr = replaced_mise_task('tabr', {'mise flan TABR': 'flan TABR', **replacements})
+    return f'flan() {{\n{verbatim_mise_task("flan")}\n}}\n{tabr}'
 
 
 @mark.parametrize(
@@ -81,9 +157,9 @@ def test_tabr(git_describe: str, tabr: str):
                 '/usr/bin/env',
                 'bash',
                 '-c',
-                replaced_mise_task(
-                    'tabr', {'git describe --all --dirty --exact-match': f'echo "{git_describe}"'}
-                ),
+                tabr_with_local_flan(**{
+                    'git describe --all --dirty --exact-match': f'echo {git_describe}'
+                }),
             ],
             env={},
         )
@@ -94,6 +170,10 @@ def test_tabr(git_describe: str, tabr: str):
 
 
 def test_checkout(tmp_path: Path):
+    checkout = tomllib.loads((Path(__file__).parent / '.config/mise.toml').read_text())['tasks'][
+        'checkout'
+    ]['run']
+    write_mock_executable(tmp_path / 'mise', 'echo $ENVI')
     git = ['git', '-c', 'user.email=test@example.com', '-c', 'user.name=Test']
     for repository in ('org/required', 'org/extra', 'org/nested', 'biobuddies/measles'):
         source = tmp_path / 'source' / repository
@@ -111,32 +191,26 @@ def test_checkout(tmp_path: Path):
             str(source),
             str(tmp_path / 'github' / f'{repository}.git'),
         ])
-    work = tmp_path / 'work' / 'downstream'
+    work = tmp_path / 'work dir' / 'downstream'
     check_call(['git', 'init', str(work)])
     (work / '.cookiecutter.yaml').write_text(
         'default_context:\n    peer_checkouts:\n        - org/required\n'
     )
     environment = {
+        'ENVI': 'local',
         'GIT_CONFIG_COUNT': '1',
         'GIT_CONFIG_KEY_0': f'url.file://{tmp_path}/github/.insteadOf',
         'GIT_CONFIG_VALUE_0': 'https://github.com/',
-        'HOME': str(tmp_path / 'home'),
-        'PATH': environ['PATH'],
+        'HOME': str(tmp_path / 'home dir'),
+        'PATH': f'{tmp_path}:{environ["PATH"]}',
     }
-    command = [
-        'bash',
-        '-c',
-        replaced_mise_task('checkout', {'$(mise envi)': 'local'}),
-        'checkout',
-        'org/extra@v2026.40.3',
-        'measles',
-    ]
+    command = [sys.executable, '-c', checkout, 'org/extra@v2026.40.3', 'measles']
 
     check_call(command, cwd=work, env=environment)
     assert (work.parent / 'required' / 'version').read_text() == 'main'
     assert (work.parent / 'extra' / 'version').read_text() == 'v2026.40.3'
     assert (work.parent / 'measles' / 'version').read_text() == 'main'
-    code = tmp_path / 'home' / 'code'
+    code = tmp_path / 'home dir' / 'code'
     assert {path.name: path.resolve() for path in code.iterdir()} == {
         name: work.parent / name for name in ('downstream', 'extra', 'measles', 'required')
     }
@@ -148,15 +222,9 @@ def test_checkout(tmp_path: Path):
 
     check_call(['git', 'clone', str(tmp_path / 'github/org/nested.git'), str(work / 'nested')])
     check_call(
-        [
-            'bash',
-            '-c',
-            replaced_mise_task('checkout', {'$(mise envi)': 'github'}),
-            'checkout',
-            'org/nested',
-        ],
+        [sys.executable, '-c', checkout, 'org/nested'],
         cwd=work,
-        env=environment,
+        env={**environment, 'ENVI': 'github'},
     )
     assert (work.parent / 'nested').resolve() == work / 'nested'
     assert (work / 'nested/.git/FETCH_HEAD').exists()
@@ -181,7 +249,7 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
         check_call(['git', 'tag', tag], cwd=tmp_path)
     assert (
         check_output(
-            ['/usr/bin/env', 'bash', '-c', verbatim_mise_task('tabr')],
+            ['/usr/bin/env', 'bash', '-c', tabr_with_local_flan()],
             cwd=tmp_path,
             env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
         )
@@ -212,7 +280,7 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
             'https://github.com/biobuddies/measles.git',
         ),
         # Downstream, local, files
-        ('speedrun', {}, 'downstream-feature', ['--edit'], '/home/biobuddy/code/measles'),
+        ('speedrun', {}, 'downstream-feature', ['--edit'], str(Path.home() / 'code' / 'measles')),
         # Downstream, local, HTTPS
         ('speedrun', {}, 'downstream-feature', [], 'https://github.com/biobuddies/measles.git'),
         # Downstream, GitHub Actions, HTTPS
@@ -235,19 +303,18 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
                 '-c',
                 replaced_mise_task(
                     'cookiecutter',
-                    {
-                        'cookiecutter --config-file': 'echo cookiecutter --config-file',
-                        'tabr=$(mise tabr)': f'tabr={branch}',
-                    },
+                    {'cookiecutter --config-file': 'echo cookiecutter --config-file'},
                 ),
                 'cookiecutter',
                 *arguments,
             ],
             env={
                 'CONA': codename,
-                'HOME': '/home/biobuddy',
+                'HOME': str(Path.home()),
+                'MISE_TRUSTED_CONFIG_PATHS': str(Path(__file__).resolve().parent),
                 'ORGN': 'biobuddies',
                 'PATH': environ['PATH'],
+                'TABR': branch,
                 **environment,
             },
         )
@@ -265,41 +332,26 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
         ('my-feature', '', ''),
         ('my-feature', 'cov.ing', 'my-feature.cov.ing'),
         ('my-feature', 'cov.ing/covey/', 'my-feature.cov.ing/covey/'),
+        ('my-feature', 'cov.ing/path_with_underscore/', 'my-feature.cov.ing/path_with_underscore/'),
         ('my-feature', 'rt.biobuddi.es/', 'rt-my-feature.biobuddi.es/'),
         ('my-feature', 'localhost', 'my-feature.localhost'),
         ('main', 'rt.biobuddi.es/', 'rt.biobuddi.es/'),
     ),
 )
 def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
-    tabr_task = replaced_mise_task(
-        'tabr',
-        {
-            'git describe --all --dirty --exact-match': (
-                f'echo "heads/{tabr}-dirty"' if tabr == '' else f'echo "heads/{tabr}"'
-            )
-        },
-    )
     template = (
         (Path(__file__).parent / '{{cookiecutter.dot}}' / '.config' / 'mise.j2.toml')
         .read_text()
         .split('[tasks.fqdn]\n', 1)[1]
         .split('[tasks.giha]')[0]
     )
-    if domain:
-        fqdn_task = (
-            template
-            .strip()
-            .replace('{%- if cookiecutter.domain_name %}\n', '')
-            .replace("\n{%- else %}\nrun = ':'\n{%- endif %}", '')
-            .replace('{{ cookiecutter.domain_name }}', domain)
-        )
-    else:
-        fqdn_task = "run = ':'\n"
+    environment = Environment(autoescape=False)  # noqa: S701 shell task template
+    fqdn_task = environment.from_string(template).render(cookiecutter={'domain_name': domain})
     (tmp_path / '.config').mkdir()
     (tmp_path / '.config' / 'mise.toml').write_text(
-        f"[tasks.tabr]\nrun = '''\n{tabr_task}'''\n\n[tasks.fqdn]\n{fqdn_task}\n"
+        f"""[tasks.tabr]\nrun = 'echo $TABR'\n\n[tasks.fqdn]\n{fqdn_task}\n"""
     )
-    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH']}
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH'], 'TABR': tabr}
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
     assert output == fqdn
 
@@ -490,6 +542,13 @@ def test_check_branch(tmp_path: Path):
         check_output(command, cwd=tmp_path, env=environment, stderr=STDOUT)
     assert error.value.output == (
         b'Branch names must use lowercase letters and digits separated by single hyphens.\n'
+    )
+
+    check_output(
+        command,
+        cwd=tmp_path,
+        env={**environment, 'GITHUB_REF_NAME': 'dispatch-branch'},
+        stderr=STDOUT,
     )
 
     # Arrange bad head reference
@@ -715,6 +774,22 @@ def test_rust_tool(languages: str, has_rust: bool):
         )
         .render(cookiecutter=SimpleNamespace(languages=languages))
     ) == has_rust
+
+
+@mark.parametrize('terraform', (False, True), ids=('measles', 'terraform-template'))
+def test_mise_postinstall_is_posix(terraform: bool):
+    root = Path(__file__).parent
+    if terraform:
+        template = (root / '{{cookiecutter.dot}}/.config/mise.j2.toml').read_text()
+        environment = Environment(autoescape=False)  # noqa: S701 shell task template
+        config = environment.from_string(template).render(
+            CONA='speedrun',
+            cookiecutter={'languages': 'Python,Terraform', 'python_version': '3.12'},
+        )
+    else:
+        config = (root / '.config/mise.toml').read_text()
+    hook = tomllib.loads(config)['hooks']['postinstall']
+    run(['shellcheck', '--shell=sh', '-'], check=True, input=hook, text=True)
 
 
 def test_post_gen_project_bash(tmp_path: Path):

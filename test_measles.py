@@ -187,6 +187,13 @@ def test_orgn_rejects_bad_characters(
         measles.orgn()
 
 
+def test_tabr_rejects_bad_characters(precise_environment: Callable[..., None]):
+    precise_environment(TABR='bad name')
+
+    with raises(ValueError, match=r"^Unexpected TABR characters: 'bad name'$"):
+        measles.tabr()
+
+
 def test_djlint_hash_jinja(capsys: CaptureFixture[str], tmp_path: Path):
     workflow = Path('{{cookiecutter.dot}}/.github/workflows/act.hj.yaml')
     assert translate(translate(workflow.read_text(), curly), hashed) == workflow.read_text()

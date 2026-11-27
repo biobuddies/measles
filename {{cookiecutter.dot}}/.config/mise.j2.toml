@@ -38,8 +38,8 @@ uv pip compile --all-extras --output-file requirements.txt --quiet \
     && uv venv --allow-existing --quiet \
     && uv pip sync requirements.txt --allow-empty-requirements --quiet \
     || uv_status=$?
-wait "$npm_pid"
-[ "$uv_status" -eq 0 ] || exit "$uv_status"
+wait $npm_pid
+[ $uv_status -eq 0 ] || exit $uv_status
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 mkdir -p ~/.local/share/gh/extensions
@@ -59,34 +59,61 @@ fi
 run = 'echo {{ CONA }}'
 
 [tasks.envi]
-run = """
+run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-if [[ ${ENVI-} ]]; then echo "$ENVI"
-elif [[ ${GITHUB_ACTIONS-} ]]; then echo github
-else echo local
-fi
-"""
+envi=local
+if [[ ${GITHUB_ACTIONS-} ]]; then envi=github; fi
+mise flan ENVI $envi
+'''
 
 [tasks.fqdn]
 {%- if cookiecutter.domain_name %}
 # Synchronize with .github/workflows/act.yaml:89 environment.url.
+{%- endif %}
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-tabr=$(mise tabr)
-[[ $tabr ]] || exit 0
-python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' "$tabr"
-'''
-{%- else %}
-run = ':'
+fqdn=${FQDN:-}
+{%- if cookiecutter.domain_name %}
+if [[ ! $fqdn ]]; then
+    tabr=$(mise tabr)
+    [[ $tabr ]] || exit 0
+    fqdn=$(python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' $tabr)
+fi
 {%- endif %}
+label='[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?'
+if [[ $fqdn && ! ${fqdn%%/*} =~ ^$label(\.$label)*\.?$ ]]; then
+    echo 'Invalid FQDN hostname' >&2
+    exit 1
+fi
+if [[ $fqdn == */* && ! ${fqdn#*/} =~ ^([A-Za-z0-9._~/-]|%[0-9A-Fa-f]{2})*$ ]]; then
+    echo 'Invalid FQDN path' >&2
+    exit 1
+fi
+echo $fqdn
+'''
 
 [tasks.giha]
-run = 'git describe --abbrev=40 --always --dirty --match=-'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+if [[ ${GIHA:-} ]]; then
+    if [[ ! $GIHA =~ ^[a-f0-9]{40}(-dirty)?$ ]]; then
+        echo 'GIHA must be a 40-character lowercase Git hash with an optional -dirty suffix.' >&2
+        exit 1
+    fi
+    # shellcheck disable=SC2086 # Characters checked above.
+    echo $GIHA
+else git describe --abbrev=40 --always --dirty --match=-
+fi
+'''
 
 [tasks.orgn]
-run = 'echo {{ ORGN }}'
+run = 'mise flan ORGN {{ ORGN }}'
+
+[tasks.role]
+run = 'mise flan ROLE'
 
 [tasks.run-on-sources]
 quiet = true
@@ -115,17 +142,43 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
+override=$(mise flan TABR)
+if [[ $override ]]; then
+    echo $override
+    exit 0
+fi
+tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n 1p) || {
     status=$?
     [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
 }
-if [[ $tag ]]; then echo "$tag"
-elif [[ ${GITHUB_HEAD_REF-} ]]; then echo "$GITHUB_HEAD_REF"
-elif [[ ${GITHUB_REF_NAME-} ]]; then echo "$GITHUB_REF_NAME"
+if [[ $tag ]]; then tag_or_branch=$tag
+elif [[ ${GITHUB_HEAD_REF-} ]]; then tag_or_branch=$GITHUB_HEAD_REF
+elif [[ ${GITHUB_REF_NAME-} ]]; then tag_or_branch=$GITHUB_REF_NAME
 else
-    git describe --all --dirty --exact-match 2>/dev/null \
-        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p' || [[ $? -eq 128 ]]
+    tag_or_branch=$(git describe --all --dirty --exact-match 2>/dev/null \
+        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p') || [[ $? -eq 128 ]]
 fi
+[[ $tag_or_branch ]] || exit 0
+TABR=$tag_or_branch mise flan TABR
+'''
+
+[tasks.flan]
+quiet = true
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+flan=$1
+if [[ ! $flan =~ ^[A-Z]{4}$ ]]; then
+    echo 'Expected a four-letter variable name' >&2
+    exit 1
+fi
+value=${!flan:-${2-}}
+if [[ $value && ! $value =~ ^[A-Za-z0-9._][A-Za-z0-9._-]*$ ]]; then
+    echo Invalid $flan name >&2
+    exit 1
+fi
+# shellcheck disable=SC2086 # Characters checked above.
+echo $value
 '''
 
 [tasks.tinit]
@@ -137,6 +190,10 @@ run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 action=${1:?missing action}
+if [[ ! $action =~ ^[a-z][a-z0-9-]*$ ]]; then
+    echo 'Invalid OpenTofu action' >&2
+    exit 1
+fi
 shift
 conas=$(ls deploys 2>/dev/null || true)
 if [[ ${1-} && -d deploys/$1/terraform ]]; then
@@ -158,18 +215,23 @@ if [[ ! $envi && $action =~ ^(apply|plan)$ ]]; then
     echo 'Missing envi' >&2
     exit 1
 fi
-python -m helicopyter --format_with="$INSH_TF" "$cona"
+CONA=$cona mise flan CONA >/dev/null
+[[ ! $envi ]] || ENVI=$envi mise flan ENVI >/dev/null
+python -m helicopyter --format_with="$INSH_TF" $cona
 if [[ $action == init ]]; then
-    "$INSH_TF" -chdir="deploys/$cona/terraform" init "$@"
+    "$INSH_TF" -chdir=deploys/$cona/terraform init "$@"
 else
-    "$INSH_TF" -chdir="deploys/$cona/terraform" init
+    "$INSH_TF" -chdir=deploys/$cona/terraform init
 fi
 # Just trying to create the workspace as needed
-[[ ! $envi ]] || "$INSH_TF" -chdir="deploys/$cona/terraform" workspace select -or-create "$envi"
+[[ ! $envi ]] || "$INSH_TF" -chdir=deploys/$cona/terraform workspace select -or-create $envi
 [[ $action != init ]] || exit 0
 # Always set TF_WORKSPACE explicitly; don't rely on this side effect
-TF_VAR_giha=$(mise giha) TF_VAR_tabr=$(mise tabr) TF_WORKSPACE=$envi \
-    "$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
+TF_VAR_giha=$(mise giha)
+TF_VAR_tabr=$(mise tabr)
+TF_WORKSPACE=$envi
+export TF_VAR_giha TF_VAR_tabr TF_WORKSPACE
+"$INSH_TF" -chdir=deploys/$cona/terraform $action "$@"
 """
 
 # Leaf tasks
@@ -260,14 +322,16 @@ fi
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-tabr=$(mise tabr)
+template=https://github.com/biobuddies/measles.git
 if [[ ${1-} =~ ^(-e|--edit)$ ]]; then
     template=${2:-$HOME/code/measles}
-elif [[ ${CONA-$(mise cona)} == measles && ${ORGN-$(mise orgn)} == biobuddies \
-    && $tabr != main ]]; then
-    template=.
 else
-    template=https://github.com/biobuddies/measles.git
+    cona=${CONA:-$(mise cona)}
+    orgn=$(mise orgn)
+    tabr=$(mise tabr)
+    if [[ $cona == measles && $orgn == biobuddies && $tabr != main ]]; then
+        template=.
+    fi
 fi
 cookiecutter --config-file .cookiecutter.yaml --no-input --overwrite-if-exists $template
 '''
@@ -355,7 +419,7 @@ run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 git rev-parse --is-inside-work-tree HEAD >/dev/null 2>&1 || exit 0
-emails_names=$(git log --format='%aE%x09%aN' --use-mailmap "$@" | sort --unique)
+emails_names=$(git log --format=%aE%x09%aN --use-mailmap "$@" | sort --unique)
 return_code=0
 for repeat in $(echo "$emails_names" | cut -f 1 | uniq --repeated); do
     echo "$emails_names" | grep "$repeat"
@@ -370,7 +434,8 @@ exit $return_code
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-[[ ${GITHUB_HEAD_REF:-$(git branch --show-current)} =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] && exit 0
+branch=${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-$(git branch --show-current)}}
+[[ $branch =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] && exit 0
 echo 'Branch names must use lowercase letters and digits separated by single hyphens.' >&2
 exit 1
 """
@@ -404,17 +469,15 @@ exit 1
 # Clone arguments and .cookiecutter.yaml peer_checkouts
 # Ensure ~/code/$CONA works (../$CONA doesn't everywhere)
 run = '''
-#!/usr/bin/env bash
-set -o errexit -o nounset -o pipefail
-commands=$(python - "$(mise envi)" "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
+#!/usr/bin/env python
 from pathlib import Path
-from shlex import join, quote
+from subprocess import check_call, check_output
 from sys import argv
 
 from yaml import safe_load
 
-envi, toplevel, *arguments = argv[1:]
-toplevel = Path(toplevel)
+envi = check_output(['mise', 'envi'], text=True).strip()
+toplevel = Path(check_output(['git', 'rev-parse', '--show-toplevel'], text=True).removesuffix('\n'))
 code = Path.home() / 'code'
 organizations = {
     'gitignore': 'github',
@@ -428,20 +491,20 @@ cookiecutter = toplevel / '.cookiecutter.yaml'
 required = (safe_load(cookiecutter.read_text()) if cookiecutter.exists() else {}).get(
     'default_context', {}
 ).get('peer_checkouts', [])
-print(join(['mkdir', '-p', str(code)]))
+code.mkdir(parents=True, exist_ok=True)
 paths = [toplevel]
-for peer in [*required, *arguments]:
+for peer in [*required, *argv[1:]]:
     repository, _, tabr = (peer if '@' in peer else f'{peer}@main').partition('@')
     repository = repository if '/' in repository else f'{organizations[repository]}/{repository}'
     paths.append(path := toplevel.parent / repository.split('/')[-1])
     # Adopt actions/checkout's nested path rather than cloning a duplicate
     nested = toplevel / path.name
-    if adopt := envi == 'github' and not path.exists() and (nested / '.git').exists():
-        print(join(['ln', '-s', str(nested), str(path)]))
-    print(
-        join(['git', '-C', str(path), 'fetch', 'origin', tabr])
-        if adopt or path.exists()
-        else join([
+    if envi == 'github' and not path.exists() and (nested / '.git').exists():
+        path.symlink_to(nested, target_is_directory=True)
+    if path.exists():
+        check_call(['git', '-C', str(path), 'fetch', '--', 'origin', tabr])
+    else:
+        check_call([
             'git',
             'clone',
             f'--branch={tabr}',
@@ -449,12 +512,10 @@ for peer in [*required, *arguments]:
             f'https://github.com/{repository}.git',
             str(path),
         ])
-    )
 for path in paths if toplevel.parent != code else []:
-    print(f'[[ -e {quote(str(code / path.name))} ]] || ' + join(['ln', '-s', str(path), str(code)]))
-EOD
-)
-eval "$commands"
+    link = code / path.name
+    if not link.exists():
+        link.symlink_to(path, target_is_directory=True)
 '''
 
 [tasks.prettier-write]
@@ -473,7 +534,7 @@ run = 'mise run-on-sources pyrefly "*.py{,i} :!*.j2.py" check "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-prefix=$(date -u '+v%Y.%-U.')
+prefix=$(date -u +v%Y.%-U.)
 git fetch --tags
 latest=$(git tag --list "$prefix*" --sort=-version:refname | head -1)
 count=${latest#"$prefix"}
@@ -482,22 +543,14 @@ git fetch --tags
 '''
 
 [tasks.set-environment]
-run = """
+run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-cat <<EOD | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
-CONA={{ CONA }}
-ENVI=$(mise envi)
-FQDN=$(mise fqdn)
-GIHA=$(mise giha)
-ORGN={{ ORGN }}
-ROLE=${ROLE-}
-TABR=$(mise tabr)
-EOD
-set -o allexport
-# shellcheck disable=SC1090
-source "${GITHUB_ENV:-/tmp/flan.ini}"
-"""
+for flan in cona envi fqdn giha orgn role tabr; do
+    value=$(mise $flan)
+    echo ${flan^^}=$value | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
+done
+'''
 
 [tasks.shellcheck]
 run = 'mise run-on-sources shellcheck "*.{bash,sh}" "$@"'
@@ -516,16 +569,23 @@ run = 'AUTOFORMAT_EXCLUDES=${AUTOFORMAT_EXCLUDES-} mise run-on-sources styleforc
 run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+cona=$(mise cona)
+envi=$(mise envi)
+fqdn=$(mise fqdn)
+giha=$(mise giha)
+orgn=$(mise orgn)
+role=$(mise role)
+tabr=$(mise tabr)
 cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | Unabbreviat. | FLAN | Value        |
 | ------------ | ---- | ------------ |
-| COdeNAme     | CONA | {{ CONA }} |
-| ENVIronment  | ENVI | $(mise envi) |
-| Fully Qualified Domain Name | FQDN | $(mise fqdn) |
-| GIt HAsH     | GIHA | $(mise giha) |
-| ORGanizatioN | ORGN | {{ ORGN }} |
-| ROLE         | ROLE | ${ROLE-} |
-| TAg/BRanch   | TABR | $(mise tabr) |
+| COdeNAme     | CONA | $cona |
+| ENVIronment  | ENVI | $envi |
+| Fully Qualified Domain Name | FQDN | $fqdn |
+| GIt HAsH     | GIHA | $giha |
+| ORGanizatioN | ORGN | $orgn |
+| ROLE         | ROLE | $role |
+| TAg/BRanch   | TABR | $tabr |
 EOD
 """
 
@@ -540,7 +600,7 @@ apply_output=$(NO_COLOR=1 TF_CLI_ARGS=-no-color mise tact apply "$@" 2>&1) || ap
 printf '%s\n' "$apply_output"
 printf '### OpenTofu apply\n\n```tf\n%s\n```\n' "$(mise tofu-trim <<< "$apply_output")" \
     >> "$GITHUB_STEP_SUMMARY"
-exit "$apply_status"
+exit $apply_status
 '''
 
 [tasks.test]
@@ -580,7 +640,7 @@ printf '%s\n' "$plan_output"
 mise tofu-trim <<< "$plan_output" >> "$plan_comment"
 printf '\n```\n' >> "$plan_comment"
 gh pr comment "$GITHUB_HEAD_REF" --create-if-none --edit-last --body-file "$plan_comment"
-exit "$plan_status"
+exit $plan_status
 '''
 
 [tasks.trailing-whitespace-fixer]
@@ -606,11 +666,12 @@ run = 'uv pip check "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+envi=$(mise envi)
 # Styleforce wheels require manylinux 2.28; uv's generic linux target assumes manylinux 2.17.
 uv pip compile --all-extras --output-file requirements.txt --quiet \
     --python-platform x86_64-manylinux_2_28 \
     --python-version {{ cookiecutter.python_version }} pyproject.toml "$@"
-[[ $(mise envi) != local ]] || git add requirements.txt
+[[ $envi != local ]] || git add requirements.txt
 '''
 
 [tasks.update-lock-files]
@@ -673,6 +734,7 @@ depends = [
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+envi=$(mise envi)
 # Concurrent writes can lose edits
 # * asottile's pre-commit is serial
 # * prek parallelizes within hand-assigned priority groups
@@ -681,7 +743,7 @@ mise fix-every-extension
 mise change-lines
 mise keep-lines
 # dup :435 tasks.pre-commit-all
-[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+[[ $envi == local ]] || { git diff --color=always --exit-code; exit $?; }
 # Stage once where the parallel run-on-sources tasks join; concurrent git add raced index.lock
 # dup :71 tasks.run-on-sources
 mapfile -t staged < <(
@@ -698,12 +760,13 @@ git diff --cached --quiet || echo Auto-staged modifications
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
+envi=$(mise envi)
 mise cookiecutter "$@"  # needs Internet
 mise pre-commit "$@"
 mise lychee  # Requires Internet
 mise update-lock-files  # needs Internet
 # dup :414 tasks.pre-commit
-[[ $(mise envi) == local ]] || { git diff --color=always --exit-code; exit $?; }
+[[ $envi == local ]] || { git diff --color=always --exit-code; exit $?; }
 git diff --cached --quiet || echo Auto-staged modifications
 '''
 

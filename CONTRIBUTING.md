@@ -4,6 +4,7 @@ programmer. Never waste time as Captain Obvious.
 Write self-documenting code as simply as possible. Functional, rule-of-three style is often
 simplest:
 * Define before use, close to use
+* Except when accumulating iteratively, prefer single static assignment
 * Inline single-use literals
 * For twice-used literals:
     - Rendered templates, tests, and migrations do not count as usages

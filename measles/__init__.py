@@ -23,6 +23,12 @@ from yaml import safe_load
 workdir = Path(getenv('PWD', '.'))
 
 
+def validate_name(field: str, value: str) -> str:
+    if fullmatch(r'[A-Za-z0-9._][A-Za-z0-9._-]*', value):
+        return value
+    raise ValueError(f'Unexpected {field} characters: {value!r}')
+
+
 def cona() -> str:
     """COde NAme, a four-letter abbreviation."""
     cona = getenv('CONA', '')
@@ -40,9 +46,7 @@ def cona() -> str:
     if not cona and (virtual_environment := getenv('VIRTUAL_ENV')):
         cona = Path(virtual_environment).parent.name
     cona = cona or workdir.resolve().name
-    if fullmatch(r'[A-Za-z0-9._-]+', cona):
-        return cona
-    raise ValueError(f'Unexpected CONA characters: {cona!r}')
+    return validate_name('CONA', cona)
 
 
 def orgn() -> str:
@@ -64,9 +68,17 @@ def orgn() -> str:
             orgn = owner.group(1)
         else:
             raise ValueError(f'Unexpected origin URL: {remote!r}')
-    if fullmatch(r'[A-Za-z0-9._-]+', orgn):
-        return orgn
-    raise ValueError(f'Unexpected ORGN characters: {orgn!r}')
+    return validate_name('ORGN', orgn)
+
+
+def tabr() -> str:
+    tabr = (
+        getenv('TABR')
+        or run(
+            ['mise', 'tabr'], capture_output=True, check=False, cwd=workdir, text=True
+        ).stdout.strip()
+    )
+    return validate_name('TABR', tabr) if tabr else ''
 
 
 def gitignore(languages: str) -> str:
@@ -159,9 +171,7 @@ class Measles(Extension):
         environment.globals.update({
             'CONA': cona(),
             'ORGN': orgn(),
-            'TABR': run(
-                ['mise', 'tabr'], capture_output=True, check=False, cwd=workdir, text=True
-            ).stdout.strip(),
+            'TABR': tabr(),
             'classifiers': default_context.get('classifiers', []),
             'gitignore': gitignore,
             'github_actions_env': (

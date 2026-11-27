@@ -35,6 +35,7 @@ provenance = "github-attestations"
 version = "0.23.0"
 backend = "aqua:lycheeverse/lychee"
 specifiers = ["0.23.0"]
+unsupported_platforms = ["macos-x64"]
 
 [tools.lychee."platforms.linux-arm64"]
 checksum = "sha256:97eb93b02a7d78a752fc33e5b0983439ccaadbf3db952b68a0a4401acd92e6e0"

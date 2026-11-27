@@ -23,54 +23,91 @@ permissions:
 jobs:
     # Root jobs
     check:
+        permissions:
+            actions: write
+            contents: write
+        outputs:
+            committed: ${{ steps.generate.outputs.committed }}
         runs-on: ubuntu-latest
         steps:
-            # Real hash is head_ref on pull_request, ref on push
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref || github.ref }}
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
                   submodules: true
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
                   log_level: error
             - run: mise set-environment
-            - run: mise pre-commit-all
+            - name: Check and commit generated changes
+              id: generate
+              env:
+                  AUTO_COMMIT: ${{ github.event_name == 'pull_request'
+                      && github.event.pull_request.head.repo.full_name == github.repository
+                      && github.head_ref != 'main' }}
+              run: |
+                  if [[ $AUTO_COMMIT == true ]]; then
+                      # Let pre-commit-all finish after generating a diff.
+                      export ENVI=local
+                  fi
+
+                  mise pre-commit-all
+                  if [[ $AUTO_COMMIT != true ]] || git diff --quiet HEAD --; then
+                      exit 0
+                  fi
+
+                  git add --update
+                  git -c user.name='github-actions[bot]' \
+                      -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                      commit -m Autoformat
+                  echo committed=true >> "$GITHUB_OUTPUT"
+            - name: Push and rerun on the generated commit
+              if: steps.generate.outputs.committed == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  mise check-branch
+                  # shellcheck disable=SC2086 # Branch checked by mise check-branch.
+                  git push origin HEAD:refs/heads/$GITHUB_HEAD_REF
+                  # A PR run from a GITHUB_TOKEN push would require approval.
+                  # shellcheck disable=SC2086 # Branch checked by mise check-branch.
+                  gh workflow run act.yaml --ref $GITHUB_HEAD_REF
     tabularize:
         runs-on: ubuntu-latest
         steps:
-            # Real hash is head_ref on pull_request, ref on push
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref || github.ref }}
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
                   submodules: true
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
                   log_level: error
                   install: false
+            - run: mise set-environment
             - run: mise tabularize
     test:
         runs-on: ubuntu-latest
         steps:
-            # Real hash is head_ref on pull_request, ref on push
             - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
-                  ref: ${{ github.head_ref || github.ref }}
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
                   submodules: true
             - uses: jdx/mise-action@v4
               with:
                   experimental: true
                   log_level: error
+            - run: mise set-environment
             - run: mise checkout
             - run: mise test
 
     # Leaf jobs
     build-deploy:
         needs: [check, test]
+        if: needs.check.outputs.committed != 'true'
         permissions:
             contents: write
             #% if 'terraform' in cookiecutter.languages.lower().split(',') %#
@@ -104,19 +141,27 @@ jobs:
               with:
                   experimental: true
                   log_level: error
-            # TABR is the branch, so FQDN is the preview or production domain
             - run: mise set-environment
             - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               env:
                   GH_TOKEN: ${{ github.token }}
-              run: mise release
-            # HEAD is tagged: TABR is now the tag
+              run: |
+                  mise release
+                  tabr=$(env -u TABR mise tabr)
+                  # shellcheck disable=SC2086 # Characters checked by mise tabr.
+                  echo TABR=$tabr >> "$GITHUB_ENV"
             - run: mise build
-            - run: mise deploy "${{ github.head_ref || github.ref_name }}"
+            - env:
+                  ENVI: ${{ github.head_ref || github.ref_name }}
+              run: |
+                  ENVI=$(mise envi)
+                  # shellcheck disable=SC2086 # Characters checked by mise envi.
+                  mise deploy $ENVI
             - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
-                  git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod
+                  # shellcheck disable=SC2086 # git ls-remote supplies a SHA or an empty value.
+                  git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod
 
 on: # yamllint disable-line rule:truthy
     pull_request:

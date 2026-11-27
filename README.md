@@ -38,7 +38,7 @@ Each file ends with its final suffix, so editors offering one syntax highlighter
 form's. An infix marks the template syntax:
 
 - `.j2.` for regular Jinja2, such as `pyproject.j2.toml`
-- `.hj.` for hash Jinja, such as `act.hj.yaml`, which hides Jinja in YAML comments so prettier
+- `.hj.` for Hash Jinja, such as `act.hj.yaml`, which hides Jinja in YAML comments so `prettier`
   can autoformat the template
 
 Hash Jinja configuration, from `measles/__init__.py`:
@@ -72,6 +72,28 @@ hash_jinja = {
 Until `main` has `.github/workflows/act.yaml`, rendering adds `TABR` to its `push`
 triggers, so a bootstrap branch runs act before its pull request merges. Once `origin/main` has
 the workflow, the next render drops that branch.
+
+## GitHub Actions
+
+```mermaid
+flowchart TD
+    Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check[" `mise pre-commit-all` (check)"]
+    Context --> Test[" `mise test`"]
+    Check -- "Generated diff" --> Retry["Commit and rerun"]
+    Retry --> Context
+    Check -- Fail --> Stop["Stop"]
+    Test -- Fail --> Stop
+    Check -- "Clean pass" --> BuildDeploy["Check and test pass"]
+    Test -- Pass --> BuildDeploy
+    BuildDeploy -- "Push to main" --> Release[" `mise release` (build-deploy), refresh $TABR"]
+    BuildDeploy -- Otherwise --> Build[" `mise build` (build-deploy)"]
+    Release --> Build
+    Build --> Deploy[" `mise deploy $ENVI` (build-deploy)"]
+    Deploy -- "Terraform PR" --> Plan[" `mise tplan main` (PR comment)"]
+    Plan --> Apply[" `mise tapply $ENVI`"]
+    Deploy -- "Other Terraform runs" --> Apply
+    Deploy -- "PyPI, ENVI=main" --> Publish[" `uv publish`"]
+```
 
 ## Agent Sandboxes
 
