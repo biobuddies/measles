@@ -94,6 +94,26 @@ def test_empty_envi_uses_default(actions: str, expected: bytes):
     assert check_output(['mise', 'envi'], env=env) == expected
 
 
+@mark.parametrize(
+    ('fqdn', 'error'),
+    (
+        ('my_host.example/path', b'Invalid FQDN hostname'),
+        ('example.com:-1/path', b'Invalid FQDN hostname'),
+        ('example.com/bad%xx', b'Invalid FQDN path'),
+        ('example.com./path_with_underscore/~user%20name', b''),
+    ),
+)
+def test_fqdn_hostname_and_path(fqdn: str, error: bytes):
+    command = ['mise', 'fqdn']
+    env = {**environ, 'FQDN': fqdn}
+    if error:
+        with raises(CalledProcessError) as result:
+            check_output(command, env=env, stderr=STDOUT)
+        assert error in result.value.output
+    else:
+        assert check_output(command, env=env) == f'{fqdn}\n'.encode()
+
+
 @mark.parametrize('suffix', ('', '-dirty'))
 def test_giha_override(suffix: str):
     value = 'a' * 40 + suffix
@@ -312,6 +332,7 @@ def test_cookiecutter(case: tuple[str, dict[str, str], str, list[str], str]):
         ('my-feature', '', ''),
         ('my-feature', 'cov.ing', 'my-feature.cov.ing'),
         ('my-feature', 'cov.ing/covey/', 'my-feature.cov.ing/covey/'),
+        ('my-feature', 'cov.ing/path_with_underscore/', 'my-feature.cov.ing/path_with_underscore/'),
         ('my-feature', 'rt.biobuddi.es/', 'rt-my-feature.biobuddi.es/'),
         ('my-feature', 'localhost', 'my-feature.localhost'),
         ('main', 'rt.biobuddi.es/', 'rt.biobuddi.es/'),

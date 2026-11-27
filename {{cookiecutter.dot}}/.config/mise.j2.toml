@@ -82,8 +82,13 @@ if [[ ! $fqdn ]]; then
     fqdn=$(python -m helicopyter fqdn '{{ cookiecutter.domain_name }}' $tabr)
 fi
 {%- endif %}
-if [[ $fqdn && ! $fqdn =~ ^[A-Za-z0-9][A-Za-z0-9._/%~:-]*$ ]]; then
-    echo 'Invalid FQDN' >&2
+label='[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?'
+if [[ $fqdn && ! ${fqdn%%/*} =~ ^$label(\.$label)*\.?$ ]]; then
+    echo 'Invalid FQDN hostname' >&2
+    exit 1
+fi
+if [[ $fqdn == */* && ! ${fqdn#*/} =~ ^([A-Za-z0-9._~/-]|%[0-9A-Fa-f]{2})*$ ]]; then
+    echo 'Invalid FQDN path' >&2
     exit 1
 fi
 echo $fqdn
