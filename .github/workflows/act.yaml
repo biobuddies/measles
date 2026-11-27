@@ -71,12 +71,10 @@ jobs:
               if: steps.generate.outputs.committed == 'true'
               env:
                   GH_TOKEN: ${{ github.token }}
-                  ORIGINAL_HEAD: ${{ github.event.pull_request.head.sha }}
               run: |
                   mise check-branch
-                  branch=refs/heads/$GITHUB_HEAD_REF
-                  # shellcheck disable=SC2086 # Branch checked above. ORIGINAL_HEAD is a GitHub SHA.
-                  git push --force-with-lease=$branch:$ORIGINAL_HEAD origin HEAD:$branch
+                  # shellcheck disable=SC2086 # Branch checked by mise check-branch.
+                  git push origin HEAD:refs/heads/$GITHUB_HEAD_REF
                   # A PR run from a GITHUB_TOKEN push would require approval.
                   # shellcheck disable=SC2086 # Branch checked by mise check-branch.
                   gh workflow run act.yaml --ref $GITHUB_HEAD_REF
