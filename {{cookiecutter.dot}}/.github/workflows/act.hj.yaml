@@ -155,7 +155,9 @@ jobs:
                   tabr=$(env -u TABR mise tabr)
                   echo "TABR=$tabr" >> "$GITHUB_ENV"
             - run: mise build
-            - run: mise deploy "${{ github.head_ref || github.ref_name }}"
+            - env:
+                  ENVI: ${{ github.head_ref || github.ref_name }}
+              run: mise deploy $ENVI
             - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)

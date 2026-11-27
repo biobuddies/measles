@@ -234,7 +234,10 @@ def test_new_repository_not_django(
     steps = assert_yaml('jobs.build-deploy.steps')
     assert_yaml('jobs.build-deploy.needs', ['check', 'test'])
     assert steps[3]['run'].startswith('mise release\n')
-    assert steps[5]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
+    assert steps[5] == {
+        'env': {'ENVI': '${{ github.head_ref || github.ref_name }}'},
+        'run': 'mise deploy $ENVI',
+    }
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
         in steps[6]['run']
@@ -332,7 +335,10 @@ def test_new_repository_publishes_to_pypi(
         'run': 'mise release\ntabr=$(env -u TABR mise tabr)\necho "TABR=$tabr" >> "$GITHUB_ENV"\n',
     }
     assert steps[4]['run'] == 'mise build'
-    assert steps[5]['run'] == 'mise deploy "${{ github.head_ref || github.ref_name }}"'
+    assert steps[5] == {
+        'env': {'ENVI': '${{ github.head_ref || github.ref_name }}'},
+        'run': 'mise deploy $ENVI',
+    }
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
         in steps[6]['run']
