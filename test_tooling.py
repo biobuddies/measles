@@ -8,7 +8,7 @@ from json import loads
 from os import environ, getenv
 from pathlib import Path
 from re import match
-from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output
+from subprocess import DEVNULL, STDOUT, CalledProcessError, check_call, check_output, run
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from types import SimpleNamespace
@@ -753,6 +753,21 @@ def test_rust_tool(languages: str, has_rust: bool):
         )
         .render(cookiecutter=SimpleNamespace(languages=languages))
     ) == has_rust
+
+
+@mark.parametrize('terraform', (False, True), ids=('measles', 'terraform-template'))
+def test_mise_postinstall_is_posix(terraform: bool):
+    root = Path(__file__).parent
+    if terraform:
+        template = (root / '{{cookiecutter.dot}}/.config/mise.j2.toml').read_text()
+        environment = Environment(autoescape=False)  # noqa: S701 shell task template
+        config = environment.from_string(template).render(
+            CONA='speedrun', cookiecutter={'languages': 'Python,Terraform', 'python_version': '3.12'}
+        )
+    else:
+        config = (root / '.config/mise.toml').read_text()
+    hook = tomllib.loads(config)['hooks']['postinstall']
+    run(['shellcheck', '--shell=sh', '-'], check=True, input=hook, text=True)
 
 
 def test_post_gen_project_bash(tmp_path: Path):
