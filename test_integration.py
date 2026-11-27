@@ -236,7 +236,7 @@ def test_new_repository_not_django(
     assert steps[3]['run'].startswith('mise release\n')
     assert steps[5] == {
         'env': {'ENVI': '${{ github.head_ref || github.ref_name }}'},
-        'run': 'mise deploy $ENVI',
+        'run': 'mise deploy "$ENVI"',
     }
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
@@ -337,7 +337,7 @@ def test_new_repository_publishes_to_pypi(
     assert steps[4]['run'] == 'mise build'
     assert steps[5] == {
         'env': {'ENVI': '${{ github.head_ref || github.ref_name }}'},
-        'run': 'mise deploy $ENVI',
+        'run': 'mise deploy "$ENVI"',
     }
     assert (
         'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'

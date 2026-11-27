@@ -157,7 +157,7 @@ jobs:
             - run: mise build
             - env:
                   ENVI: ${{ github.head_ref || github.ref_name }}
-              run: mise deploy $ENVI
+              run: mise deploy "$ENVI"
             - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
