@@ -77,19 +77,19 @@ the workflow, the next render drops that branch.
 
 ```mermaid
 flowchart TD
-    Context[" `mise set-environment` → $ENVI, $GIHA, $TABR"] --> Check["check · `mise pre-commit-all` → `prettier`"]
-    Context --> Test["test · `mise test`"]
-    Check -- "Generated diff" --> Retry["Commit → clean retry → push and dispatch"]
+    Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check["check: `mise pre-commit-all` (including `prettier`)"]
+    Context --> Test["test: `mise test`"]
+    Check -- "Generated diff" --> Retry["Commit, retry, push, dispatch"]
     Retry --> Context
     Check -- Fail --> Stop["Stop"]
     Test -- Fail --> Stop
-    Check -- "Clean pass" --> BuildDeploy["build-deploy · needs check and test"]
+    Check -- "Clean pass" --> BuildDeploy["build-deploy"]
     Test -- Pass --> BuildDeploy
-    BuildDeploy -- "Push to main" --> Release[" `mise release` → refresh $TABR"]
-    BuildDeploy -- Otherwise --> Build[" `mise build`"]
+    BuildDeploy -- "Push to main" --> Release["build-deploy: `mise release` (refresh $TABR)"]
+    BuildDeploy -- Otherwise --> Build["build-deploy: `mise build`"]
     Release --> Build
-    Build --> Deploy[" `mise deploy BRANCH` · PR branch or event ref"]
-    Deploy -- "Terraform PR" --> Plan[" `mise tplan main` → PR comment"]
+    Build --> Deploy["build-deploy: `mise deploy BRANCH` (PR branch or event ref)"]
+    Deploy -- "Terraform PR" --> Plan[" `mise tplan main` (PR comment)"]
     Plan --> Apply[" `mise tapply BRANCH`"]
     Deploy -- "Other Terraform runs" --> Apply
     Deploy -- "PyPI, BRANCH=main" --> Publish[" `uv publish`"]
