@@ -762,7 +762,8 @@ def test_mise_postinstall_is_posix(terraform: bool):
         template = (root / '{{cookiecutter.dot}}/.config/mise.j2.toml').read_text()
         environment = Environment(autoescape=False)  # noqa: S701 shell task template
         config = environment.from_string(template).render(
-            CONA='speedrun', cookiecutter={'languages': 'Python,Terraform', 'python_version': '3.12'}
+            CONA='speedrun',
+            cookiecutter={'languages': 'Python,Terraform', 'python_version': '3.12'},
         )
     else:
         config = (root / '.config/mise.toml').read_text()
