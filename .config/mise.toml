@@ -36,8 +36,8 @@ uv pip compile --all-extras --output-file requirements.txt --quiet \
     && uv venv --allow-existing --quiet \
     && uv pip sync requirements.txt --allow-empty-requirements --quiet \
     || uv_status=$?
-wait "$npm_pid"
-[ "$uv_status" -eq 0 ] || exit "$uv_status"
+wait $npm_pid
+[[ $uv_status -eq 0 ]] || exit $uv_status
 mise generate pre-commit > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 mkdir -p ~/.local/share/gh/extensions
@@ -58,7 +58,16 @@ mise flan ENVI $envi
 '''
 
 [tasks.fqdn]
-run = 'echo "${FQDN:-}"'
+run = '''
+#!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
+fqdn=${FQDN:-}
+if [[ $fqdn && ! $fqdn =~ ^[A-Za-z0-9][A-Za-z0-9._/%~:-]*$ ]]; then
+    echo 'Invalid FQDN' >&2
+    exit 1
+fi
+echo $fqdn
+'''
 
 [tasks.giha]
 run = '''
@@ -69,7 +78,8 @@ if [[ ${GIHA:-} ]]; then
         echo 'GIHA must be a 40-character lowercase Git hash with an optional -dirty suffix.' >&2
         exit 1
     fi
-    echo "$GIHA"
+    # shellcheck disable=SC2086 # Characters checked above.
+    echo $GIHA
 else git describe --abbrev=40 --always --dirty --match=-
 fi
 '''
@@ -78,7 +88,7 @@ fi
 run = 'mise flan ORGN biobuddies'
 
 [tasks.role]
-run = 'mise flan ROLE ""'
+run = 'mise flan ROLE'
 
 [tasks.run-on-sources]
 quiet = true
@@ -107,22 +117,24 @@ set -- $(
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-override=$(mise flan TABR '')
+override=$(mise flan TABR)
 if [[ $override ]]; then
     echo $override
     exit 0
 fi
-tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n '1p') || {
+tag=$(git tag --points-at HEAD --sort=-refname 2>/dev/null | sed -n 1p) || {
     status=$?
     [[ $status == 128 || $status == 129 ]]  # no commits yet or unsupported tag options
 }
-if [[ $tag ]]; then echo "$tag"
-elif [[ ${GITHUB_HEAD_REF-} ]]; then echo "$GITHUB_HEAD_REF"
-elif [[ ${GITHUB_REF_NAME-} ]]; then echo "$GITHUB_REF_NAME"
+if [[ $tag ]]; then tag_or_branch=$tag
+elif [[ ${GITHUB_HEAD_REF-} ]]; then tag_or_branch=$GITHUB_HEAD_REF
+elif [[ ${GITHUB_REF_NAME-} ]]; then tag_or_branch=$GITHUB_REF_NAME
 else
-    git describe --all --dirty --exact-match 2>/dev/null \
-        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p' || [[ $? -eq 128 ]]
+    tag_or_branch=$(git describe --all --dirty --exact-match 2>/dev/null \
+        | sed -En '/-dirty$/ q; s,(remotes/[^/]+|heads|tags)/,,p') || [[ $? -eq 128 ]]
 fi
+[[ $tag_or_branch ]] || exit 0
+TABR=$tag_or_branch mise flan TABR
 '''
 
 [tasks.flan]
@@ -131,12 +143,17 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 flan=$1
-value=${!flan:-$2}
-if [[ $value && ! $value =~ ^[A-Za-z0-9._][A-Za-z0-9._-]*$ ]]; then
-    echo "Invalid $flan name" >&2
+if [[ ! $flan =~ ^[A-Z]{4}$ ]]; then
+    echo 'Expected a four-letter variable name' >&2
     exit 1
 fi
-echo "$value"
+value=${!flan:-${2-}}
+if [[ $value && ! $value =~ ^[A-Za-z0-9._][A-Za-z0-9._-]*$ ]]; then
+    echo Invalid $flan name >&2
+    exit 1
+fi
+# shellcheck disable=SC2086 # Characters checked above.
+echo $value
 '''
 
 [tasks.tinit]
@@ -148,6 +165,10 @@ run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 action=${1:?missing action}
+if [[ ! $action =~ ^[a-z][a-z0-9-]*$ ]]; then
+    echo 'Invalid OpenTofu action' >&2
+    exit 1
+fi
 shift
 conas=$(ls deploys 2>/dev/null || true)
 if [[ ${1-} && -d deploys/$1/terraform ]]; then
@@ -169,21 +190,23 @@ if [[ ! $envi && $action =~ ^(apply|plan)$ ]]; then
     echo 'Missing envi' >&2
     exit 1
 fi
-python -m helicopyter --format_with="$INSH_TF" "$cona"
+CONA=$cona mise flan CONA >/dev/null
+[[ ! $envi ]] || ENVI=$envi mise flan ENVI >/dev/null
+python -m helicopyter --format_with="$INSH_TF" $cona
 if [[ $action == init ]]; then
-    "$INSH_TF" -chdir="deploys/$cona/terraform" init "$@"
+    "$INSH_TF" -chdir=deploys/$cona/terraform init "$@"
 else
-    "$INSH_TF" -chdir="deploys/$cona/terraform" init
+    "$INSH_TF" -chdir=deploys/$cona/terraform init
 fi
 # Just trying to create the workspace as needed
-[[ ! $envi ]] || "$INSH_TF" -chdir="deploys/$cona/terraform" workspace select -or-create "$envi"
+[[ ! $envi ]] || "$INSH_TF" -chdir=deploys/$cona/terraform workspace select -or-create $envi
 [[ $action != init ]] || exit 0
 # Always set TF_WORKSPACE explicitly; don't rely on this side effect
 TF_VAR_giha=$(mise giha)
 TF_VAR_tabr=$(mise tabr)
 TF_WORKSPACE=$envi
 export TF_VAR_giha TF_VAR_tabr TF_WORKSPACE
-"$INSH_TF" -chdir="deploys/$cona/terraform" "$action" "$@"
+"$INSH_TF" -chdir=deploys/$cona/terraform $action "$@"
 """
 
 # Leaf tasks
@@ -354,7 +377,7 @@ run = """
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 git rev-parse --is-inside-work-tree HEAD >/dev/null 2>&1 || exit 0
-emails_names=$(git log --format='%aE%x09%aN' --use-mailmap "$@" | sort --unique)
+emails_names=$(git log --format=%aE%x09%aN --use-mailmap "$@" | sort --unique)
 return_code=0
 for repeat in $(echo "$emails_names" | cut -f 1 | uniq --repeated); do
     echo "$emails_names" | grep "$repeat"
@@ -398,7 +421,7 @@ run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
 envi=$(mise envi)
-commands=$(python - "$envi" "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
+commands=$(python - $envi "$(git rev-parse --show-toplevel)" "$@" <<'EOD'
 from pathlib import Path
 from shlex import join, quote
 from sys import argv
@@ -465,7 +488,7 @@ run = 'mise run-on-sources pyrefly "*.py{,i} :!*.j2.py" check "$@"'
 run = '''
 #!/usr/bin/env bash
 set -o errexit -o nounset -o pipefail
-prefix=$(date -u '+v%Y.%-U.')
+prefix=$(date -u +v%Y.%-U.)
 git fetch --tags
 latest=$(git tag --list "$prefix*" --sort=-version:refname | head -1)
 count=${latest#"$prefix"}
@@ -479,7 +502,7 @@ run = '''
 set -o errexit -o nounset -o pipefail
 for flan in cona envi fqdn giha orgn role tabr; do
     value=$(mise $flan)
-    echo "${flan^^}=$value" | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
+    echo ${flan^^}=$value | tee -a "${GITHUB_ENV:-/tmp/flan.ini}"
 done
 '''
 
@@ -502,6 +525,7 @@ run = """
 set -o errexit -o nounset -o pipefail
 cona=$(mise cona)
 envi=$(mise envi)
+fqdn=$(mise fqdn)
 giha=$(mise giha)
 orgn=$(mise orgn)
 role=$(mise role)
@@ -511,7 +535,7 @@ cat <<EOD | tee "${GITHUB_STEP_SUMMARY:-/dev/null}"
 | ------------ | ---- | ------------ |
 | COdeNAme     | CONA | $cona |
 | ENVIronment  | ENVI | $envi |
-| Fully Qualified Domain Name | FQDN | $(mise fqdn) |
+| Fully Qualified Domain Name | FQDN | $fqdn |
 | GIt HAsH     | GIHA | $giha |
 | ORGanizatioN | ORGN | $orgn |
 | ROLE         | ROLE | $role |
@@ -530,7 +554,7 @@ apply_output=$(NO_COLOR=1 TF_CLI_ARGS=-no-color mise tact apply "$@" 2>&1) || ap
 printf '%s\n' "$apply_output"
 printf '### OpenTofu apply\n\n```tf\n%s\n```\n' "$(mise tofu-trim <<< "$apply_output")" \
     >> "$GITHUB_STEP_SUMMARY"
-exit "$apply_status"
+exit $apply_status
 '''
 
 [tasks.test]
@@ -570,7 +594,7 @@ printf '%s\n' "$plan_output"
 mise tofu-trim <<< "$plan_output" >> "$plan_comment"
 printf '\n```\n' >> "$plan_comment"
 gh pr comment "$GITHUB_HEAD_REF" --create-if-none --edit-last --body-file "$plan_comment"
-exit "$plan_status"
+exit $plan_status
 '''
 
 [tasks.trailing-whitespace-fixer]

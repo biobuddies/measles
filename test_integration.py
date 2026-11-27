@@ -236,10 +236,14 @@ def test_new_repository_not_django(
     assert steps[3]['run'].startswith('mise release\n')
     assert steps[5] == {
         'env': {'ENVI': '${{ github.head_ref || github.ref_name }}'},
-        'run': 'mise deploy "$ENVI"',
+        'run': (
+            'ENVI=$(mise envi)\n'
+            '# shellcheck disable=SC2086 # Characters checked by mise envi.\n'
+            'mise deploy $ENVI\n'
+        ),
     }
     assert (
-        'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
+        'git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod'
         in steps[6]['run']
     )
 
@@ -332,15 +336,24 @@ def test_new_repository_publishes_to_pypi(
     assert steps[3] == {
         'env': {'GH_TOKEN': '${{ github.token }}'},
         'if': "github.event_name == 'push' && github.ref == 'refs/heads/main'",
-        'run': 'mise release\ntabr=$(env -u TABR mise tabr)\necho "TABR=$tabr" >> "$GITHUB_ENV"\n',
+        'run': (
+            'mise release\n'
+            'tabr=$(env -u TABR mise tabr)\n'
+            '# shellcheck disable=SC2086 # Characters checked by mise tabr.\n'
+            'echo TABR=$tabr >> "$GITHUB_ENV"\n'
+        ),
     }
     assert steps[4]['run'] == 'mise build'
     assert steps[5] == {
         'env': {'ENVI': '${{ github.head_ref || github.ref_name }}'},
-        'run': 'mise deploy "$ENVI"',
+        'run': (
+            'ENVI=$(mise envi)\n'
+            '# shellcheck disable=SC2086 # Characters checked by mise envi.\n'
+            'mise deploy $ENVI\n'
+        ),
     }
     assert (
-        'git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod'
+        'git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod'
         in steps[6]['run']
     )
 

@@ -66,7 +66,7 @@ def test_flan_name_override(task: str):
     assert output == b'preview-2\n'
 
 
-@mark.parametrize('flan', ('ENVI', 'GIHA', 'ORGN', 'ROLE', 'TABR'))
+@mark.parametrize('flan', ('ENVI', 'FQDN', 'GIHA', 'ORGN', 'ROLE', 'TABR'))
 @mark.parametrize('task', ('set-environment', 'tabularize'))
 def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
     env = {
@@ -79,8 +79,8 @@ def test_invalid_flan_stops_task(flan: str, task: str, tmp_path: Path):
         check_output(['mise', task], env=env)
 
 
-@mark.parametrize('value', ('-n', 'two words'))
-@mark.parametrize('task', ('envi', 'role'))
+@mark.parametrize('value', ('-n', 'two words', 'one;two', 'foo*'))
+@mark.parametrize('task', ('envi', 'fqdn', 'role'))
 def test_invalid_flan_name(task: str, value: str):
     with raises(CalledProcessError) as error:
         check_output(['mise', task], env={**environ, task.upper(): value})
@@ -113,6 +113,11 @@ def replaced_mise_task(name: str, replacements: dict[str, str]) -> str:
     return task
 
 
+def tabr_with_local_flan(**replacements: str) -> str:
+    tabr = replaced_mise_task('tabr', {'mise flan TABR': 'flan TABR', **replacements})
+    return f'flan() {{\n{verbatim_mise_task("flan")}\n}}\n{tabr}'
+
+
 @mark.parametrize(
     ('git_describe', 'tabr'),
     (
@@ -131,13 +136,9 @@ def test_tabr(git_describe: str, tabr: str):
                 '/usr/bin/env',
                 'bash',
                 '-c',
-                replaced_mise_task(
-                    'tabr',
-                    {
-                        "mise flan TABR ''": ':',
-                        'git describe --all --dirty --exact-match': f'echo "{git_describe}"',
-                    },
-                ),
+                tabr_with_local_flan(**{
+                    'git describe --all --dirty --exact-match': f'echo {git_describe}',
+                }),
             ],
             env={},
         )
@@ -235,7 +236,7 @@ def test_tabr_prefers_latest_tag(tmp_path: Path):
         check_call(['git', 'tag', tag], cwd=tmp_path)
     assert (
         check_output(
-            ['/usr/bin/env', 'bash', '-c', replaced_mise_task('tabr', {"mise flan TABR ''": ':'})],
+            ['/usr/bin/env', 'bash', '-c', tabr_with_local_flan()],
             cwd=tmp_path,
             env={'GITHUB_REF_NAME': 'main', 'PATH': environ['PATH']},
         )
@@ -330,17 +331,10 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
         .split('[tasks.fqdn]\n', 1)[1]
         .split('[tasks.giha]')[0]
     )
-    with_domain, without_domain = template.split('{%- else %}', 1)
-    fqdn_task = (
-        with_domain.replace('{%- if cookiecutter.domain_name %}', '').replace(
-            '{{ cookiecutter.domain_name }}', domain
-        )
-        if domain
-        else without_domain.replace('{%- endif %}', '')
-    )
+    fqdn_task = Environment().from_string(template).render(cookiecutter={'domain_name': domain})
     (tmp_path / '.config').mkdir()
     (tmp_path / '.config' / 'mise.toml').write_text(
-        f"""[tasks.tabr]\nrun = 'echo "$TABR"'\n\n[tasks.fqdn]\n{fqdn_task}\n"""
+        f"""[tasks.tabr]\nrun = 'echo $TABR'\n\n[tasks.fqdn]\n{fqdn_task}\n"""
     )
     env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH'], 'TABR': tabr}
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()

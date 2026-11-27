@@ -46,7 +46,7 @@ jobs:
                       && github.event.pull_request.head.repo.full_name == github.repository
                       && github.head_ref != github.event.repository.default_branch }}
               run: |
-                  if [[ "$AUTO_COMMIT" != true ]]; then
+                  if [[ $AUTO_COMMIT != true ]]; then
                       mise pre-commit-all
                       exit
                   fi
@@ -54,7 +54,7 @@ jobs:
                   status=0
                   mise pre-commit-all || status=$?
                   if git diff --quiet HEAD --; then
-                      exit "$status"
+                      exit $status
                   fi
 
                   git add --update
@@ -66,17 +66,20 @@ jobs:
                   export GIHA TABR
                   mise pre-commit-all
                   git diff --exit-code HEAD --
-                  echo 'committed=true' >> "$GITHUB_OUTPUT"
+                  echo committed=true >> "$GITHUB_OUTPUT"
             - name: Push and rerun on the generated commit
               if: steps.generate.outputs.committed == 'true'
               env:
                   GH_TOKEN: ${{ github.token }}
                   ORIGINAL_HEAD: ${{ github.event.pull_request.head.sha }}
               run: |
-                  branch="refs/heads/$GITHUB_HEAD_REF"
-                  git push --force-with-lease="$branch:$ORIGINAL_HEAD" origin "HEAD:$branch"
+                  mise check-branch
+                  branch=refs/heads/$GITHUB_HEAD_REF
+                  # shellcheck disable=SC2086 # Branch checked above. ORIGINAL_HEAD is a GitHub SHA.
+                  git push --force-with-lease=$branch:$ORIGINAL_HEAD origin HEAD:$branch
                   # PR runs from GITHUB_TOKEN pushes require approval.
-                  gh workflow run act.yaml --ref "$GITHUB_HEAD_REF"
+                  # shellcheck disable=SC2086 # Branch checked by mise check-branch.
+                  gh workflow run act.yaml --ref $GITHUB_HEAD_REF
     tabularize:
         runs-on: ubuntu-latest
         steps:
@@ -133,15 +136,20 @@ jobs:
               run: |
                   mise release
                   tabr=$(env -u TABR mise tabr)
-                  echo "TABR=$tabr" >> "$GITHUB_ENV"
+                  # shellcheck disable=SC2086 # Characters checked by mise tabr.
+                  echo TABR=$tabr >> "$GITHUB_ENV"
             - run: mise build
             - env:
                   ENVI: ${{ github.head_ref || github.ref_name }}
-              run: mise deploy "$ENVI"
+              run: |
+                  ENVI=$(mise envi)
+                  # shellcheck disable=SC2086 # Characters checked by mise envi.
+                  mise deploy $ENVI
             - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
               run: |
                   expected=$(git ls-remote --refs origin refs/heads/prod | cut -f 1)
-                  git push "--force-with-lease=refs/heads/prod:$expected" origin HEAD:prod
+                  # shellcheck disable=SC2086 # git ls-remote supplies a SHA or an empty value.
+                  git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod
 
 on: # yamllint disable-line rule:truthy
     pull_request:
