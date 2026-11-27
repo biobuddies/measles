@@ -243,8 +243,7 @@ def test_new_repository_not_django(
         ),
     }
     assert (
-        'git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod'
-        in steps[6]['run']
+        'git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod' in steps[6]['run']
     )
 
 
@@ -353,8 +352,7 @@ def test_new_repository_publishes_to_pypi(
         ),
     }
     assert (
-        'git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod'
-        in steps[6]['run']
+        'git push --force-with-lease=refs/heads/prod:$expected origin HEAD:prod' in steps[6]['run']
     )
 
     assert_mise = load_toml(tmp_path / '.config' / 'mise.toml')

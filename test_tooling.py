@@ -138,7 +138,7 @@ def test_tabr(git_describe: str, tabr: str):
                 'bash',
                 '-c',
                 tabr_with_local_flan(**{
-                    'git describe --all --dirty --exact-match': f'echo {git_describe}',
+                    'git describe --all --dirty --exact-match': f'echo {git_describe}'
                 }),
             ],
             env={},
@@ -184,13 +184,7 @@ def test_checkout(tmp_path: Path):
         'HOME': str(tmp_path / 'home dir'),
         'PATH': f'{tmp_path}:{environ["PATH"]}',
     }
-    command = [
-        sys.executable,
-        '-c',
-        checkout,
-        'org/extra@v2026.40.3',
-        'measles',
-    ]
+    command = [sys.executable, '-c', checkout, 'org/extra@v2026.40.3', 'measles']
 
     check_call(command, cwd=work, env=environment)
     assert (work.parent / 'required' / 'version').read_text() == 'main'
