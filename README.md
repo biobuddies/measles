@@ -77,18 +77,18 @@ the workflow, the next render drops that branch.
 
 ```mermaid
 flowchart TD
-    Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check["check: `mise pre-commit-all` (including `prettier`)"]
-    Context --> Test["test: `mise test`"]
+    Context[" `mise set-environment` ($ENVI, $GIHA, $TABR)"] --> Check[" `mise pre-commit-all` (check) including `prettier`"]
+    Context --> Test[" `mise test`"]
     Check -- "Generated diff" --> Retry["Commit, retry, push, dispatch"]
     Retry --> Context
     Check -- Fail --> Stop["Stop"]
     Test -- Fail --> Stop
-    Check -- "Clean pass" --> BuildDeploy["build-deploy"]
+    Check -- "Clean pass" --> BuildDeploy["Check and test pass"]
     Test -- Pass --> BuildDeploy
-    BuildDeploy -- "Push to main" --> Release["build-deploy: `mise release` (refresh $TABR)"]
-    BuildDeploy -- Otherwise --> Build["build-deploy: `mise build`"]
+    BuildDeploy -- "Push to main" --> Release[" `mise release` (build-deploy), refresh $TABR"]
+    BuildDeploy -- Otherwise --> Build[" `mise build` (build-deploy)"]
     Release --> Build
-    Build --> Deploy["build-deploy: `mise deploy BRANCH` (PR branch or event ref)"]
+    Build --> Deploy[" `mise deploy BRANCH` (build-deploy), PR branch or event ref"]
     Deploy -- "Terraform PR" --> Plan[" `mise tplan main` (PR comment)"]
     Plan --> Apply[" `mise tapply BRANCH`"]
     Deploy -- "Other Terraform runs" --> Apply
