@@ -78,7 +78,7 @@ jobs:
                   branch=refs/heads/$GITHUB_HEAD_REF
                   # shellcheck disable=SC2086 # Branch checked above. ORIGINAL_HEAD is a GitHub SHA.
                   git push --force-with-lease=$branch:$ORIGINAL_HEAD origin HEAD:$branch
-                  # PR runs from GITHUB_TOKEN pushes require approval.
+                  # A PR run from a GITHUB_TOKEN push would require approval.
                   # shellcheck disable=SC2086 # Branch checked by mise check-branch.
                   gh workflow run act.yaml --ref $GITHUB_HEAD_REF
     tabularize:
