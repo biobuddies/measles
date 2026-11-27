@@ -47,26 +47,20 @@ jobs:
                       && github.event.pull_request.head.repo.full_name == github.repository
                       && github.head_ref != github.event.repository.default_branch }}
               run: |
-                  if [[ $AUTO_COMMIT != true ]]; then
-                      mise pre-commit-all
-                      exit
+                  if [[ $AUTO_COMMIT == true ]]; then
+                      # Let pre-commit-all finish after generating a diff.
+                      export ENVI=local
                   fi
 
-                  status=0
-                  mise pre-commit-all || status=$?
-                  if git diff --quiet HEAD --; then
-                      exit $status
+                  mise pre-commit-all
+                  if [[ $AUTO_COMMIT != true ]] || git diff --quiet HEAD --; then
+                      exit 0
                   fi
 
                   git add --update
                   git -c user.name='github-actions[bot]' \
                       -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
                       commit -m Autoformat
-                  GIHA=$(env -u GIHA mise giha)
-                  TABR=$(env -u TABR mise tabr)
-                  export GIHA TABR
-                  mise pre-commit-all
-                  git diff --exit-code HEAD --
                   echo committed=true >> "$GITHUB_OUTPUT"
             - name: Push and rerun on the generated commit
               if: steps.generate.outputs.committed == 'true'
