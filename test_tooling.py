@@ -351,7 +351,14 @@ def test_fqdn(tmp_path: Path, tabr: str, domain: str, fqdn: str):
     (tmp_path / '.config' / 'mise.toml').write_text(
         f"""[tasks.tabr]\nrun = 'echo $TABR'\n\n[tasks.fqdn]\n{fqdn_task}\n"""
     )
-    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': environ['PATH'], 'TABR': tabr}
+    (tmp_path / 'requirements.txt').write_text(
+        (Path(__file__).parent / 'requirements.txt').read_text()
+    )
+    # Like tabularize after a mise cache hit: no project .venv
+    path = ':'.join(
+        entry for entry in environ['PATH'].split(':') if entry != str(Path(sys.prefix) / 'bin')
+    )
+    env = {'MISE_TRUSTED_CONFIG_PATHS': str(tmp_path), 'PATH': path, 'TABR': tabr}
     output = check_output(['mise', 'fqdn'], cwd=tmp_path, env=env).decode().strip()
     assert output == fqdn
 
